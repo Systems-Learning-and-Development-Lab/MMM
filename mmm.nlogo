@@ -1,12 +1,12 @@
-extensions [send-to fetch import-a table]
+extensions [send-to fetch import-a table]; profiler]
 
 globals [
-  tick-count ;; count how many turns this model has executed ("go" procedure invoked)
-  current-background-color ;; gets updated when user clicks "paint-world" button
-  wall-collision-count ;; count wall collisions for each population.
-  gravity-acceleration-x   ;; acceleration of gravity on x axis
-  tick-advance-amount                 ;; the amount by which ticks advance each turn
-  maxballs                       ;; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
+  tick-count ; count how many turns this model has executed ("go" procedure invoked)
+  current-background-color ; gets updated when user clicks "paint-world" button
+  wall-collision-count ; count wall collisions for each population.
+  gravity-acceleration-x   ; acceleration of gravity on x axis
+  tick-advance-amount                 ; the amount by which ticks advance each turn
+  maxballs                       ; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
   deltaSpeed    ;  value to increase or decrease speed
   max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
   lookAhead  ; distance to check ahead if near wall
@@ -16,9 +16,13 @@ globals [
   eps-collision  ; how deep the intersection of balls can be to be considered collision
   balls-by-population ; for fast access of balls belonging to certain population
   ball-count-in-populations
-  amount-of-populations-in-nettango ; how many blocks spaces in nettango for configuring populations
+  amount-of-block-spaces ; how many blocks spaces in nettango for configuring populations
   ball-shape-update-procedure-lookup ; which procedure to run to update shape of turtle, depends on shape name
   run-me-if-i-throw-error-then-nettango-has-recompiled ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
+  animation-procedure-lookup-by-name ; table that holds anonymous procedures that runs the animation, keys are string name of animation
+  prev-global-variable-values
+  global-variable-changed-lookup ; which procedure to run incase a specific global property has been changed.
+  last-tick-count-display-was-updated
 
   ;==== ast ====
   ast-by-population
@@ -29,21 +33,21 @@ globals [
 
   ;==== counters ====
   counter-width
-  counters-information-gfx-overlay ;; breed that references 2 gfx-overlay turtles that display information for counter
-  ball-count-in-counters ;; table that keeps track of ball count in all counters
+  counters-information-gfx-overlay ; breed that references 2 gfx-overlay turtles that display information for counter
+  ball-count-in-counters ; table that keeps track of ball count in all counters
 
   ;==== population properties ====
-  ball-population-properties ;; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
-  prev-ball-population-properties ;; previous values of properties. used for checking if value has changed.
-  property-change-procedure-lookup ;; which procedure to run incase a specific property has been changed.
+  ball-population-properties ; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
+  prev-ball-population-properties ; previous values of properties. used for checking if value has changed.
+  property-change-procedure-lookup ; which procedure to run incase a specific property has been changed.
   default-colors-for-ball-populations
-  population-to-set-properties-for-in-ui ;; which population is selected in the ball pallet in ui
-  current-population-properties-are-being-set-for-in-nettango ;; keeps track of which population we are setting properties for in nettango
-  nettango-what-ball-meets-in-if-ball-meets-block ;; used to keep track for which entity (ball meets) the interaction block is defined for
+  population-to-set-properties-for-in-ui ; which population is selected in the ball pallet in ui
+  current-population-properties-are-being-set-for-in-nettango ; keeps track of which population we are setting properties for in nettango
+  nettango-what-ball-meets-in-if-ball-meets-block ; used to keep track for which entity (ball meets) the interaction block is defined for
 
   ;==== log =====
-  log-history ;; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
-  log-picture-count ;; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
+  log-history ; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
+  log-picture-count ; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
   log-filename  ; will hold filename
   log-filename-photo ; will hold photo file name
   prev-command-name ; will hold the prev command printedin log file (to avoid double logging)
@@ -56,32 +60,33 @@ globals [
   LJsigma ; Lennard Jones constants
 
   ;======= brush ===========
-  brush-shape                           ;; square or circle
-  brush-type                            ;; what is brush drawing?
-  center-patch-of-drawn-shape           ;; keeps track of patch brush first clicked on when shape was first drawn.
-  patches-affected-by-drawn-shape       ;; patches that would be drawn on if user were to draw shape right now
-  gfx-displaying-patches-affected-by-drawn-shape    ;; turtles that only serve to display boundaries of shape currently being configured
-  mouse-xy-when-brush-was-pressed-down  ;; x,y coordinates when brush was first clicked
-  shape-drawn-by-brush                  ;; circle,rectangle,line,square
-  -brush-border-outline                 ;; gfx turtle displaying which patches will get drawn onby brush
-  -brush-cursor                         ;; gfx turtle displaying brush cursor
-  brush-style                           ;; is brush drawing free-form or a shape
-  brush-type-icon                       ;; icon top right of model displaying what brush is drawing
-  brush-draw-erase-mode-icon            ;; icon top right of model displaying if brush is set to draw, erase, or configuring shape
+  brush-shape                           ; square or circle
+  brush-type                            ; what is brush drawing?
+  center-patch-of-drawn-shape           ; keeps track of patch brush first clicked on when shape was first drawn.
+  patches-affected-by-drawn-shape       ; patches that would be drawn on if user were to draw shape right now
+  gfx-displaying-patches-affected-by-drawn-shape    ; turtles that only serve to display boundaries of shape currently being configured
+  mouse-xy-when-brush-was-pressed-down  ; x,y coordinates when brush was first clicked
+  shape-drawn-by-brush                  ; circle,rectangle,line,square
+  -brush-border-outline                 ; gfx turtle displaying which patches will get drawn onby brush
+  -brush-cursor                         ; gfx turtle displaying brush cursor
+  brush-style                           ; is brush drawing free-form or a shape
+  brush-type-icon                       ; icon top right of model displaying what brush is drawing
+  brush-draw-erase-mode-icon            ; icon top right of model displaying if brush is set to draw, erase, or configuring shape
   brush-icon-size
   brush-icon-transparency-normalized
-  brush-in-draw-mode                    ;; true if brush is drawing, false if erasing
+  brush-in-draw-mode                    ; true if brush is drawing, false if erasing
   mouse-down?-when-brush-was-last-activated
   mousexy-when-brush-was-last-activated
   current-mousexy
   current-mouse-down?
   current-mouse-inside?
-  patches-drawn-on-since-brush-was-held-down    ;; keeps track if you do not want to draw twice on the same patch since brush was pressed down.
-  counter-number-drawn-by-brush                 ;; counter number currently being drawn by brush
-  first-patch-brush-configured-field-on
-  brush-activated-after-model-was-advanced      ;; to know if display should be updated because model isnt running which means display isn't updated in "go" procedure
-  click-count-when-radio-buttons-were-first-clicked ;; used for radio buttons for brush. keeps track of what order brush buttons were clicked so the right button is unpressed
-  brush-radio-buttons-click-count ;; increased when one of the brush buttons is clicked, used to keep track of which button was pressed last
+  patches-drawn-on-since-brush-was-held-down    ; keeps track if you do not want to draw twice on the same patch since brush was pressed down.
+  counter-number-drawn-by-brush                 ; counter number currently being drawn by brush
+  last-patch-brush-configured-field-on
+  patches-field-drawn-on
+  brush-activated-after-model-was-advanced      ; to know if display should be updated because model isnt running which means display isn't updated in "go" procedure
+  click-count-when-radio-buttons-were-first-clicked ; used for radio buttons for brush. keeps track of what order brush buttons were clicked so the right button is unpressed
+  brush-radio-buttons-click-count ; increased when one of the brush buttons is clicked, used to keep track of which button was pressed last
 
   ;======= AST VARIABLES =========
   ast-root
@@ -92,18 +97,18 @@ globals [
   id-counter
 
   ;====== DEPRECATED/ UNUSED variables ===============
-  ;heading-acceleration     ;; direction of field
-  ;avg-speed-init avg-energy-init      ;; initial averages
-  ;avg-speed avg-energy                ;; current averages
+  ;heading-acceleration     ; direction of field
+  ;avg-speed-init avg-energy-init      ; initial averages
+  ;avg-speed avg-energy                ; current averages
   ;particle-mass
   ;temperature
   ;volume
   ;pressure
   ;outside-energy
-  ;lost-balls                     ;; particles that have escaped the pull of gravity (reached the top of the World & View)
-                                      ;; these particles are removed from the simulation
+  ;lost-balls                     ; particles that have escaped the pull of gravity (reached the top of the World & View)
+                                      ; these particles are removed from the simulation
   ;percent-lost-balls
-  ;max-tick-advance-amount             ;; the largest a tick length is allowed to be
+  ;max-tick-advance-amount             ; the largest a tick length is allowed to be
   ;obstacles
   ;field-width
 ;  max-field-spread
@@ -134,62 +139,61 @@ flashes-own [birthday]       ; flashes only last for a short period and then dis
                              ; their birthday lets us keep track of when they were created and
                              ; when we need to remove them.
 animations-own [
-  birthday                   ;
+  birthday                   ; tick count animation was created
   animate                    ; anonymous procedure to animate animation, use 'ask -animation [run animate]'
   data                       ; data can be anything the animation needs. table variable
+  -name                      ; temporarily used because of nettango bug
 ]
 
 balls-own
 [
-  ;table
-  population-num             ;; Which population the ball belongs to
-;  leader                     ;; for stick togather slider
-  speed mass energy          ;; particle info
-;  wall-hits                  ;; # of wall hits during this clock cycle
-;  momentum-difference        ;; used to calculate pressure from wall hits
-;  momentum-instant           ;; used to calculate pressure
-  last-collision             ;; keeps track of last particle this particle collided with
-;  stuck-on-wall?             ;; pays attention if the balls is stuck to exclude him from movement
-;  turn-amount                         ;; This is used to make all of the nodes in a cluster turn by
-                                      ;; the same number of degrees.  Each leader chooses a random
-                                      ;; amount, then everyone else uses the amount from their leader.
-;  stick-to-wall?
-  on-counter
-  tick-count-move-enabled     ;; tick count when move was enabled to move if in blocks set to "Move X Steps"
-  last-tick-wall-collision    ;; keep track last tick wall collision occured to reduce calculation when changing speed if collision occured
-  force-x-sum                     ;; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
-  force-y-sum                     ;; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
+  population-num             ; Which population the ball belongs to
+  speed mass energy          ; particle info
+  tick-count-move-enabled     ; tick count when move was enabled to move if in blocks set to "Move X Steps"
+  last-tick-wall-collision-occured    ; keep track last tick wall collision occured to reduce calculation when changing speed if collision occured
   balls-collided-with
+  force-x-sum                     ; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
+  force-y-sum                     ; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
+;  last-collision             ; keeps track of last particle this particle collided with
+;  table
+;  leader                     ; for stick togather slider
+;  wall-hits                  ; # of wall hits during this clock cycle
+;  momentum-difference        ; used to calculate pressure from wall hits
+;  momentum-instant           ; used to calculate pressure
+;  stuck-on-wall?             ; pays attention if the balls is stuck to exclude him from movement
+;  turn-amount                ; This is used to make all of the nodes in a cluster turn by
+                              ; the same number of degrees.  Each leader chooses a random
+                              ; amount, then everyone else uses the amount from their leader.
+;  stick-to-wall?
 ]
 
-erasers-own [ pressure? ]    ;; new
+erasers-own [ pressure? ]    ;new
 
 patches-own
 [
-  field-x             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
-  field-y             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
-  accum-x             ;;  accumulates vector  field_x for gobal field computation
-  accum-y             ;;  accumulates vector  field_y for gobal field computation
-  accum-w             ;;  accumulates weights  for gobal field computation
-  field-number        ;; holds the component number of the field (was "cluster")
-;  cluster             ;; GIGI  - DO WE NEED THIS NOW? holds the label (patch) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
-;  cluster-number      ;; holds the label (number) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
-  isPainted           ;; is true on patches that were drawn with draw-field
-  has-wall            ;; true if patch has wall
+  field-x             ; vector  field_x and field_y define the direction and strength of the electric field within the patch
+  field-y             ; vector  field_x and field_y define the direction and strength of the electric field within the patch
+  accum-x             ; accumulates vector  field_x for gobal field computation
+  accum-y             ; accumulates vector  field_y for gobal field computation
+  accum-w             ; accumulates weights  for gobal field computation
+  field-number        ; holds the component number of the field (was "cluster")
+  has-wall            ; true if patch has wall
+;  cluster             ; GIGI  - DO WE NEED THIS NOW? holds the label (patch) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
+;  cluster-number      ; holds the label (number) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
 ]
 
 counters-own
 [
-  counter-number      ;; holds the counter number
+  counter-number      ; holds the counter number
 ]
 
-to initialize-properties-for-amount-of-ball-populations [amount]
-  foreach (range 1 (amount + 1)) [population -> initialize-properties-for-ball-population-if-they-have-not-been-set population]
+to initialize-properties-for-populations [populations]
+  foreach populations [population -> initialize-ball-population-properties population]
 end
 
 to crt-pop
   ; only used in desktop version, since we dont have blocks to define population properties.
-  initialize-properties-for-amount-of-ball-populations 2
+  initialize-properties-for-populations [1 2]
   let pop-properties table:make
   table:put pop-properties 1 table:from-list
     [
@@ -201,8 +205,9 @@ to crt-pop
       ["other-ball-heading" "collide"]
       ["other-ball-speed" "collide"]
       ["gravity" 0]
-      ["electric-field" 100]
+      ["electric-field" 40]
       ["move" true]
+      ["color" red]
       ["name" "wow"]
     ]
   table:put pop-properties 2 table:from-list
@@ -217,6 +222,7 @@ to crt-pop
       ["gravity" 0]
       ["electric-field" 0]
       ["move" true]
+      ["color" blue]
     ]
   foreach table:keys pop-properties [population ->
    let properties table:get pop-properties population
@@ -225,19 +231,29 @@ to crt-pop
       set-prop population property value
    ]
   ]
-  set prev-ball-population-properties ball-population-properties
 end
 
-to count-amount-of-populations-in-nettango
-  if amount-of-populations-in-nettango = 0 [
-    let -population-count 0
-    carefully [
-      loop [
-        run (word "let x [ -> configure-population-" (-population-count + 1) " ]")
-        set -population-count -population-count + 1 ]
-    ] []
-    set amount-of-populations-in-nettango -population-count
-  ]
+to throw-error-if-population-block-space-does-not-exist [population]
+  run (word "let x [ -> configure-population-" population " ]")
+end
+
+to-report count-population-block-spaces
+  let block-space-number 1
+  carefully [
+    loop [
+      throw-error-if-population-block-space-does-not-exist block-space-number
+      set block-space-number block-space-number + 1
+    ]
+  ] []
+  report (block-space-number - 1)
+end
+
+to-report block-spaces-already-counted?
+  report amount-of-block-spaces > 0
+end
+
+to-report amount-of-population-block-spaces
+  report ifelse-value block-spaces-already-counted? [amount-of-block-spaces] [count-population-block-spaces]
 end
 
 to initialize-world
@@ -257,7 +273,8 @@ to initialize-global-values
   set default-colors-for-ball-populations [red blue lime orange violet yellow cyan pink brown green sky magenta turquoise gray ]
   set counters-information-gfx-overlay table:make
   set ball-count-in-counters table:make
-  set first-patch-brush-configured-field-on nobody
+  set last-patch-brush-configured-field-on nobody
+  set patches-field-drawn-on []
   set brush-activated-after-model-was-advanced false
   set click-count-when-radio-buttons-were-first-clicked table:make
   set brush-radio-buttons-click-count 0
@@ -268,7 +285,7 @@ to initialize-global-values
   set balls-by-population table:make
   set maxballs 200
   set deltaSpeed 0.5;
-  set max-speed 40
+  set max-speed 20
   set lookAhead 0.6
   set field-color 87
   set field-count 0
@@ -287,33 +304,69 @@ to initialize-global-values
   set-default-shape halos "thin ring"
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
   initialize-ast
+  set prev-global-variable-values global-variable-values
   initialize-ball-shape-update-procedure-lookup
   initialize-property-change-procedure-lookup
-  ;count-amount-of-populations-in-nettango
+  initialize-global-variable-changed-lookup
   ;set max-field-spread 20 ; spread the field only within a radius  (max world is -26 <->  +26
   ;set counter-time-window 1000
   ;set counter-delta-time 0
 end
 
-to initialize-all-lookup-tables
+to initialize-all-anonymous-procedures
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
   initialize-ast-run-lookup-table
   initialize-ast-parse-lookup-table
   initialize-property-change-procedure-lookup
+  initialize-global-variable-changed-lookup
   initialize-ball-shape-update-procedure-lookup
+  initialize-animation-anonymous-procedures
+end
+
+to initialize-animation-anonymous-procedures
+  initialize-animation-procedure-lookup-by-name
+  ask animations [initialize-animate-anonymous-procedure]
+end
+
+to-report animation-by-name [name]
+  report table:get animation-procedure-lookup-by-name name
 end
 
 to initialize-all-lookup-tables-if-nettango-has-recompiled
-  ; temporary fix to solve a nettango bug, after a block is moved and nettango
-  ; is recompiled then error "Importing and then running lambdas is not supported!" is thrown
-  ; if an anonymous procedure that was stored in a variable before nettango was recompiled
-  ; is ran, so all lookup tables need to be initialized.
+  ; temporary fix to solve a nettango bug, after nettango is recompiled
+  ; then error "Importing and then running lambdas is not supported!" is thrown.
+  ; It happens if an anonymous procedure that was stored in a variable before nettango
+  ; was recompiled is ran, so all anonymous procedures need to be initialized.
   carefully [
     run run-me-if-i-throw-error-then-nettango-has-recompiled ]
   [
-    print "nettango has recompiled"
-    initialize-all-lookup-tables
+    initialize-all-anonymous-procedures
   ]
+end
+
+to initialize-animation-procedure-lookup-by-name
+  ; temporary procedure due to nettango bug
+  set animation-procedure-lookup-by-name table:from-list (list
+    (list "mark" [[] -> remove-animation-if-past-lifespan])
+    (list "rotate" [[] -> flash-animation])
+    (list "flash" [[] -> rotate-animation])
+    (list "inflate" [[] -> increase-animation-size])
+    (list "draw" [[] -> remove-animation-if-past-lifespan])
+  )
+end
+
+to-report global-variable-values
+  report table:from-list (list
+    (list "show-name" show-name)
+    (list "color-speed" color-speed)
+  )
+end
+
+to initialize-global-variable-changed-lookup
+  set global-variable-changed-lookup table:from-list (list
+    (list "show-name" [[new-value] -> ifelse new-value [show-balls-labels] [hide-balls-labels]])
+    (list "color-speed" [[new-value] -> if not new-value [ask balls [update-ball-color]]])
+  )
 end
 
 to initialize-property-change-procedure-lookup
@@ -321,6 +374,7 @@ to initialize-property-change-procedure-lookup
     (list "shape" [[population] -> update-shapes-of-population population])
     (list "size" [[population] -> update-size-of-population population])
     (list "color" [[population] -> update-color-of-population population])
+    (list "secondary-colors" [[population] -> update-color-of-population population])
   )
 end
 
@@ -345,14 +399,6 @@ end
 
 to-report population-colors [population]
   report (sentence pprop population "color" pprop population "secondary-colors")
-end
-
-to-report prev-population-colors [population]
-  report (sentence prev-pprop population "color" prev-pprop population "secondary-colors")
-end
-
-to-report population-colors-changed? [population]
-  report population-colors population != prev-population-colors population
 end
 
 to-report shape-update-procedure
@@ -505,10 +551,6 @@ to initialize-ast-parse-lookup-table
   )
 end
 
-to update-display-every [seconds]
-  every seconds [display]
-end
-
 to update-all-plots
   update-ball-population-plot
   update-ball-collisions-plot
@@ -647,20 +689,8 @@ to deselect-brush-radio-button [button]
   table:remove click-count-when-radio-buttons-were-first-clicked button
 end
 
-to #nettango#set-current-population-of-properties-being-set [population]
-  ;maybe change name to set-population-that-properties-are-being-set-for-in-nettango
-  set current-population-properties-are-being-set-for-in-nettango population
-  initialize-properties-for-ball-population-if-they-have-not-been-set population
-end
-
 to-report population-properties-initialized? [population]
   report table:has-key? ball-population-properties population
-end
-
-to initialize-properties-for-ball-population-if-they-have-not-been-set [population]
-  if not population-properties-initialized? population [
-    initialize-ball-population-properties population
-  ]
 end
 
 to initialize-properties-for-all-populations
@@ -745,14 +775,14 @@ to initialize-ball-after-creation [population -xcor -ycor]
   set tick-count-move-enabled tick-count
   set speed prop "speed"
   set mass prop "size"
-  set last-collision nobody
   setxy -xcor -ycor
   update-ball-label
   initialize-ball-heading
   reset-sum-of-forces-acting-on-balls
   update-balls-by-population self
   reset-balls-collided-with
-  ; set heading 1000    ;; temp value to change below so that only THESE new balls will get new value
+  ;set last-collision nobody
+  ;set heading 1000    ; temp value to change below so that only THESE new balls will get new value
   ;set leader self
   ;set stuck-on-wall? false
   ;set wall-hits 0
@@ -837,12 +867,19 @@ end
 
 ;==============================
 
-to paint-arrow [this-patch]
-  if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
+to-report has-neighbors-with-arrows
+  report any? neighbors with [any? arrows-here]
+end
+
+to draw-arrow-in-direction-of-electric-field
+  ask arrows-here [die]
+  ;if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
+  if not has-neighbors-with-arrows [
+    ;if not has-neighbors-with-arrows and length patches-field-drawn-on mod 4 = 0[
     sprout-arrows 1
     [
       set shape "arrow"
-      set color field-color - 4
+      set color field-color
       set size 1.0
       set heading atan field-x field-y
      ]
@@ -853,6 +890,8 @@ to fill-field
   let current-patch []  ; will hold a patch that is being processed
 
   let list-patches  sort patches with [field-number = field-count  ]   ; list of patches that were marked
+  ask (patch-set list-patches) [recolor-patch]
+  ask arrows [set color field-color - 4]
   ; fill patches in connected componnent with field-color
   while [not empty? list-patches]
   [ set current-patch first list-patches
@@ -861,9 +900,10 @@ to fill-field
     ;refactor changed "in-radius-nowrap" to "in-radius" since it is not supported in netlogo web
     ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
     [    ask patches in-radius 1 with [(not has-wall) and (not has-field)]
-         [  set pcolor field-color
+         [
             set field-number field-count
             set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
+            recolor-patch
          ] ; end ask neighbors
     ] ; end ask current-patch
   ] ; end field while
@@ -873,7 +913,7 @@ to fill-field
   let marked-patch []  ;first list-field-marked-patches
   let dist 0
 
-  let list-field-marked-patches  patches with [isPainted = TRUE]  ; list of patches that were marked as field by user
+  let list-field-marked-patches  patch-set patches-field-drawn-on ; list of patches that were marked as field by user
   ask  list-field-marked-patches
   [   set marked-patch self
       set list-field-patches  patches with [ field-number = field-count] ; all patches that were colored within same connected comp
@@ -909,7 +949,6 @@ end
 to remove-electric-field-from-patch
   ask arrows-here [die]
   set field-number 0
-  set isPainted FALSE
   set field-x  0
   set field-y  0
   set accum-x  0
@@ -948,11 +987,11 @@ end
 
 to paint-world
   set current-background-color background-color
-  paint-patches
+  recolor-all-patches
   log-command "paint-world"
 end
 
-to paint-patches
+to recolor-all-patches
   ask patches [recolor-patch]
 end
 
@@ -969,7 +1008,6 @@ to netlogo-web-advance-balls-in-world
     ]
     ask balls [
       move
-      recolor
     ]
 end
 
@@ -978,14 +1016,15 @@ to factor-forces-acting-on-ball
   reset-sum-of-forces-acting-on-balls
 end
 
+to advance-balls-in-world2
+  netlogo-web-advance-balls-in-world
+end
+
 to advance-balls-in-world
   ifelse netlogo-web? [
     netlogo-web-advance-balls-in-world ]
   [
     ask balls [
-      ; if nextpatch == wall then call perform-hit-wall
-      ; if in same patch as other ball - call  perform-meet-ball
-      ; Then move
       factor-electric-field ; add change of speed and heading due to electric field
       factor-repel-and-attract-forces
       factor-gravity;
@@ -996,7 +1035,6 @@ to advance-balls-in-world
     ]
     ask balls [
       move
-      recolor
     ]
   ]
 end
@@ -1011,7 +1049,6 @@ end
 
 to run-animations
   ask animations [run animate]
-  ;ask animations with [tick-count - birthday > lifespan] [die]
 end
 
 to-report any-moving-balls?
@@ -1020,8 +1057,19 @@ to-report any-moving-balls?
   report any-ball-moving;
 end
 
+to-report atleast-n-ticks-have-passed-since-last-display-update [n]
+  report tick-count - last-tick-count-display-was-updated >= n
+end
+
+to update-display-every-n-ticks [n]
+  if atleast-n-ticks-have-passed-since-last-display-update n [
+    update-display]
+end
+
 to update-display
-  if tick-count mod 2 = 0 [display]
+  display
+  ;no-display
+  set last-tick-count-display-was-updated tick-count
 end
 
 to advance-ticks
@@ -1074,7 +1122,6 @@ to-report is-multiple-objects [objects]
 end
 
 to apply-heading-change-if-meets-with-ball [other-balls heading-change]
-  print (word "apply heading change" other-balls)
   (ifelse
     heading-change = "no change" []
     heading-change = "collide" [change-heading-if-collides-with other-balls heading-change]
@@ -1293,6 +1340,7 @@ end
 to-report create-mark [x y -size -color -shape -lifespan]
   let mark-created nobody
   hatch-animations 1 [
+    set -name "mark"
     setxy x y
     set shape -shape
     set color add-transparency -color 0.35
@@ -1317,7 +1365,6 @@ end
 to rotate-animation
   ; Need to find a way to chain animatin procedures, such as
   ; chain-animation (list rotate-animation remove-animation-if-past-lifespan)
-  print "rotating"
   set heading heading + table:get data "angle"
   remove-animation-if-past-lifespan
 end
@@ -1340,15 +1387,6 @@ to flash-animation
   remove-animation-if-past-lifespan
 end
 
-to-report animation-effect-by-name [effect]
-  ; Should be a global variable for animation effect procedure lookup.
-  (ifelse
-    effect = "rotate" [report [[] -> rotate-animation]]
-    effect = "flash" [report [[] -> flash-animation]]
-    effect = "inflate" [report [[] -> increase-animation-size]]
-  )
-end
-
 to-report animation-data-by-name [effect -shape -color -lifespan]
   ; Should be a global variable for animation data lookup.
   (ifelse
@@ -1366,23 +1404,44 @@ to run-animate-block [node population objects]
   let parameters node-parameters node
   let -shape table:get parameters "shape"
   let -lifespan table:get parameters "lifespan"
-  let -color add-transparency table:get parameters "color" 0.35
   let -effect table:get parameters "effect"
   let -size table:get parameters "size"
+  let -color add-transparency table:get parameters "color" 0.35
   let -data animation-data-by-name -effect -shape -color -lifespan
   table:put -data "lifespan" -lifespan
-  hatch-animations 1 [
-    set shape -shape
-    set color -color
-    set size -size
-    set label ""
-    set label-color white
-    set heading 0
-    show-turtle
-    set birthday tick-count
-    set data -data
-    set animate animation-effect-by-name -effect
+  let -animate animation-by-name -name
+  hatch-animation -effect -shape -color -size -data -animate
+end
+
+to hatch-animation [name -shape -color -size -data -animate]
+  hatch-animations 1 [initialize-animation name -shape -color -size -data -animate]
+end
+
+to-report create-animation [name -shape -color -size -data -animate]
+  let created-animation nobody
+  create-animations 1 [
+    initialize-animation name -shape -color -size -data -animate
+    set created-animation self
   ]
+  report created-animation
+end
+
+to initialize-animate-anonymous-procedure
+  set animate animation-by-name -name
+end
+
+to initialize-animation [name -shape -color -size -data -animate]
+  set -name name
+  set shape -shape
+  set color -color
+  set size -size
+  set label ""
+  set label-color white
+  set heading 0
+  show-turtle
+  set birthday tick-count
+  set data -data
+  set animate animation-by-name name
 end
 
 to parse-animate-block [node population objects]
@@ -1396,6 +1455,7 @@ to run-draw-block [node population objects]
   let -color table:get parameters "color"
   let -size table:get parameters "size"
   hatch-animations 1 [
+    set -name "draw"
     set shape -shape
     set color add-transparency -color 0.35
     set size -size
@@ -1475,9 +1535,9 @@ to run-disappear-block [node population objects]
   let population-of-ball-being-removed user-population-input-to-population-number user-defined-population
   let removal-candidates (turtle-set objects) with [population-num = population-of-ball-being-removed]
   ifelse any? removal-candidates [
-    remove-ball one-of removal-candidates ]
+    ask one-of removal-candidates [remove-ball]]
   [
-    if population-num = population-of-ball-being-removed [remove-ball self]
+    if population-num = population-of-ball-being-removed [remove-ball]
   ]
 end
 
@@ -1512,7 +1572,6 @@ to parse-at-least-x-ticks-block [node population objects]
 end
 
 to run-at-least-x-ticks-block [node population objects]
-  let name node-name node
   let parameters node-parameters node
   let amount table:get parameters "amount"
   table:put node who last-n-elements (sentence (table:get-or-default node who []) tick-count) amount
@@ -1576,8 +1635,8 @@ to parse-kill-balls-that-meet-block [node population objects]
 end
 
 to run-kill-balls-that-meet-block [node population objects]
-  ifelse is-multiple-objects objects [foreach [self] of turtle-set objects remove-ball] [remove-ball one-of turtle-set objects]
-  remove-ball self
+  ifelse is-multiple-objects objects [foreach [self] of turtle-set objects remove-ball] [ask one-of turtle-set objects [remove-ball]]
+  remove-ball
 end
 
 to parse-if-ball-meets-block [node population]
@@ -1848,6 +1907,25 @@ to-report property-changed-procedure [property]
   report table:get-or-default property-change-procedure-lookup property [[population] -> ]
 end
 
+to-report global-variable-changed-procedure [global-variable]
+  report table:get-or-default global-variable-changed-lookup global-variable [[new-value] -> ]
+end
+
+to-report global-variables-that-changed
+  let current global-variable-values
+  let prev prev-global-variable-values
+  let changed-values table:from-list map [global-variable -> (list global-variable table:get current global-variable)] (unequal-keys prev current)
+  set prev-global-variable-values current
+  report changed-values
+end
+
+to notify-of-global-variable-changes
+  let changed-global-variables global-variables-that-changed
+  foreach table:keys changed-global-variables [global-variable ->
+    let new-value table:get changed-global-variables global-variable
+    (run global-variable-changed-procedure global-variable new-value) ]
+end
+
 to notify-properties-that-changed-for-population [population]
   foreach properties-that-changed-for-population population [
     changed-property -> notify-property-changed-for-population population changed-property ]
@@ -1913,22 +1991,22 @@ end
 to go
   time-run
   log-go-procedure
+  ;update-ball-population-properties-defined-in-nettango-blocks
   if netlogo-web? [
     update-ball-population-properties-defined-in-nettango-blocks ]
   ifelse any-moving-balls? [
     every (tick-advance-amount) [
-      ;update-electricity
       advance-balls-in-world
       remove-flashes-past-their-lifespan
       run-animations
       advance-ticks
       update-all-plots
-      update-display
+      update-display-every-n-ticks 2
     ]
   ][
     re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
     on-end-of-turn
-    stop  ;; unselect "play" button
+    stop  ; unselect "play" button
   ]
   on-end-of-turn
 end
@@ -1936,38 +2014,48 @@ end
 to on-end-of-turn
   set brush-activated-after-model-was-advanced false
   set prev-ball-population-properties copy-table ball-population-properties
-  update-ball-labels
+  notify-of-global-variable-changes
+  check-if-should-color-balls-relative-to-population-speed
+end
+
+to-report prev-global-variable [name]
+  report table:get prev-global-variable-values name
+end
+
+to check-if-should-color-balls-relative-to-population-speed
+  if color-speed [color-balls-relative-to-population-speed]
+end
+
+to show-balls-labels
+  ask balls [show-ball-label]
+end
+
+to hide-balls-labels
+  ask balls [hide-ball-label]
 end
 
 to update-ball-labels
   ifelse show-name [
-    ask balls [show-ball-label]]
+    show-balls-labels ]
   [
-    ask balls [hide-ball-label]
+    hide-balls-labels
   ]
 end
 
 to color-population-by-speed [population]
-  ;refactor this procedure very slow, n^2 complexity
-  let lower-limit 0
-  let upper-limit 0
-
-  let values [speed] of balls with [population-num = population]
-  if (length values > 1)
-  [  set lower-limit mean values - 3 * standard-deviation values
-     set upper-limit mean values + 3 * standard-deviation values
-     ask balls with [population-num = 1]
-     [   set color scale-color color speed (lower-limit - 1) (upper-limit + 1)
-     ]
+  let -balls balls-of population
+  if (count -balls > 1) [
+    let speed-of-balls [speed] of -balls
+    let average-speed mean speed-of-balls
+    let speed-standard-deviation standard-deviation speed-of-balls
+    let lower-limit average-speed - 3 * speed-standard-deviation
+    let upper-limit average-speed + 3 * speed-standard-deviation
+    ask -balls [set color scale-color color speed (lower-limit - 1) (upper-limit + 1)]
   ]
 end
 
-to recolor  ;; particle procedure
-  ifelse Color-Speed [
-    foreach population-numbers [population -> color-population-by-speed population] ]
-  [
-    set color [prop "color"] of self
-  ]
+to color-balls-relative-to-population-speed
+  foreach population-numbers [population -> color-population-by-speed population]
 end
 
 to show-ball-label
@@ -2001,6 +2089,7 @@ to create-flash-here [-flash-color]
   sprout-flashes 1 [
     set color -flash-color
     set birthday tick-count
+    set heading 0
   ]
 end
 
@@ -2042,6 +2131,21 @@ to-report move-distance
   report (speed * tick-advance-amount)
 end
 
+to-report edge-patches-with-electric-field-like-mine
+  report edge-patches with [field-number = [field-number] of myself]
+end
+
+to-report edge-patches
+  report (patch-set
+    n-values (world-width) [x -> (patch-set (patch (min-pxcor + x) max-pycor) (patch (min-pxcor + x) min-pycor))]
+    n-values (world-height) [y -> (patch-set (patch max-pxcor (min-pycor + y)) (patch min-pxcor (min-pycor + y)))]
+    )
+end
+
+to-report ball-is-on-electric-field
+  report has-electric-field
+end
+
 ; ball procedure
 to move
   if is-ball-moving?
@@ -2050,13 +2154,13 @@ to move
     let pahead patch-ahead move-distance
     ifelse (pahead = nobody)
     [ ; when ball leaves world - instead of die:
-      ; if it is inside a efield then choose random location on an edge patch of that field and move ball to that new location.
+      ; if it is inside a field then choose random location on an edge patch of that field and move ball to that new location.
       ; ensure that ball returns to same field-number
       ; if it is not inside a field then it returns cyclically.
-      ifelse field-exists
+      ifelse ball-is-on-electric-field
       [
-        let patches-on-edge patches with [(field-number = [field-number] of myself) and (pxcor = max-pxcor  or pxcor = min-pxcor  or pycor = max-pycor  or pycor = min-pycor) ]
-        ifelse  (any? patches-on-edge) ; there is atleast 1 patch marked at edge of world
+        let patches-on-edge edge-patches-with-electric-field-like-mine
+        ifelse  (any? patches-on-edge)
         [
           let new-patch one-of patches-on-edge   ;
           set xcor  [pxcor] of new-patch
@@ -2077,7 +2181,7 @@ to move
     ]
     ; ball did not leave the world - move it and deal with collision with other ball:
     [
-      if pahead != patch-here [ set last-collision nobody ]
+      ;if pahead != patch-here [ set last-collision nobody ]
       jump move-distance
     ]
   on-ball-moved
@@ -2208,7 +2312,7 @@ to change-heading-if-collides-with-wall [heading-change]
 end
 
 to-report has-collided-with-wall
-  report (last-tick-wall-collision = ticks) or (wall-collision-direction-and-xy != false)
+  report (last-tick-wall-collision-occured = ticks) or (wall-collision-direction-and-xy != false)
 end
 
 to change-speed-if-collides-with-wall [speed-change]
@@ -2267,7 +2371,7 @@ end
 
 to on-wall-hit [xpos ypos]
   flash-wall-at xpos ypos
-  set last-tick-wall-collision ticks
+  set last-tick-wall-collision-occured ticks
 end
 
 to bounce [direction]
@@ -2277,7 +2381,7 @@ to bounce [direction]
   if ((direction = "right") or (direction = "left")) [set heading (-1 * heading)]  ; hit a horizontal wall
   if ((direction = "up")    or (direction = "down")) [set heading (180 - heading)] ; hit vertical wall
   if (direction = "corner")                          [set heading (180 + heading)] ; hit wall at a corner
-  set last-collision nobody
+  ;set last-collision nobody
 end
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2307,8 +2411,8 @@ end
 to change-heading-if-collides-with [other-balls heading-change]
   ask balls-colliding-from other-balls [
     if should-perform-collision-with myself [
-      ask myself [perform-collision-heading-change myself heading-change set last-collision  myself remember-collided-with myself]
-      set last-collision myself
+      ask myself [perform-collision-heading-change myself heading-change  remember-collided-with myself ] ;set last-collision  myself]
+      ;set last-collision myself
       remember-collided-with myself
     ]
   ]
@@ -2363,9 +2467,9 @@ to-report collision-candidates-from [ball-set]
 end
 
 to-report in-radius-candidates [radius]
-  let -length abs ((round (xcor - (size / 2))) - (round (xcor + (size / 2) ))) + 1
-  let top-left-xcor (round (xcor - (size / 2)))
-  let top-left-ycor (round (ycor + (size / 2)))
+  let -length abs ((round (xcor - (radius / 2))) - (round (xcor + (radius / 2) ))) + 1
+  let top-left-xcor (round (xcor - (radius / 2)))
+  let top-left-ycor (round (ycor + (radius / 2)))
   report other (turtle-set n-values (-length ^ 2) [i ->
     ifelse-value abs (top-left-xcor + i mod -length) < max-pxcor and abs (top-left-ycor - int(i / -length)) < max-pycor
                  [[balls-here] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
@@ -2390,64 +2494,68 @@ to check-for-collision-with-population [population]
   ask collision-candidates-of population [
     if ball-collides-with myself [
       if should-perform-collision-with myself [
-        ask myself [perform-collision myself set last-collision  myself]
-        set last-collision myself
+        ask myself [perform-collision myself]; set last-collision  myself]
+        ;set last-collision myself
       ]
     ]
   ]
 end
 
 to check-for-ball-collision
-  ;; check if 2 balls collide. If so Change speed and heading of the 2 balls
+  ; check if 2 balls collide. If so Change speed and heading of the 2 balls
 
-  ;; Here we impose a rule that collisions only take place when there
-  ;; are exactly two balls per patch.  We do this because when the
-  ;; student introduces new balls from the side, we want them to
-  ;; form a uniform wavefront.
+  ; Here we impose a rule that collisions only take place when there
+  ; are exactly two balls per patch.  We do this because when the
+  ; student introduces new balls from the side, we want them to
+  ; form a uniform wavefront.
   ;;
-  ;; Why do we want a uniform wavefront?  Because it is actually more
-  ;; realistic.  (And also because the curriculum uses the uniform
-  ;; wavefront to help teach the relationship between ball collisions,
-  ;; wall hits, and pressure.)
+  ; Why do we want a uniform wavefront?  Because it is actually more
+  ; realistic.  (And also because the curriculum uses the uniform
+  ; wavefront to help teach the relationship between ball collisions,
+  ; wall hits, and pressure.)
   ;;
-  ;; Why is it realistic to assume a uniform wavefront?  Because in reality,
-  ;; whether a collision takes place would depend on the actual headings
-  ;; of the balls, not merely on their proximity.  Since the balls
-  ;; in the wavefront have identical speeds and near-identical headings,
-  ;; in reality they would not collide.  So even though the two-balls
-  ;; rule is not itself realistic, it produces a realistic result.  Also,
-  ;; unless the number of balls is extremely large, it is very rare
-  ;; for three or more balls to land on the same patch (for example,
-  ;; with 400 balls it happens less than 1% of the time).  So imposing
-  ;; this additional rule should have only a negligible effect on the
-  ;; aggregate behavior of the system.
+  ; Why is it realistic to assume a uniform wavefront?  Because in reality,
+  ; whether a collision takes place would depend on the actual headings
+  ; of the balls, not merely on their proximity.  Since the balls
+  ; in the wavefront have identical speeds and near-identical headings,
+  ; in reality they would not collide.  So even though the two-balls
+  ; rule is not itself realistic, it produces a realistic result.  Also,
+  ; unless the number of balls is extremely large, it is very rare
+  ; for three or more balls to land on the same patch (for example,
+  ; with 400 balls it happens less than 1% of the time).  So imposing
+  ; this additional rule should have only a negligible effect on the
+  ; aggregate behavior of the system.
   ;;
-  ;; Why does this rule produce a uniform wavefront?  The balls all
-  ;; start out on the same patch, which means that without the only-two
-  ;; rule, they would all start colliding with each other immediately,
-  ;; resulting in much random variation of speeds and headings.  With
-  ;; the only-two rule, they are prevented from colliding with each other
-  ;; until they have spread out a lot.  (And in fact, if you observe
-  ;; the wavefront closely, you will see that it is not completely smooth,
-  ;; because some collisions eventually do start occurring when it thins out while fanning.)
+  ; Why does this rule produce a uniform wavefront?  The balls all
+  ; start out on the same patch, which means that without the only-two
+  ; rule, they would all start colliding with each other immediately,
+  ; resulting in much random variation of speeds and headings.  With
+  ; the only-two rule, they are prevented from colliding with each other
+  ; until they have spread out a lot.  (And in fact, if you observe
+  ; the wavefront closely, you will see that it is not completely smooth,
+  ; because some collisions eventually do start occurring when it thins out while fanning.)
 
   ; Collision occurs if there is a ball in the same patch at the borders of the balls  (GIGI at this point assume a ball can collide with only 1 ball)
-    ;; the following conditions are imposed on collision candidates:
-    ;;   1. they must have a lower who number than my own, because collision
-    ;;      code is asymmetrical: it must always happen from the point of view
-    ;;      of just one ball.
-    ;;   2. they must not be the same ball that we last collided with on
-    ;;      this patch, so that we have a chance to leave the patch after we've
-    ;;      collided with someone.
+    ; the following conditions are imposed on collision candidates:
+    ;   1. they must have a lower who number than my own, because collision
+    ;      code is asymmetrical: it must always happen from the point of view
+    ;      of just one ball.
+    ;      Update: Balls now keep track with who they collided with in current tick, instead of checking for who numbers.
+    ;   2. they must not be the same ball that we last collided with on
+    ;      this patch, so that we have a chance to leave the patch after we've
+    ;      collided with someone.
 
-  ask collision-candidates [
-    if ball-collides-with myself [
+  ;ask collision-candidates [
+  ;  if ball-collides-with myself [
+  ask balls in-radius 3 with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
+  ;ask (in-radius-candidates 3) with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
       if should-perform-collision-with myself [
-        ask myself [perform-collision myself set last-collision  myself]
-        set last-collision myself
+      ask myself [perform-collision myself]; set last-collision  myself]
+        ;set last-collision myself
       ]
-    ]
   ]
+  ;  ]
+  ;]
 end
 
 to-report balls-belong-to-same-population [ball1 ball2]
@@ -2497,29 +2605,29 @@ to perform-collision [other-ball]
 end
 
 to collide-with [other-ball] ;;
-;; implements a collision with another ball.
+; implements a collision with another ball.
 ;;
-;; THIS IS THE HEART OF THE PARTICLE SIMULATION, AND YOU ARE STRONGLY ADVISED
-;; NOT TO CHANGE IT UNLESS YOU REALLY UNDERSTAND WHAT YOU'RE DOING!
+; THIS IS THE HEART OF THE PARTICLE SIMULATION, AND YOU ARE STRONGLY ADVISED
+; NOT TO CHANGE IT UNLESS YOU REALLY UNDERSTAND WHAT YOU'RE DOING!
 ;;
-;; The two balls colliding are self and other-ball, and while the
-;; collision is performed from the point of view of self, both balls are
-;; modified to reflect its effects. This is somewhat complicated, so I'll
-;; give a general outline here:
-;;   1. Do initial setup, and determine the heading between ball centers
-;;      (call it theta).
-;;   2. Convert the representation of the velocity of each ball from
-;;      speed/heading to a theta-based vector whose first component is the
-;;      ball's speed along theta, and whose second component is the speed
-;;      perpendicular to theta.
-;;   3. Modify the velocity vectors to reflect the effects of the collision.
-;;      This involves:
-;;        a. computing the velocity of the center of mass of the whole system
-;;           along direction theta
-;;        b. updating the along-theta components of the two velocity vectors.
-;;   4. Convert from the theta-based vector representation of velocity back to
-;;      the usual speed/heading representation for each ball.
-;;   5. Perform final cleanup and update derived quantities.
+; The two balls colliding are self and other-ball, and while the
+; collision is performed from the point of view of self, both balls are
+; modified to reflect its effects. This is somewhat complicated, so I'll
+; give a general outline here:
+;   1. Do initial setup, and determine the heading between ball centers
+;      (call it theta).
+;   2. Convert the representation of the velocity of each ball from
+;      speed/heading to a theta-based vector whose first component is the
+;      ball's speed along theta, and whose second component is the speed
+;      perpendicular to theta.
+;   3. Modify the velocity vectors to reflect the effects of the collision.
+;      This involves:
+;        a. computing the velocity of the center of mass of the whole system
+;           along direction theta
+;        b. updating the along-theta components of the two velocity vectors.
+;   4. Convert from the theta-based vector representation of velocity back to
+;      the usual speed/heading representation for each ball.
+;   5. Perform final cleanup and update derived quantities.
 
   let mass2 0
   let speed2 0
@@ -2531,8 +2639,8 @@ to collide-with [other-ball] ;;
   let v2l 0
   let vcm 0
 
-  ;; Step 0 - If one of the populations shouldnt move (==ballsX-forward == FALSE) the other ball should bounce bck (heading = -heading)
-  ;; Actually we enter here with myself is moving. Cant be that my balls-forward is FALSE
+  ; Step 0 - If one of the populations shouldnt move (==ballsX-forward == FALSE) the other ball should bounce bck (heading = -heading)
+  ; Actually we enter here with myself is moving. Cant be that my balls-forward is FALSE
   ;refactor
   let this-ball-is-moving is-ball-moving?
   let other-ball-is-moving [is-ball-moving?] of other-ball
@@ -2549,58 +2657,58 @@ to collide-with [other-ball] ;;
   if both-balls-are-moving
   [
 
-  ;;; PHASE 1: initial setup
+  ;; PHASE 1: initial setup
 
-  ;; for convenience, grab some quantities from other-ball
+  ; for convenience, grab some quantities from other-ball
   set mass2 [mass] of other-ball
   set speed2 [speed] of other-ball
   set heading2 [heading] of other-ball
 
-  ;; since balls are modeled as zero-size points, theta isn't meaningfully
-  ;; defined. we can assign it randomly without affecting the model's outcome.
+  ; since balls are modeled as zero-size points, theta isn't meaningfully
+  ; defined. we can assign it randomly without affecting the model's outcome.
   set theta (random-float 360)
 
 
 
-  ;;; PHASE 2: convert velocities to theta-based vector representation
+  ;; PHASE 2: convert velocities to theta-based vector representation
 
-  ;; now convert my velocity from speed/heading representation to components
-  ;; along theta and perpendicular to theta
+  ; now convert my velocity from speed/heading representation to components
+  ; along theta and perpendicular to theta
   set v1t (speed * cos (theta - heading))
   set v1l (speed * sin (theta - heading))
 
-  ;; do the same for other-ball
+  ; do the same for other-ball
   set v2t (speed2 * cos (theta - heading2))
   set v2l (speed2 * sin (theta - heading2))
 
 
 
-  ;;; PHASE 3: manipulate vectors to implement collision
+  ;; PHASE 3: manipulate vectors to implement collision
 
-  ;; compute the velocity of the system's center of mass along theta
+  ; compute the velocity of the system's center of mass along theta
   set vcm (((mass * v1t) + (mass2 * v2t)) / (mass + mass2) )
 
-  ;; now compute the new velocity for each ball along direction theta.
-  ;; velocity perpendicular to theta is unaffected by a collision along theta,
-  ;; so the next two lines actually implement the collision itself, in the
-  ;; sense that the effects of the collision are exactly the following changes
-  ;; in ball velocity.
+  ; now compute the new velocity for each ball along direction theta.
+  ; velocity perpendicular to theta is unaffected by a collision along theta,
+  ; so the next two lines actually implement the collision itself, in the
+  ; sense that the effects of the collision are exactly the following changes
+  ; in ball velocity.
   set v1t (2 * vcm - v1t)
   set v2t (2 * vcm - v2t)
 
-  ;;; PHASE 4: convert back to normal speed/heading
+  ;; PHASE 4: convert back to normal speed/heading
 
-  ;; now convert my velocity vector into my new speed and heading
+  ; now convert my velocity vector into my new speed and heading
   set speed sqrt ((v1t * v1t) + (v1l * v1l))
-  ;; if the magnitude of the velocity vector is 0, atan is undefined. but
-  ;; speed will be 0, so heading is irrelevant anyway. therefore, in that
-  ;; case we'll just leave it unmodified.
+  ; if the magnitude of the velocity vector is 0, atan is undefined. but
+  ; speed will be 0, so heading is irrelevant anyway. therefore, in that
+  ; case we'll just leave it unmodified.
    ; make sure speed does not exceed limit
    if (speed > max-speed) [set speed max-speed]
    if v1l != 0 or v1t != 0
     [ set heading (theta - (atan v1l v1t)) ]
 
-  ;; and do the same for other-ball
+  ; and do the same for other-ball
   ask other-ball [
     set speed sqrt ((v2t ^ 2) + (v2l ^ 2))
     if v2l != 0 or v2t != 0
@@ -2613,15 +2721,15 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GRAVITY;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to update-electricity   ;; updates the per patch gravity field vector by adding the fields for each ball
+to update-electricity   ; updates the per patch gravity field vector by adding the fields for each ball
   let ball-pos-x 0
   let ball-pos-y 0
   let dist 0
-  let max-electric-strength 10  ;; this needs to become a global variable set from a button in the interface
+  let max-electric-strength 10  ; this needs to become a global variable set from a button in the interface
   let patch-list []
   set patch-list patches
 
-  ;; first null the electric field
+  ; first null the electric field
   ask patches [
      set field-x  0
      set field-y  0
@@ -2635,7 +2743,7 @@ to update-electricity   ;; updates the per patch gravity field vector by adding 
 ;    ]
   ]
   ]
-;   ;; per ball update the electric field in each patch
+;   ; per ball update the electric field in each patch
  ask balls [
     set ball-pos-x xcor
     set ball-pos-y ycor
@@ -2744,7 +2852,7 @@ end
 
 
 
-to factor-repel-and-attract-forces  ;; turtle procedure consider repel and attract forces
+to factor-repel-and-attract-forces  ; turtle procedure consider repel and attract forces
   if is-ball-affected-by-repel-or-attract-forces [
     let force-vector force-vector-acting-on-ball
     let vx first force-vector
@@ -2767,7 +2875,7 @@ to factor-electric-field
   apply-electric-field prop "electric-field"
 end
 
-to apply-gravity [strength]  ;; turtle procedure
+to apply-gravity [strength]  ; turtle procedure
   ;if speed = 0 [stop]  ; GIGI - why? if speed is 0 then should increase by gravity...
   let vx (sin heading * speed) + (gravity-acceleration-x * tick-advance-amount)
   let vy (cos heading * speed) + (strength * tick-advance-amount)
@@ -2775,7 +2883,7 @@ to apply-gravity [strength]  ;; turtle procedure
   set heading atan vx vy
 end
 
-to factor-gravity  ;; turtle procedure
+to factor-gravity  ; turtle procedure
   if is-affected-by-gravity [apply-gravity (- prop "gravity")]
 end
 
@@ -2791,15 +2899,17 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;earser;;;;;;;;;;;;;;;
 
 to setup   ; called from START NEW TASK button
-  ; running procedure count-amount-of-populations-in-nettango is slow so keep result between resets
-  ;let tmp amount-of-populations-in-nettango
+  ; counting block spaces is slow so keep result between resets
+  ;let tmp-amount-of-block-spaces amount-of-block-spaces
   clear-all
-  ;set amount-of-populations-in-nettango tmp
+  ;set amount-of-block-spaces tmp-amount-of-block-spaces
   initialize-world
   ifelse netlogo-web? [update-ball-population-properties-defined-in-nettango-blocks] [crt-pop]
+  ;update-ball-population-properties-defined-in-nettango-blocks
   select-next-population-in-properties-ui
   setup-brush
-  paint-patches
+  recolor-all-patches
+  update-display
   reset-ticks
 end;
 
@@ -2915,20 +3025,20 @@ to log-output [command-name]
   ]
 end
 
-to make-halo  ;; runner procedure
-  ;; when you use HATCH, the new turtle inherits the
-  ;; characteristics of the parent.  so the halo will
-  ;; be the same color as the turtle it encircles (unless
-  ;; you add code to change it
+to make-halo  ; runner procedure
+  ; when you use HATCH, the new turtle inherits the
+  ; characteristics of the parent.  so the halo will
+  ; be the same color as the turtle it encircles (unless
+  ; you add code to change it
   hatch-halos 1
   [ set size 5
-    ;; Use an RGB color to make halo three fourths transparent
+    ; Use an RGB color to make halo three fourths transparent
     set color lput 64 extract-rgb color
-    ;; set thickness of halo to half a patch
-    ;__set-line-thickness 0.5 ;refactor nlw doesnt support this
-    ;; We create an invisible directed link from the runner
-    ;; to the halo.  Using tie means that whenever the
-    ;; runner moves, the halo moves with it.
+    ; set thickness of halo to half a patch
+    ; __set-line-thickness 0.5 ;refactor nlw doesnt support this
+    ; We create an invisible directed link from the runner
+    ; to the halo.  Using tie means that whenever the
+    ; runner moves, the halo moves with it.
     create-link-from myself
     [ tie
       hide-link ]
@@ -2943,16 +3053,17 @@ to save-existing-layout
 end
 
 to load-existing-layout
-  fetch:user-file-async [text ->
-    if not (text = false) [
-      carefully [
-        import-a:world text
-      ] [
-        user-message "אין אפשרות לטעון את הקובץ"
-      ]
-    ]
-  ]
+  fetch:user-file-async [file-name ->
+    if file-name != false [try-import-world-file file-name]]
   log-command "load-existing-layout"
+end
+
+to try-import-world-file [file-name]
+  carefully [
+    import-a:world file-name
+  ] [
+    user-message "אין אפשרות לטעון את הקובץ"
+  ]
 end
 
 ;patch procedure
@@ -2981,7 +3092,7 @@ to try-to-move-to-closest-unblocked-neighbors4-patch
   let unblocked-neighbor-exists closest-unblocked-neighbor-patch != nobody
   if unblocked-neighbor-exists [
     move-to closest-unblocked-neighbor-patch
-    forward random-float 0.01
+    randomly-move-ball-inside-radius 0.01
   ]
 end
 
@@ -3004,7 +3115,7 @@ to create-wall-in-patch
     try-to-push-aside-balls-from-patch
     if can-create-wall-in-patch [
       set has-wall true
-      set pcolor wall-color
+      recolor-patch
     ]
   ]
 end
@@ -3013,12 +3124,12 @@ end
 to remove-wall-in-patch
   if patch-has-wall [
     set has-wall false
-    set pcolor background-color
+    recolor-patch
   ]
 end
 
 to erase-all-balls-of-population-selected-in-ui
-  if is-a-population-selected-in-ui [ask balls with [population-num = population-to-set-properties-for-in-ui] [remove-ball self]]
+  if is-a-population-selected-in-ui [ask balls-of population-to-set-properties-for-in-ui [remove-ball]]
 end
 
 ;======== BRUSH ===========================
@@ -3109,6 +3220,7 @@ to visually-display-this-patch-as-affected-by-drawn-shape
     set shape "square"
     set color yellow
     set gfx-displaying-patches-affected-by-drawn-shape (turtle-set gfx-displaying-patches-affected-by-drawn-shape self)
+    set heading 0
   ]
 end
 
@@ -3443,7 +3555,7 @@ to display-brush-gfx
 end
 
 to make-sure-brush-gets-updated-in-display-atleast-every [seconds]
-  if brush-activated-after-model-was-advanced [ every seconds [display] ]
+  if brush-activated-after-model-was-advanced [ every seconds [update-display] ]
   ;update-display-every-given-time-interval-if-ticks-have-not-advanced-since-brush-was-last-activated seconds
 end
 
@@ -3628,10 +3740,6 @@ to on-brush-has-been-clicked
   log-free-form-brush-used
 end
 
-
-
-
-
 to log-free-form-brush-used
   log-output (word ifelse-value is-brush-in-draw-mode ["paint-"] ["erase-"] brush-type)
 end
@@ -3661,14 +3769,29 @@ to create-field-with-brush
 end
 
 to-report is-brush-currently-configuring-a-field
-  report first-patch-brush-configured-field-on != nobody
+  report last-patch-brush-configured-field-on != nobody
+end
+
+to-report has-electric-field
+  report field-number != 0
 end
 
 to configure-new-field-with-brush
-  if not [has-wall] of patch-under-brush [
+  if not [has-wall] of patch-under-brush and not [has-electric-field] of patch-under-brush[
     set field-count field-count + 1
-    set first-patch-brush-configured-field-on patch-under-brush
+    set last-patch-brush-configured-field-on patch-under-brush
+    set patches-field-drawn-on lput last-patch-brush-configured-field-on patches-field-drawn-on
+    configure-current-field-with-brush
   ]
+end
+
+to-report is-first-patch-electric-field-drawn-on
+  report length patches-field-drawn-on = 1
+end
+
+to-report before-last [-list]
+  let -length length -list
+  report item (-length - 2) -list
 end
 
 to configure-current-field-with-brush
@@ -3676,30 +3799,37 @@ to configure-current-field-with-brush
   let field-y-value 0
   let prev-mouse-xcor item 0 mousexy-when-brush-was-last-activated
   let prev-mouse-ycor item 1 mousexy-when-brush-was-last-activated
+  if patch-under-brush != last patches-field-drawn-on [
+    set patches-field-drawn-on lput patch-under-brush patches-field-drawn-on]
 
   if not [has-wall] of patch-under-brush [
-    set field-x-value (mouse-xcor - prev-mouse-xcor)
-    set field-y-value (mouse-ycor - prev-mouse-ycor)
+    ifelse is-first-patch-electric-field-drawn-on [
+      set field-x-value (mouse-xcor - [pxcor] of patch-under-brush)
+      set field-y-value (mouse-ycor - [pycor] of patch-under-brush)
+    ] [
+      set field-x-value (mouse-xcor - [pxcor] of before-last patches-field-drawn-on)
+      set field-y-value (mouse-ycor - [pycor] of before-last patches-field-drawn-on)
+    ]
     if (field-x-value != 0 or field-y-value != 0 ) [ ; mouse moved from prev location
       ask patch-under-brush [
-        set pcolor field-color
         set field-number field-count
-        set isPainted  TRUE
         set field-x field-x-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
         set field-y field-y-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
-        paint-arrow patch-under-brush
+        draw-arrow-in-direction-of-electric-field
       ]
       ;paint-arrow this-patch
       set prev-mouse-xcor mouse-xcor
       set prev-mouse-ycor mouse-ycor
     ]
   ]
+  set last-patch-brush-configured-field-on patch-under-brush
 end
 
 to finalize-field-configuration-with-brush
   if is-brush-currently-configuring-a-field [
-    set first-patch-brush-configured-field-on nobody
     fill-field
+    set patches-field-drawn-on []
+    set last-patch-brush-configured-field-on nobody
     log-command "paint-field"
   ]
 end
@@ -3759,6 +3889,7 @@ to create-counter-in-patch
       ;set hsb-color replace-item 2 hsb-color 100
       set color (item ((counter-number-drawn-by-brush - 1) mod length default-colors-for-ball-populations) default-colors-for-ball-populations) + 2
       set counter-number counter-number-drawn-by-brush
+      set heading 0
     ]
     on-counter-added-to-patch
   ]
@@ -3927,7 +4058,7 @@ to on-brush-held-down-with-ball
 end
 
 to remove-balls-from-patches-brush-is-drawing-on
-  foreach [self] of balls-in-patches-brush-is-drawing-on remove-ball
+  ask balls-in-patches-brush-is-drawing-on [remove-ball]
 end
 
 to create-balls-of-population-selected-in-ui
@@ -4071,9 +4202,15 @@ to remove-halo
 end
 
 ;ball procedure
-to remove-ball [-ball]
-  ask -ball [remove-halo die]
-  update-ball-population-plot
+to remove-ball
+  remove-halo
+  kill-existing-compound-shapes
+  ; ask a patch to kill ball so code can be executed after ball dies
+  ask patch-here [
+    ask myself [die]
+    ; put any code here that needs to be executed after balls death
+    update-ball-population-plot
+  ]
 end
 
 to remove-halo-from-balls [-balls]
@@ -4454,6 +4591,51 @@ to add-child-to-currently-selected-node [node]
   let updated-children lput node table:get current-node "children"
   table:put current-node "children" updated-children
 end
+
+; --- NETTANGO BEGIN ---
+
+; This block of code was added by the NetTango builder.  If you modify this code
+; and re-import it into the NetTango builder you may lose your changes or need
+; to resolve some errors manually.
+
+; If you do not plan to re-import the model into the NetTango builder then you
+; can safely edit this code however you want, just like a normal NetLogo model.
+
+; Code for Population 1
+to configure-population-1
+  reset-ast
+  add-node "configure-population" (list (list "population" 1))
+add-node "properties" []
+increase-depth if true [
+  add-node "name" (list (list "name" "H2"))
+  add-node "color" (list (list "color" (15)))
+  add-node "shape" (list (list "shape" "molecule-a2"))
+  add-node "size" (list (list "size" 2.2))
+  add-node "initial-heading" (list (list "heading" "random"))
+  add-node "initial-speed" (list (list "speed" 15))
+] decrease-depth
+add-node "actions" []
+increase-depth if true [
+  add-node "move-forever" []
+] decrease-depth
+add-node "interactions" []
+increase-depth if true [
+  add-node "if-ball-meets" []
+  increase-depth
+  add-node "objects" []
+  increase-depth if true [
+    add-node "wall" []
+  ] decrease-depth
+  add-node "then" []
+  increase-depth if true [
+    add-node "heading" (list (list "heading" "collide"))
+    add-node "speed" (list (list "speed" "collide"))
+  ] decrease-depth
+  decrease-depth
+] decrease-depth
+table:put curr-ast-by-population 1 ast-root
+end
+; --- NETTANGO END ---
 @#$#@#$#@
 GRAPHICS-WINDOW
 201
@@ -4491,7 +4673,7 @@ number-of-balls-to-add
 number-of-balls-to-add
 1
 100
-1.0
+11.0
 1
 1
 NIL
@@ -4953,7 +5135,7 @@ SWITCH
 79
 flash-wall-collision
 flash-wall-collision
-0
+1
 1
 -1000
 
@@ -5055,7 +5237,7 @@ SWITCH
 158
 show-name
 show-name
-1
+0
 1
 -1000
 
@@ -5082,7 +5264,7 @@ BUTTON
 501
 610
 Step
-go
+go\nupdate-display-every-n-ticks 1
 NIL
 1
 T
@@ -6027,7 +6209,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
