@@ -3264,23 +3264,45 @@ to set-patches-to-be-affected-by-current-drawn-rectangle-configuration
   let corner-ycor-delta-from-center delta-pycor center-patch-of-drawn-shape patch-under-brush
   let width (corner-xcor-delta-from-center * 2) + 1
   let height (corner-ycor-delta-from-center * 2) + 1
-  set patches-affected-by-drawn-shape (patch-set
-    n-values height [right-side-ycor-delta-from-top -> [patch-at (corner-xcor-delta-from-center) (corner-ycor-delta-from-center - right-side-ycor-delta-from-top)] of center-patch-of-drawn-shape]
-    n-values height [left-side-ycor-delta-from-top -> [patch-at (-1 * corner-xcor-delta-from-center) (corner-ycor-delta-from-center - left-side-ycor-delta-from-top)] of center-patch-of-drawn-shape]
-    n-values width [top-side-xcor-delta-from-left -> [patch-at ((-1 * corner-xcor-delta-from-center) + top-side-xcor-delta-from-left) (corner-ycor-delta-from-center)] of center-patch-of-drawn-shape]
-    n-values width [bottom-side-xcor-delta-from-left -> [patch-at ((-1 * corner-xcor-delta-from-center) + bottom-side-xcor-delta-from-left) (-1 * corner-ycor-delta-from-center)] of center-patch-of-drawn-shape]
-  )
+  set patches-affected-by-drawn-shape patches-that-form-a-rectangular-border-around-center-patch-no-wrap center-patch-of-drawn-shape width height
+end
+
+to-report coordinate-is-inside-world-no-wrap [coordinate]
+  let -pxcor round first coordinate
+  let -pycor round last coordinate
+  report (-pxcor >= min-pxcor) and (-pxcor <= max-pxcor) and (-pycor >= min-pycor) and (-pycor <= max-pycor)
+end
+
+to-report coordinate-to-patch [coordinate]
+  let -pxcor first coordinate
+  let -pycor last coordinate
+  report patch -pxcor -pycor
+end
+
+to-report patches-that-form-a-rectangular-border-around-center-patch-no-wrap [center width height]
+  let height-from-center (height - 1) / 2
+  let width-from-center (width - 1) / 2
+  let top-side-ycor [pycor] of center + height-from-center
+  let bot-side-ycor [pycor] of center - height-from-center
+  let right-side-xcor [pxcor] of center + width-from-center
+  let left-side-xcor [pxcor] of center - width-from-center
+
+  let top-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
+    filter coordinate-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) top-side-ycor)]
+  let bottom-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
+    filter coordinate-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) bot-side-ycor)]
+  let right-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
+    filter coordinate-is-inside-world-no-wrap n-values (height) [y -> (list right-side-xcor (bot-side-ycor + y))]
+  let left-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
+    filter coordinate-is-inside-world-no-wrap n-values (height) [y -> (list left-side-xcor (bot-side-ycor + y))]
+
+  report (patch-set top-side-patches bottom-side-patches right-side-patches left-side-patches)
 end
 
 to set-patches-to-be-affected-by-current-drawn-square-configuration
   let square-size size-of-square-drawn-by-brush
   let side-length (square-size * 2) + 1
-  set patches-affected-by-drawn-shape (patch-set
-    n-values side-length [right-side-ycor-delta-from-top -> [patch-at (square-size) (square-size - right-side-ycor-delta-from-top)] of center-patch-of-drawn-shape]
-    n-values side-length [left-side-ycor-delta-from-top -> [patch-at (-1 * square-size) (square-size - left-side-ycor-delta-from-top)] of center-patch-of-drawn-shape]
-    n-values side-length [top-side-xcor-delta-from-left -> [patch-at ((-1 * square-size) + top-side-xcor-delta-from-left) (square-size)] of center-patch-of-drawn-shape]
-    n-values side-length [bottom-side-xcor-delta-from-left -> [patch-at ((-1 * square-size) + bottom-side-xcor-delta-from-left) (-1 * square-size)] of center-patch-of-drawn-shape]
-  )
+  set patches-affected-by-drawn-shape patches-that-form-a-rectangular-border-around-center-patch-no-wrap center-patch-of-drawn-shape side-length side-length
 end
 
 to set-patches-to-be-affected-by-current-drawn-circle-configuration
