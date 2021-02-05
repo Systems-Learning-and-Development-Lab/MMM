@@ -3350,11 +3350,40 @@ to-report patches-affected-by-brush-shape-used-at-patch [-patch]
 end
 
 to-report patches-affected-by-a-circle-shaped-brush-at-patch [-patch]
-  report [patches in-radius (brush-size / 2)] of -patch
+  let radius (brush-size / 2)
+  let -center-patch select-closest-patch-that-can-be-surrounded-by-radius-in-world -patch radius
+  report [patches in-radius radius] of -center-patch
+end
+
+to-report select-closest-patch-that-can-be-surrounded-by-radius-in-world [-patch radius]
+  let -pxcor [pxcor] of -patch
+  let -pycor [pycor] of -patch
+  let result-pxcor -pxcor
+  let result-pycor -pycor
+
+  let min-xcor (min-pxcor - 0.5)
+  let max-xcor (max-pxcor + 0.5)
+  let min-ycor (min-pycor - 0.5)
+  let max-ycor (max-pycor + 0.5)
+
+  let distance-from-min-xcor -pxcor - min-xcor
+  let distance-from-max-xcor max-xcor - -pxcor
+  let distance-from-min-ycor -pycor - min-ycor
+  let distance-from-max-ycor max-ycor - -pycor
+
+  if distance-from-min-xcor < radius [set result-pxcor min-xcor + radius]
+  if distance-from-max-xcor < radius [set result-pxcor max-xcor - radius]
+  if distance-from-min-ycor < radius [set result-pycor min-ycor + radius]
+  if distance-from-max-ycor < radius [set result-pycor max-ycor - radius]
+
+  report patch result-pxcor result-pycor
 end
 
 to-report patches-affected-by-a-square-shaped-brush-at-patch [-patch]
-  report (patch-set n-values (brush-size ^ 2) [i -> patch (([pxcor] of -patch - (brush-size / 2) + 0.5) + i mod brush-size) (([pycor] of -patch - (brush-size / 2) + 0.5) + int(i / brush-size))])
+  let radius (brush-size / 2)
+  let -center-patch select-closest-patch-that-can-be-surrounded-by-radius-in-world -patch radius
+  ;report (patch-set n-values (brush-size ^ 2) [i -> patch (([pxcor] of -center-patch - (brush-size / 2) + 0.5) + i mod brush-size) (([pycor] of -center-patch - (brush-size / 2) + 0.5) + int(i / brush-size))])
+  report (patch-set n-values (brush-size ^ 2) [i -> patch (([pxcor] of -center-patch - (brush-size / 2)) + i mod brush-size) (([pycor] of -center-patch - (brush-size / 2)) + int(i / brush-size))])
 end
 
 to-report patches-brush-is-drawing-on
@@ -3597,12 +3626,13 @@ to set-brush-border-outline-label
 end
 
 to set-brush-border-outline-coordinates
-  let -patch-under-brush patch-under-brush
+  let radius (brush-size / 2)
+  let -center-patch select-closest-patch-that-can-be-surrounded-by-radius-in-world patch-under-brush radius
   (ifelse
     brush-shape = "square" [ ;offset brush for even sizes since patch under brush can not be center
       carefully [
-        ask -brush-border-outline [setxy ([pxcor] of -patch-under-brush + 0.5 * ((brush-size + 1) mod 2)) ([pycor] of -patch-under-brush + 0.5 * ((brush-size + 1) mod 2))]] [] ]
-    brush-shape = "circle" [ask -brush-border-outline [setxy [pxcor] of -patch-under-brush [pycor] of -patch-under-brush]])
+        ask -brush-border-outline [setxy ([pxcor] of -center-patch + 0.5 * ((brush-size + 1) mod 2)) ([pycor] of -center-patch + 0.5 * ((brush-size + 1) mod 2))]] [] ]
+    brush-shape = "circle" [ask -brush-border-outline [setxy [pxcor] of -center-patch [pycor] of -center-patch]])
 end
 
 to hide-brush-border-outline
@@ -4892,7 +4922,7 @@ brush-size
 brush-size
 1
 10
-4.0
+6.0
 1
 1
 NIL
