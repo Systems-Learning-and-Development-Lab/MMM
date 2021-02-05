@@ -3238,7 +3238,7 @@ to set-patches-to-be-affected-by-current-drawn-shape-configuration
 end
 
 to-report radius-of-circle-drawn-by-brush
-  report [distance center-patch-of-drawn-shape] of patch-under-brush
+  report [distance-no-wrap center-patch-of-drawn-shape] of patch-under-brush
 end
 
 to-report size-of-square-drawn-by-brush
@@ -3267,16 +3267,10 @@ to set-patches-to-be-affected-by-current-drawn-rectangle-configuration
   set patches-affected-by-drawn-shape patches-that-form-a-rectangular-border-around-center-patch-no-wrap center-patch-of-drawn-shape width height
 end
 
-to-report coordinate-is-inside-world-no-wrap [coordinate]
-  let -pxcor round first coordinate
-  let -pycor round last coordinate
+to-report point-is-inside-world-no-wrap [point]
+  let -pxcor round first point
+  let -pycor round last point
   report (-pxcor >= min-pxcor) and (-pxcor <= max-pxcor) and (-pycor >= min-pycor) and (-pycor <= max-pycor)
-end
-
-to-report coordinate-to-patch [coordinate]
-  let -pxcor first coordinate
-  let -pycor last coordinate
-  report patch -pxcor -pycor
 end
 
 to-report patches-that-form-a-rectangular-border-around-center-patch-no-wrap [center width height]
@@ -3287,14 +3281,14 @@ to-report patches-that-form-a-rectangular-border-around-center-patch-no-wrap [ce
   let right-side-xcor [pxcor] of center + width-from-center
   let left-side-xcor [pxcor] of center - width-from-center
 
-  let top-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
-    filter coordinate-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) top-side-ycor)]
-  let bottom-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
-    filter coordinate-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) bot-side-ycor)]
-  let right-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
-    filter coordinate-is-inside-world-no-wrap n-values (height) [y -> (list right-side-xcor (bot-side-ycor + y))]
-  let left-side-patches patch-set map [coordinate -> coordinate-to-patch coordinate]
-    filter coordinate-is-inside-world-no-wrap n-values (height) [y -> (list left-side-xcor (bot-side-ycor + y))]
+  let top-side-patches patch-set map [point -> patch-at-point point]
+    filter point-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) top-side-ycor)]
+  let bottom-side-patches patch-set map [point -> patch-at-point point]
+    filter point-is-inside-world-no-wrap n-values (width) [x -> (list (left-side-xcor + x) bot-side-ycor)]
+  let right-side-patches patch-set map [point -> patch-at-point point]
+    filter point-is-inside-world-no-wrap n-values (height) [y -> (list right-side-xcor (bot-side-ycor + y))]
+  let left-side-patches patch-set map [point -> patch-at-point point]
+    filter point-is-inside-world-no-wrap n-values (height) [y -> (list left-side-xcor (bot-side-ycor + y))]
 
   report (patch-set top-side-patches bottom-side-patches right-side-patches left-side-patches)
 end
@@ -3307,7 +3301,11 @@ end
 
 to set-patches-to-be-affected-by-current-drawn-circle-configuration
   let radius radius-of-circle-drawn-by-brush
-  set patches-affected-by-drawn-shape patches with [(distance center-patch-of-drawn-shape > radius - 0.5) and (distance center-patch-of-drawn-shape < radius + 0.5)]
+  set patches-affected-by-drawn-shape patches with [(distance-no-wrap center-patch-of-drawn-shape > radius - 0.5) and (distance-no-wrap center-patch-of-drawn-shape < radius + 0.5)]
+end
+
+to-report distance-no-wrap [-other]
+  report sqrt ((pxcor - [pxcor] of -other) ^ 2 + (pycor - [pycor] of -other) ^ 2)
 end
 
 to-report is-shape-being-configured
