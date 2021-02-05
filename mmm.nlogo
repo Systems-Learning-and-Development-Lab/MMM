@@ -2146,6 +2146,20 @@ to-report ball-is-on-electric-field
   report has-electric-field
 end
 
+to-report neighbors-no-wrap
+  report neighbors with [is-neighbor-no-wrap myself]
+end
+
+to-report neighbors4-no-wrap
+  report neighbors4 with [is-neighbor-no-wrap myself]
+end
+
+to-report is-neighbor-no-wrap [-patch]
+  let abs-xcor-delta abs (pxcor - [pxcor] of -patch)
+  let abs-ycor-delta abs (pycor - [pycor] of -patch)
+  report (abs-xcor-delta <= 1) and (abs-ycor-delta <= 1) and (self != -patch)
+end
+
 ; ball procedure
 to move
   if is-ball-moving?
@@ -3251,7 +3265,7 @@ end
 to set-patches-to-be-affected-by-current-drawn-line-configuration
   let point1 (list [pxcor] of center-patch-of-drawn-shape [pycor] of center-patch-of-drawn-shape)
   ;set patches-affected-by-drawn-shape patches-line-intersects point1 current-mousexy
-  set patches-affected-by-drawn-shape patches-line-intersects item 0 point1 item 1 point1 item 0 current-mousexy item 1 current-mousexy
+  set patches-affected-by-drawn-shape patches-line-intersects-no-wrap item 0 point1 item 1 point1 item 0 current-mousexy item 1 current-mousexy
 end
 
 to set-patches-to-be-affected-by-current-drawn-rectangle-configuration
@@ -3338,7 +3352,7 @@ end
 
 to-report patches-brush-moved-over-while-being-held-down
     ;report patches-line-intersects coordinates-of-brush-when-last-held-down mouse-coordinates
-  report patches-line-intersects item 0 coordinates-of-brush-when-last-held-down item 1 coordinates-of-brush-when-last-held-down item 0 mouse-coordinates item 1 mouse-coordinates
+  report patches-line-intersects-no-wrap item 0 coordinates-of-brush-when-last-held-down item 1 coordinates-of-brush-when-last-held-down item 0 mouse-coordinates item 1 mouse-coordinates
 end
 
 to-report coordinates-of-brush-when-last-held-down
@@ -4237,16 +4251,16 @@ end
 
 ;===== INTERSECTION MATH ==================
 
-to-report patches-line-intersects [x1 y1 x2 y2]
+to-report patches-line-intersects-no-wrap [x1 y1 x2 y2]
   let -start patch x1 y1
   let -stop patch x2 y2
-  let neighbors-stop [neighbors] of -stop
+  let neighbors-stop [neighbors-no-wrap] of -stop
   let result (patch-set -start)
   if -start != -stop [
     let -heading heading-between-points x1 y1 x2 y2
     let current-patch -start
     while [current-patch != -stop and not member? current-patch neighbors-stop] [
-      set current-patch min-one-of ([neighbors with [not member? self result]] of current-patch)
+      set current-patch min-one-of ([neighbors-no-wrap with [not member? self result]] of current-patch)
       [abs (-heading - (heading-between-points x1 y1 pxcor pycor))]
       set result (patch-set result current-patch)
     ]
@@ -4651,8 +4665,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 -26
 26
@@ -4867,7 +4881,7 @@ brush-size
 brush-size
 1
 10
-2.0
+1.0
 1
 1
 NIL
