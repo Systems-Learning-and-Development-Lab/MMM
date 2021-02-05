@@ -3591,14 +3591,65 @@ end
 
 to set-brush-cursor-coordinates
   (ifelse
-    brush-style = "free-form" [
-      carefully [ ask -brush-cursor [set xcor (item 0 current-mousexy + 1.5)] ] []
-      carefully [ ask -brush-cursor [set ycor (item 1 current-mousexy + 1.5)] ] [] ]
-    brush-style = "shape" [
-      carefully [ ask -brush-cursor [set xcor ([pxcor] of patch-under-brush)]] []
-      carefully [ ask -brush-cursor [set ycor ([pycor] of patch-under-brush)]] [] ] )
-  ;carefully [ ask -brush-cursor [set xcor ([pxcor] of patch-under-brush + 1.5)] ] []
-  ;carefully [ ask -brush-cursor [set ycor ([pycor] of patch-under-brush + 1.5)] ] []
+    brush-style = "free-form" [set-brush-free-form-cursor-coordinates-and-heading]
+    brush-style = "shape" [set-brush-shape-cursor-coordinates]
+  )
+end
+
+to-report brush-cursor-near-top-right-corner-of-world
+  report brush-cursor-near-right-edge-of-world and brush-cursor-near-top-edge-of-world
+end
+
+to-report brush-cursor-near-top-edge-of-world
+  report last current-mousexy + [size / 2] of -brush-cursor > max-pycor - 0.35
+end
+
+to-report brush-cursor-near-right-edge-of-world
+  report first current-mousexy + [size / 2] of -brush-cursor > max-pxcor - 0.35
+end
+
+to-report current-mouse-xcor
+  report item 0 current-mousexy
+end
+
+to-report current-mouse-ycor
+  report item 1 current-mousexy
+end
+
+to set-brush-free-form-cursor-coordinates-and-heading
+  let new-heading 0
+  let new-xcor current-mouse-xcor
+  let new-ycor current-mouse-ycor
+  (ifelse
+    brush-cursor-near-top-right-corner-of-world [
+      set new-heading 180
+      set new-xcor current-mouse-xcor - 1.5
+      set new-ycor current-mouse-ycor - 1.5
+    ]
+    brush-cursor-near-top-edge-of-world [
+      set new-heading 90
+      set new-xcor current-mouse-xcor + 1.5
+      set new-ycor current-mouse-ycor - 1.5
+    ]
+    brush-cursor-near-right-edge-of-world [
+      set new-heading 270
+      set new-xcor current-mouse-xcor - 1.5
+      set new-ycor current-mouse-ycor + 1.5
+    ]
+    [
+      set new-heading 0
+      set new-xcor current-mouse-xcor + 1.5
+      set new-ycor current-mouse-ycor + 1.5
+    ]
+  )
+  ask -brush-cursor [set heading new-heading]
+  carefully [ ask -brush-cursor [set xcor new-xcor] ] []
+  carefully [ ask -brush-cursor [set ycor new-ycor] ] []
+end
+
+to set-brush-shape-cursor-coordinates
+  carefully [ ask -brush-cursor [set xcor ([pxcor] of patch-under-brush)]] []
+  carefully [ ask -brush-cursor [set ycor ([pycor] of patch-under-brush)]] []
 end
 
 to display-brush-gfx
@@ -3631,7 +3682,7 @@ to set-brush-border-outline-coordinates
   (ifelse
     brush-shape = "square" [ ;offset brush for even sizes since patch under brush can not be center
       carefully [
-        ask -brush-border-outline [setxy ([pxcor] of -center-patch + 0.5 * ((brush-size + 1) mod 2)) ([pycor] of -center-patch + 0.5 * ((brush-size + 1) mod 2))]] [] ]
+        ask -brush-border-outline [setxy ([pxcor] of -center-patch - 0.5 * ((brush-size + 1) mod 2)) ([pycor] of -center-patch - 0.5 * ((brush-size + 1) mod 2))]] [] ]
     brush-shape = "circle" [ask -brush-border-outline [setxy [pxcor] of -center-patch [pycor] of -center-patch]])
 end
 
@@ -4922,7 +4973,7 @@ brush-size
 brush-size
 1
 10
-6.0
+3.0
 1
 1
 NIL
@@ -5411,7 +5462,7 @@ Line -16777216 false 150 135 15 75
 Line -16777216 false 150 135 285 75
 
 brush-cursor-draw6
-false
+true
 7
 Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
 Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
