@@ -899,7 +899,8 @@ to fill-field
     ask current-patch
     ;refactor changed "in-radius-nowrap" to "in-radius" since it is not supported in netlogo web
     ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
-    [    ask patches in-radius 1 with [(not has-wall) and (not has-field)]
+    [
+      ask neighbors4-no-wrap with [(not has-wall) and (not has-field)]
          [
             set field-number field-count
             set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
@@ -4665,8 +4666,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-0
-0
+1
+1
 1
 -26
 26
