@@ -2176,12 +2176,15 @@ to-report is-ball-exiting-world-through-electric-field
 end
 
 to move-ball-to-random-edge-patch-with-same-electric-field-it-is-currently-on
+  let saved-pen-mode pen-mode
+  if pen-mode = "down" [pen-up]
   let patches-on-edge edge-patches-with-electric-field-like-mine
   let new-patch one-of patches-on-edge   ;
-  set xcor  [pxcor] of new-patch
-  set ycor  [pycor] of new-patch
+  set xcor [pxcor] of new-patch
+  set ycor [pycor] of new-patch
   if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0)) [
     set heading atan [field-x] of new-patch  [field-y] of new-patch ]
+  set pen-mode saved-pen-mode
 end
 
 to move
