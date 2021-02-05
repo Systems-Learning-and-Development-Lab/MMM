@@ -1054,7 +1054,7 @@ end
 
 to-report any-moving-balls?
   let any-ball-moving false
-  ask balls [if is-ball-moving? [set any-ball-moving true stop]]
+  ask balls [if ball-can-move [set any-ball-moving true stop]]
   report any-ball-moving;
 end
 
@@ -2069,7 +2069,7 @@ to hide-ball-label
 end
 
 ; ball procedure
-to-report is-ball-moving?
+to-report ball-can-move
   let -move-forward prop "move"
   report ifelse-value is-boolean? -move-forward [-move-forward] [tick-count - tick-count-move-enabled < -move-forward]
 end
@@ -2143,7 +2143,7 @@ to-report edge-patches
     )
 end
 
-to-report ball-is-on-electric-field
+to-report ball-is-in-electric-field
   report has-electric-field
 end
 
@@ -2161,45 +2161,35 @@ to-report is-neighbor-no-wrap [-patch]
   report (abs-xcor-delta <= 1) and (abs-ycor-delta <= 1) and (self != -patch)
 end
 
-; ball procedure
+to-report is-moving-past-edge-of-world
+  let patch-ball-will-move-to destination-patch-if-ball-were-to-move
+  let ball-will-move-to-new-patch patch-ball-will-move-to != patch-here
+  report (ball-will-move-to-new-patch) and (not [is-neighbor-no-wrap patch-ball-will-move-to] of patch-here)
+end
+
+to-report destination-patch-if-ball-were-to-move
+  report patch-ahead move-distance
+end
+
+to-report is-ball-exiting-world-through-electric-field
+  report ball-is-in-electric-field and is-moving-past-edge-of-world
+end
+
+to move-ball-to-random-edge-patch-with-same-electric-field-it-is-currently-on
+  let patches-on-edge edge-patches-with-electric-field-like-mine
+  let new-patch one-of patches-on-edge   ;
+  set xcor  [pxcor] of new-patch
+  set ycor  [pycor] of new-patch
+  if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0)) [
+    set heading atan [field-x] of new-patch  [field-y] of new-patch ]
+end
+
 to move
-  if is-ball-moving?
-  [
-    ;look at the patch the ball will be moving to:
-    let pahead patch-ahead move-distance
-    ifelse (pahead = nobody)
-    [ ; when ball leaves world - instead of die:
-      ; if it is inside a field then choose random location on an edge patch of that field and move ball to that new location.
-      ; ensure that ball returns to same field-number
-      ; if it is not inside a field then it returns cyclically.
-      ifelse ball-is-on-electric-field
-      [
-        let patches-on-edge edge-patches-with-electric-field-like-mine
-        ifelse  (any? patches-on-edge)
-        [
-          let new-patch one-of patches-on-edge   ;
-          set xcor  [pxcor] of new-patch
-          set ycor  [pycor] of new-patch
-          if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0))
-          [
-            set heading atan [field-x] of new-patch  [field-y] of new-patch
-          ]
-             ; otherwise continue in same direction as exited window
-        ]
-        [ ; else there are no patches of field on edge of world, ball returns cyclic
-              return-ball-cyclically-around-world
-        ]
-       ]
-       [  ; else - there is no efield balls return cyclic
-         return-ball-cyclically-around-world
-       ]
-    ]
-    ; ball did not leave the world - move it and deal with collision with other ball:
-    [
-      ;if pahead != patch-here [ set last-collision nobody ]
-      jump move-distance
-    ]
-  on-ball-moved
+  if ball-can-move [
+    if is-ball-exiting-world-through-electric-field [
+      move-ball-to-random-edge-patch-with-same-electric-field-it-is-currently-on ]
+    jump move-distance
+    on-ball-moved
   ]
 end
 
@@ -2657,8 +2647,8 @@ to collide-with [other-ball] ;;
   ; Step 0 - If one of the populations shouldnt move (==ballsX-forward == FALSE) the other ball should bounce bck (heading = -heading)
   ; Actually we enter here with myself is moving. Cant be that my balls-forward is FALSE
   ;refactor
-  let this-ball-is-moving is-ball-moving?
-  let other-ball-is-moving [is-ball-moving?] of other-ball
+  let this-ball-is-moving ball-can-move
+  let other-ball-is-moving [ball-can-move] of other-ball
   let both-balls-are-moving this-ball-is-moving and other-ball-is-moving
 
   if not this-ball-is-moving [
@@ -4882,7 +4872,7 @@ brush-size
 brush-size
 1
 10
-1.0
+4.0
 1
 1
 NIL
