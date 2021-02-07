@@ -1,39 +1,44 @@
 extensions [send-to fetch import-a table]; profiler]
 
 globals [
-  tick-count ; count how many turns this model has executed ("go" procedure invoked)
-  current-background-color ; gets updated when user clicks "paint-world" button
-  wall-collision-count ; count wall collisions for each population.
-  gravity-acceleration-x   ; acceleration of gravity on x axis
-  tick-advance-amount                 ; the amount by which ticks advance each turn
-  maxballs                       ; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
-  deltaSpeed    ;  value to increase or decrease speed
-  max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
-  lookAhead  ; distance to check ahead if near wall
-  field-color
-  field-count ; counts the number of different fields (was "clusters")
-  flash-time     ; length of time of flash
-  eps-collision  ; how deep the intersection of balls can be to be considered collision
-  balls-by-population ; for fast access of balls belonging to certain population
-  ball-count-in-populations
-  amount-of-block-spaces ; how many blocks spaces in nettango for configuring populations
-  ball-shape-update-procedure-lookup ; which procedure to run to update shape of turtle, depends on shape name
-  run-me-if-i-throw-error-then-nettango-has-recompiled ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
-  animation-procedure-lookup-by-name ; table that holds anonymous procedures that runs the animation, keys are string name of animation
-  prev-global-variable-values
-  global-variable-changed-lookup ; which procedure to run incase a specific global property has been changed.
+  tick-count    ; count how many turns this model has advanced state of world
+  current-background-color    ; gets updated when user clicks "paint-world" button
+  gravity-acceleration-x    ; acceleration of gravity on x axis
+  tick-advance-amount    ; the amount by which ticks advance each turn
+  flash-time    ; length of time of flash counter or wall
+  animators    ; table that holds procedures that animate an animation.
+  global-variables-record
+  global-variables-new-value-handlers    ; which procedure to run incase value has changed.
   last-tick-count-display-was-updated
 
-  ;==== ast ====
+  ;==== balls ====
+  wall-collision-count    ; count wall collisions for each population.
+  max-balls    ; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
+  speed-delta-after-collision    ;  value to increase or decrease speed after wall and ball collision
+  max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
+  collision-depth-threshold    ; how deep the intersection of balls can be to be considered collision
+  look-ahead-wall-collision    ; distance to check ahead if near wall
+  balls-by-population    ; for fast access of balls belonging to certain population
+  ball-shape-setters    ; which procedure to run to update shape of ball, depends on shape name
+
+  ;==== electric field ====
+  electric-field-color
+  electric-field-count
+  patches-brush-drew-electric-field-on
+
+  ;==== nettango ====
+  nettango-block-space-count    ; how many blocks spaces in nettango for configuring populations
+  run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
+
+  ;==== ast ==== abstract syntax tree, nested structure of nettango blocks.
   ast-by-population
-  curr-ast-by-population       ; used for comparison of prev ast to check for changes
-  prev-ast-by-population       ; used for comparison to check for changes
-  ast-lookup-table-run-node    ; links node name to function that runs node
-  ast-lookup-table-parse-node  ; links node name to function that parses node
+  curr-ast-by-population    ; used for comparison of prev ast to check for changes
+  prev-ast-by-population    ; used for comparison to check for changes
+  node-runners    ; hashes node name to procedure that runs block
+  node-parsers    ; hashes node name to function that parses node
 
   ;==== counters ====
-  counter-width
-  counters-information-gfx-overlay ; breed that references 2 gfx-overlay turtles that display information for counter
+  counters-information-gfx ; breed that references 2 gfx-overlay turtles that display information for counter
   ball-count-in-counters ; table that keeps track of ball count in all counters
 
   ;==== population properties ====
@@ -82,8 +87,6 @@ globals [
   current-mouse-inside?
   patches-drawn-on-since-brush-was-held-down    ; keeps track if you do not want to draw twice on the same patch since brush was pressed down.
   counter-number-drawn-by-brush                 ; counter number currently being drawn by brush
-  last-patch-brush-configured-field-on
-  patches-field-drawn-on
   brush-activated-after-model-was-advanced      ; to know if display should be updated because model isnt running which means display isn't updated in "go" procedure
   click-count-when-radio-buttons-were-first-clicked ; used for radio buttons for brush. keeps track of what order brush buttons were clicked so the right button is unpressed
   brush-radio-buttons-click-count ; increased when one of the brush buttons is clicked, used to keep track of which button was pressed last
@@ -119,28 +122,25 @@ globals [
 ]
 
 ; order of breeds determines layering of turtles.
-breed [ counter-information-gfx a-counter-information-gfx]
-breed [ batteries battery ]
 breed [ counters counter]
-breed [ flashes flash ]      ; a gfx breed only used to animate a flash
+breed [ animations animation]
 breed [ arrows arrow]
 breed [ halos halo]
 breed [ ball-compound-shapes ball-compound-shape]
 breed [ balls ball]
-breed [ animations animation]
-breed [ erasers eraser ]
 breed [gfx-overlay a-gfx-overlay] ; turtles used to diplay gfx
 breed [brush-border-outlines brush-border-outline] ; gfx for brush outline
 breed [brush-cursors brush-cursor] ; gfx for brush cursor
 
-undirected-link-breed [compound-shapes compound-shape]
+undirected-link-breed [
+  compound-shapes
+  compound-shape
+]
 
-flashes-own [birthday]       ; flashes only last for a short period and then disappear.
-                             ; their birthday lets us keep track of when they were created and
-                             ; when we need to remove them.
 animations-own [
+  lifespan
   birthday                   ; tick count animation was created
-  animate                    ; anonymous procedure to animate animation, use 'ask -animation [run animate]'
+  animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animate]'
   data                       ; data can be anything the animation needs. table variable
   -name                      ; temporarily used because of nettango bug
 ]
@@ -167,8 +167,6 @@ balls-own
 ;  stick-to-wall?
 ]
 
-erasers-own [ pressure? ]    ;new
-
 patches-own
 [
   field-x             ; vector  field_x and field_y define the direction and strength of the electric field within the patch
@@ -178,13 +176,11 @@ patches-own
   accum-w             ; accumulates weights  for gobal field computation
   field-number        ; holds the component number of the field (was "cluster")
   has-wall            ; true if patch has wall
-;  cluster             ; GIGI  - DO WE NEED THIS NOW? holds the label (patch) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
-;  cluster-number      ; holds the label (number) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
 ]
 
 counters-own
 [
-  counter-number      ; holds the counter number
+  number
 ]
 
 to initialize-properties-for-populations [populations]
@@ -233,27 +229,27 @@ to crt-pop
   ]
 end
 
-to throw-error-if-population-block-space-does-not-exist [population]
+to throw-error-if-population-block-space-does-not-exist-in-nettango [population]
   run (word "let x [ -> configure-population-" population " ]")
 end
 
-to-report count-population-block-spaces
+to-report count-population-block-spaces-in-nettango
   let block-space-number 1
   carefully [
     loop [
-      throw-error-if-population-block-space-does-not-exist block-space-number
+      throw-error-if-population-block-space-does-not-exist-in-nettango block-space-number
       set block-space-number block-space-number + 1
     ]
   ] []
   report (block-space-number - 1)
 end
 
-to-report block-spaces-already-counted?
-  report amount-of-block-spaces > 0
+to-report block-spaces-in-nettango-already-counted?
+  report nettango-block-space-count > 0
 end
 
-to-report amount-of-population-block-spaces
-  report ifelse-value block-spaces-already-counted? [amount-of-block-spaces] [count-population-block-spaces]
+to-report amount-of-population-block-spaces-in-nettango
+  report ifelse-value block-spaces-in-nettango-already-counted? [nettango-block-space-count] [count-population-block-spaces-in-nettango]
 end
 
 to initialize-world
@@ -262,7 +258,20 @@ to initialize-world
 end
 
 to initialize-patches
-  ask patches [set has-wall false]
+  ask patches [
+    initialize-patch
+  ]
+end
+
+to initialize-patch
+  set has-wall false
+  set field-x 0
+  set field-y 0
+  set accum-x 0
+  set accum-y 0
+  set accum-w 0
+  set field-number 0
+  set has-wall false
 end
 
 to initialize-global-values
@@ -271,10 +280,9 @@ to initialize-global-values
   set prev-ball-population-properties ball-population-properties
   set population-to-set-properties-for-in-ui "-"
   set default-colors-for-ball-populations [red blue lime orange violet yellow cyan pink brown green sky magenta turquoise gray ]
-  set counters-information-gfx-overlay table:make
+  set counters-information-gfx table:make
   set ball-count-in-counters table:make
-  set last-patch-brush-configured-field-on nobody
-  set patches-field-drawn-on []
+  set patches-brush-drew-electric-field-on []
   set brush-activated-after-model-was-advanced false
   set click-count-when-radio-buttons-were-first-clicked table:make
   set brush-radio-buttons-click-count 0
@@ -283,19 +291,17 @@ to initialize-global-values
   set current-background-color background-color
   set wall-collision-count table:make
   set balls-by-population table:make
-  set maxballs 200
-  set deltaSpeed 0.5;
+  set max-balls 200
+  set speed-delta-after-collision 0.5;
   set max-speed 20
-  set lookAhead 0.6
-  set field-color 87
-  set field-count 0
-  set counter-width 1.25
+  set look-ahead-wall-collision 0.6
+  set electric-field-color 87
+  set electric-field-count 0
   set flash-time  15
-  set-default-shape flashes "square"
   set repulsion-strength 100
   set attraction-strength 30
   set gravity-acceleration-x 0
-  set eps-collision 0.99
+  set collision-depth-threshold 0.99
   set tick-advance-amount 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
   setup-logging  "LOGGING/logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
@@ -303,11 +309,12 @@ to initialize-global-values
   set LJeps 0.5  ; Lennard Jones constants
   set-default-shape halos "thin ring"
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
+  set global-variables-record global-variable-values
   initialize-ast
-  set prev-global-variable-values global-variable-values
-  initialize-ball-shape-update-procedure-lookup
+  initialize-procedure-to-update-ball-shape-lookup-table
   initialize-property-change-procedure-lookup
   initialize-global-variable-changed-lookup
+  initialize-animators
   ;set max-field-spread 20 ; spread the field only within a radius  (max world is -26 <->  +26
   ;set counter-time-window 1000
   ;set counter-delta-time 0
@@ -315,21 +322,21 @@ end
 
 to initialize-all-anonymous-procedures
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
-  initialize-ast-run-lookup-table
+  initialize-procedures-to-run-ast-node-lookup-table
   initialize-ast-parse-lookup-table
   initialize-property-change-procedure-lookup
   initialize-global-variable-changed-lookup
-  initialize-ball-shape-update-procedure-lookup
+  initialize-procedure-to-update-ball-shape-lookup-table
   initialize-animation-anonymous-procedures
 end
 
 to initialize-animation-anonymous-procedures
-  initialize-animation-procedure-lookup-by-name
-  ask animations [initialize-animate-anonymous-procedure]
+  initialize-animators
+  ask animations [initialize-animator]
 end
 
-to-report animation-by-name [name]
-  report table:get animation-procedure-lookup-by-name name
+to-report get-animator [name]
+  report table:get animators name
 end
 
 to initialize-all-lookup-tables-if-nettango-has-recompiled
@@ -337,6 +344,7 @@ to initialize-all-lookup-tables-if-nettango-has-recompiled
   ; then error "Importing and then running lambdas is not supported!" is thrown.
   ; It happens if an anonymous procedure that was stored in a variable before nettango
   ; was recompiled is ran, so all anonymous procedures need to be initialized.
+  ; Update: this is a known issue - https://github.com/NetLogo/NetLogo/issues/22
   carefully [
     run run-me-if-i-throw-error-then-nettango-has-recompiled ]
   [
@@ -344,12 +352,12 @@ to initialize-all-lookup-tables-if-nettango-has-recompiled
   ]
 end
 
-to initialize-animation-procedure-lookup-by-name
-  ; temporary procedure due to nettango bug
-  set animation-procedure-lookup-by-name table:from-list (list
+to initialize-animators
+  set animators table:from-list (list
     (list "mark" [[] -> remove-animation-if-past-lifespan])
-    (list "rotate" [[] -> flash-animation])
-    (list "flash" [[] -> rotate-animation])
+    (list "flash" [[] -> flash-animation])
+    (list "patch-flash" [[] -> remove-animation-if-past-lifespan])
+    (list "rotate" [[] -> rotate-animation])
     (list "inflate" [[] -> increase-animation-size])
     (list "draw" [[] -> remove-animation-if-past-lifespan])
   )
@@ -363,13 +371,15 @@ to-report global-variable-values
 end
 
 to initialize-global-variable-changed-lookup
-  set global-variable-changed-lookup table:from-list (list
+  ; What happens when a global variable changes
+  set global-variables-new-value-handlers table:from-list (list
     (list "show-name" [[new-value] -> ifelse new-value [show-balls-labels] [hide-balls-labels]])
     (list "color-speed" [[new-value] -> if not new-value [ask balls [update-ball-color]]])
   )
 end
 
 to initialize-property-change-procedure-lookup
+  ; What happens when a population property changes
   set property-change-procedure-lookup table:from-list (list
     (list "shape" [[population] -> update-shapes-of-population population])
     (list "size" [[population] -> update-size-of-population population])
@@ -378,8 +388,9 @@ to initialize-property-change-procedure-lookup
   )
 end
 
-to initialize-ball-shape-update-procedure-lookup
-  set ball-shape-update-procedure-lookup table:from-list (list
+to initialize-procedure-to-update-ball-shape-lookup-table
+  ; What happens when a ball shape is updated
+  set ball-shape-setters table:from-list (list
     (list "molecule-ha" [[] -> update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]])
     (list "molecule-ao" [[] -> update-compound-shape "molecule-ao" ["a" "o"] ["a" "o"]])
     (list "molecule-no2" [[] -> update-compound-shape "molecule-no2" ["n" "o2"] ["o2" "n"]])
@@ -393,6 +404,7 @@ to initialize-ball-shape-update-procedure-lookup
 end
 
 to default-shape-update
+  ; if ball was formerly a compound shape then need to remove them
   kill-existing-compound-shapes
   set shape prop "shape"
 end
@@ -401,8 +413,9 @@ to-report population-colors [population]
   report (sentence pprop population "color" pprop population "secondary-colors")
 end
 
-to-report shape-update-procedure
-  report table:get-or-default ball-shape-update-procedure-lookup (prop "shape") [[] -> default-shape-update]
+to-report procedure-to-update-ball-shape
+  ; which procedure to run to update shape of ball
+  report table:get-or-default ball-shape-setters (prop "shape") [[] -> default-shape-update]
 end
 
 to update-compound-shape [base-name part-names view-order]
@@ -458,12 +471,12 @@ to initialize-ast
   set ast-by-population table:make
   set curr-ast-by-population table:make
   set prev-ast-by-population table:make
-  initialize-ast-run-lookup-table
+  initialize-procedures-to-run-ast-node-lookup-table
   initialize-ast-parse-lookup-table
 end
 
-to initialize-ast-run-lookup-table
-  set ast-lookup-table-run-node table:from-list (list
+to initialize-procedures-to-run-ast-node-lookup-table
+  set node-runners table:from-list (list
     ;(list "" [[node population objects] -> func node population objects])
     (list "properties" [[node population objects] -> run-properties-clause node population])
     (list "actions" [[node population objects] -> run-actions-clause node population])
@@ -508,7 +521,7 @@ to initialize-ast-run-lookup-table
 end
 
 to initialize-ast-parse-lookup-table
-  set ast-lookup-table-parse-node table:from-list (list
+  set node-parsers table:from-list (list
     (list "properties" [[node population objects] -> parse-properties-clause node population])
     (list "actions" [[node population objects] -> parse-actions-clause node population])
     (list "interactions" [[node population objects] -> parse-interactions-clause node population])
@@ -735,12 +748,12 @@ to-report initialized-population-properties
 end
 
 to-report amount-of-balls-that-can-be-created-given-maximum-capacity [requested-amount]
-  let maximum-amount-of-balls-that-can-currently-be-created (maxballs - count balls)
+  let maximum-amount-of-balls-that-can-currently-be-created (max-balls - count balls)
   report min (list requested-amount maximum-amount-of-balls-that-can-currently-be-created)
 end
 
 to notify-user-unable-to-create-balls-due-to-maximum-capacity
-  user-message (word "Unable to create more balls, maximum capacity of " maxballs " reached.")
+  user-message (word "Unable to create more balls, maximum capacity of " max-balls " reached.")
 end
 
 to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
@@ -754,7 +767,7 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
 end
 
 to update-ball-shape
-  run shape-update-procedure
+  run procedure-to-update-ball-shape
 end
 
 to reset-sum-of-forces-acting-on-balls
@@ -879,7 +892,7 @@ to draw-arrow-in-direction-of-electric-field
     sprout-arrows 1
     [
       set shape "arrow"
-      set color field-color
+      set color electric-field-color
       set size 1.0
       set heading atan field-x field-y
      ]
@@ -889,9 +902,9 @@ end
 to fill-field
   let current-patch []  ; will hold a patch that is being processed
 
-  let list-patches  sort patches with [field-number = field-count  ]   ; list of patches that were marked
+  let list-patches  sort patches with [field-number = electric-field-count  ]   ; list of patches that were marked
   ask (patch-set list-patches) [recolor-patch]
-  ask arrows [set color field-color - 4]
+  ask arrows [set color electric-field-color - 4]
   ; fill patches in connected componnent with field-color
   while [not empty? list-patches]
   [ set current-patch first list-patches
@@ -902,7 +915,7 @@ to fill-field
     [
       ask neighbors4-no-wrap with [(not has-wall) and (not has-field)]
          [
-            set field-number field-count
+            set field-number electric-field-count
             set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
             recolor-patch
          ] ; end ask neighbors
@@ -914,10 +927,10 @@ to fill-field
   let marked-patch []  ;first list-field-marked-patches
   let dist 0
 
-  let list-field-marked-patches  patch-set patches-field-drawn-on ; list of patches that were marked as field by user
+  let list-field-marked-patches  patch-set patches-brush-drew-electric-field-on ; list of patches that were marked as field by user
   ask  list-field-marked-patches
   [   set marked-patch self
-      set list-field-patches  patches with [ field-number = field-count] ; all patches that were colored within same connected comp
+      set list-field-patches  patches with [ field-number = electric-field-count] ; all patches that were colored within same connected comp
       ask list-field-patches
       [
         set dist sqrt ((pxcor - [pxcor] of  marked-patch) ^ 2 + (pycor - [pycor] of  marked-patch) ^ 2 )
@@ -958,7 +971,7 @@ to remove-electric-field-from-patch
 end
 
 to update-field-count
-  set field-count max [field-number] of patches
+  set electric-field-count max [field-number] of patches
 end
 
 to erase-field [-field-number]
@@ -976,13 +989,13 @@ to-report has-field
 end
 
 to-report field-exists
-  report field-count > 0
+  report electric-field-count > 0
 end
 
 to recolor-patch
   (ifelse
     has-wall [set pcolor wall-color ]
-    has-field [set pcolor field-color ]
+    has-field [set pcolor electric-field-color ]
     [set pcolor current-background-color] )
 end
 
@@ -1044,12 +1057,12 @@ to reset-balls-collided-with
   set balls-collided-with no-turtles
 end
 
-to remove-flashes-past-their-lifespan
-  ask flashes with [tick-count - birthday > flash-time] [die]
+to run-animations
+  ask animations [animate]
 end
 
-to run-animations
-  ask animations [run animate]
+to animate
+  run animator
 end
 
 to-report any-moving-balls?
@@ -1183,13 +1196,13 @@ to-report objects-in-radius [objects radius]
 end
 
 to-report parse-function-of [node]
-  let a table:get-or-default ast-lookup-table-parse-node node-name node false
+  let a table:get-or-default node-parsers node-name node false
   if a = false [error (word "can not find parse function for " node)]
-  report table:get ast-lookup-table-parse-node node-name node
+  report table:get node-parsers node-name node
 end
 
 to-report run-function-of [node]
-  report table:get ast-lookup-table-run-node node-name node
+  report table:get node-runners node-name node
 end
 
 to-report parse-result-of-node [node population objects]
@@ -1338,28 +1351,7 @@ to set-mark-size [mark -size]
   ask mark [set size -size]
 end
 
-to-report create-mark [x y -size -color -shape -lifespan]
-  let mark-created nobody
-  hatch-animations 1 [
-    set -name "mark"
-    setxy x y
-    set shape -shape
-    set color add-transparency -color 0.35
-    set size -size
-    set label ""
-    set label-color white
-    set heading 0
-    show-turtle
-    set birthday tick-count
-    set data table:from-list (list (list "lifespan" -lifespan))
-    set animate [[] -> remove-animation-if-past-lifespan]
-    set mark-created self
-  ]
-  report mark-created
-end
-
 to remove-animation-if-past-lifespan
-  let lifespan table:get data "lifespan"
   if tick-count - birthday > lifespan [die]
 end
 
@@ -1388,61 +1380,95 @@ to flash-animation
   remove-animation-if-past-lifespan
 end
 
-to-report animation-data-by-name [effect -shape -color -lifespan]
-  ; Should be a global variable for animation data lookup.
+to run-animate-block [node population objects]
+  let parameters node-parameters node
+  let -effect table:get parameters "effect"
+  let -shape table:get parameters "shape"
+  let -size table:get parameters "size"
+  let -color add-transparency table:get parameters "color" 0.35
+  let -lifespan table:get parameters "lifespan"
   (ifelse
-    effect = "rotate" [report table:from-list [["angle" 10]]]
-    effect = "flash" [report table:from-list (list
-      (list "flash-every-n-ticks" 2)
-      (list "is-flashing" false)
-      (list "original-color" -color)
-      (list "flash-color" set-color-brightness -color 1))]
-    effect = "inflate" [report table:from-list [["increase" 5]]]
+    -effect = "rotate" [create-rotating-animation -shape -size -color -lifespan]
+    -effect = "flash" [create-flashing-animation -shape -size -color -lifespan]
+    -effect = "inflate" [create-inflating-animation -shape -size -color -lifespan]
   )
 end
 
-to run-animate-block [node population objects]
-  let parameters node-parameters node
-  let -shape table:get parameters "shape"
-  let -lifespan table:get parameters "lifespan"
-  let -effect table:get parameters "effect"
-  let -size table:get parameters "size"
-  let -color add-transparency table:get parameters "color" 0.35
-  let -data animation-data-by-name -effect -shape -color -lifespan
-  table:put -data "lifespan" -lifespan
-  let -animate animation-by-name -name
-  hatch-animation -effect -shape -color -size -data -animate
+to create-inflating-animation [-shape -size -color -lifespan]
+  ask hatch-animation "inflate" -lifespan [
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list [["increase" 5]]
+  ]
 end
 
-to hatch-animation [name -shape -color -size -data -animate]
-  hatch-animations 1 [initialize-animation name -shape -color -size -data -animate]
+to create-flashing-animation [-shape -size -color -lifespan]
+  ask hatch-animation "inflate" -lifespan [
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list (list
+      (list "flash-every-n-ticks" 2)
+      (list "is-flashing" false)
+      (list "original-color" -color)
+      (list "flash-color" set-color-brightness -color 1))
+  ]
 end
 
-to-report create-animation [name -shape -color -size -data -animate]
+to create-rotating-animation [-shape -size -color -lifespan]
+  ask hatch-animation "inflate" -lifespan [
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list [["angle" 10]]
+  ]
+end
+
+to-report sprout-animation [name -lifespan]
+  let sprouted-animation nobody
+  sprout-animations 1 [
+    initialize-animation name -lifespan
+    set sprouted-animation self
+  ]
+  report sprouted-animation
+end
+
+to-report  hatch-animation [name -lifespan]
+  let hatched-animation nobody
+  hatch-animations 1 [
+    initialize-animation name -lifespan
+    set hatched-animation self
+  ]
+  report hatched-animation
+end
+
+to-report create-animation [name -lifespan]
   let created-animation nobody
   create-animations 1 [
-    initialize-animation name -shape -color -size -data -animate
+    initialize-animation name -lifespan
     set created-animation self
   ]
   report created-animation
 end
 
-to initialize-animate-anonymous-procedure
-  set animate animation-by-name -name
+to initialize-animator
+  set animator get-animator -name
 end
 
-to initialize-animation [name -shape -color -size -data -animate]
+to initialize-animation [name -lifespan]
   set -name name
-  set shape -shape
-  set color -color
-  set size -size
+  set birthday tick-count
+  set lifespan -lifespan
+  initialize-animator
+  set data table:make
   set label ""
   set label-color white
+  set color add-transparency white 0
   set heading 0
+  set shape "empty"
+  set size 0
   show-turtle
-  set birthday tick-count
-  set data -data
-  set animate animation-by-name name
 end
 
 to parse-animate-block [node population objects]
@@ -1460,13 +1486,13 @@ to run-draw-block [node population objects]
     set shape -shape
     set color add-transparency -color 0.35
     set size -size
+    set lifespan -lifespan
     set label ""
     set label-color white
     set heading 0
     show-turtle
     set birthday tick-count
-    set data table:from-list (list (list "lifespan" -lifespan))
-    set animate [[] -> remove-animation-if-past-lifespan]
+    set animator [[] -> remove-animation-if-past-lifespan]
   ]
 end
 
@@ -1474,26 +1500,51 @@ to parse-draw-block [node population objects]
   ; check if lifespan is negative
 end
 
-to run-mark-block [node population objects]
-  let balls-to-mark (turtle-set self ifelse-value is-multiple-objects objects [objects] [one-of first objects])
-  let parameters node-parameters node
-  let mark-shape table:get parameters "shape"
-  let mark-lifespan table:get parameters "lifespan"
-  let mark-color table:get parameters "color"
-  let mark-center center-xy balls-to-mark
-  let mark-xcor first mark-center
-  let mark-ycor last mark-center
-  let mark-radius max [(distancexy mark-xcor mark-ycor) + size + 1.5] of balls-to-mark
-  let my-mark table:get-or-default node who nobody
-  ifelse my-mark = nobody [
-    table:put node who create-mark mark-xcor mark-ycor mark-radius mark-color mark-shape mark-lifespan
+to-report get-ball-mark [node]
+  report table:get-or-default node who nobody
+end
+
+to-report ball-already-has-mark [node]
+  report get-ball-mark node != nobody
+end
+
+to-report create-mark [-color -shape -lifespan]
+  let mark hatch-animation "mark" -lifespan
+  ask mark [
+    set color -color
+    set shape -shape
   ]
-  [
-    ask my-mark [
-      setxy mark-xcor mark-ycor
-      set size mark-radius
-    ]
-    extend-mark-lifespan my-mark
+  report mark
+end
+
+to create-new-mark-for-ball [node objects]
+  let parameters node-parameters node
+  let -color add-transparency table:get parameters "color" 0.35
+  let -shape table:get parameters "shape"
+  let -lifespan table:get parameters "lifespan"
+  let mark create-mark -color -shape -lifespan
+  mark-objects mark objects
+  table:put node who mark
+end
+
+to mark-objects [mark objects]
+  let balls-to-mark (turtle-set self ifelse-value is-multiple-objects objects [objects] [one-of first objects])
+  let -center center-xy balls-to-mark
+  let -xcor first -center
+  let -ycor last -center
+  let -size max [(distancexy -xcor -ycor) + size + 1.5] of balls-to-mark
+  ask mark [
+    set size -size
+    setxy -xcor -ycor
+    extend-animation-lifespan
+  ]
+end
+
+to run-mark-block [node population objects]
+  ifelse ball-already-has-mark node [
+    create-new-mark-for-ball node objects
+  ] [
+    mark-objects get-ball-mark node objects
   ]
 end
 
@@ -1909,14 +1960,14 @@ to-report property-changed-procedure [property]
 end
 
 to-report global-variable-changed-procedure [global-variable]
-  report table:get-or-default global-variable-changed-lookup global-variable [[new-value] -> ]
+  report table:get-or-default global-variables-new-value-handlers global-variable [[new-value] -> ]
 end
 
 to-report global-variables-that-changed
   let current global-variable-values
-  let prev prev-global-variable-values
+  let prev global-variables-record
   let changed-values table:from-list map [global-variable -> (list global-variable table:get current global-variable)] (unequal-keys prev current)
-  set prev-global-variable-values current
+  set global-variables-record current
   report changed-values
 end
 
@@ -1988,22 +2039,24 @@ to time-run
   ;if tick-count = 500 [print profiler:report profiler:reset]
 end
 
+to on-world-advanced
+  run-animations
+  update-all-plots
+  update-display-every-n-ticks 2
+end
+
+to advance-state-of-world
+  every (tick-advance-amount) [
+    advance-balls-in-world
+    advance-ticks
+    on-world-advanced
+  ]
+end
 
 to go
-  time-run
-  log-go-procedure
-  ;update-ball-population-properties-defined-in-nettango-blocks
-  if netlogo-web? [
-    update-ball-population-properties-defined-in-nettango-blocks ]
+  on-start-of-turn
   ifelse any-moving-balls? [
-    every (tick-advance-amount) [
-      advance-balls-in-world
-      remove-flashes-past-their-lifespan
-      run-animations
-      advance-ticks
-      update-all-plots
-      update-display-every-n-ticks 2
-    ]
+    advance-state-of-world
   ][
     re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
     on-end-of-turn
@@ -2019,8 +2072,16 @@ to on-end-of-turn
   check-if-should-color-balls-relative-to-population-speed
 end
 
+to on-start-of-turn
+  time-run
+  log-go-procedure
+  ;update-ball-population-properties-defined-in-nettango-blocks
+  if netlogo-web? [
+    update-ball-population-properties-defined-in-nettango-blocks ]
+end
+
 to-report prev-global-variable [name]
-  report table:get prev-global-variable-values name
+  report table:get global-variables-record name
 end
 
 to check-if-should-color-balls-relative-to-population-speed
@@ -2082,30 +2143,40 @@ end
 
 ; patch procedure
 to-report has-flash
-  report any? flashes-here
+  report any? animations-here with [-name = "patch-flash"]
 end
 
 ; patch procedure
 to create-flash-here [-flash-color]
-  sprout-flashes 1 [
+  let -effect "patch-flash"
+  let -lifespan flash-time
+  ask sprout-animation -effect -lifespan [
     set color -flash-color
-    set birthday tick-count
-    set heading 0
+    set shape "square"
+    set size 1
   ]
 end
 
 ; patch procedure
 to flash-patch [-flash-color]
   ifelse has-flash [
-    renew-lifespan-of-flash-here ]
+    extend-lifespan-of-flash-here ]
   [
     create-flash-here -flash-color
   ]
 end
 
 ; patch procedure
-to renew-lifespan-of-flash-here
-  ask one-of flashes-here [set birthday ticks]
+to extend-lifespan-of-flash-here
+  ask one-of animations with [-name = "patch-flash"] [extend-animation-lifespan]
+end
+
+to extend-animation-lifespan
+  set lifespan lifespan + animation-age
+end
+
+to-report animation-age
+  report tick-count - birthday
 end
 
 to set-ball-xy-to-return-cyclically-around-world
@@ -2221,10 +2292,10 @@ to-report heading-quadrant
 end
 
 to-report check-wall-collision-quadrant-1
- let new-patch patch-ahead lookAhead
+ let new-patch patch-ahead look-ahead-wall-collision
  if new-patch = nobody [report false]
- let new-patch-right  patch-at-heading-and-distance  90 lookAhead
- let new-patch-up    patch-at-heading-and-distance    0 lookAhead
+ let new-patch-right  patch-at-heading-and-distance  90 look-ahead-wall-collision
+ let new-patch-up    patch-at-heading-and-distance    0 look-ahead-wall-collision
  if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
  if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
 
@@ -2238,10 +2309,10 @@ to-report check-wall-collision-quadrant-1
 end
 
 to-report check-wall-collision-quadrant-2
-  let new-patch patch-ahead lookAhead
+  let new-patch patch-ahead look-ahead-wall-collision
   if new-patch = nobody [report false]
-  let new-patch-right  patch-at-heading-and-distance   90 lookAhead
-  let new-patch-down  patch-at-heading-and-distance  180 lookAhead
+  let new-patch-right  patch-at-heading-and-distance   90 look-ahead-wall-collision
+  let new-patch-down  patch-at-heading-and-distance  180 look-ahead-wall-collision
   if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
   if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
 
@@ -2255,10 +2326,10 @@ to-report check-wall-collision-quadrant-2
 end
 
 to-report check-wall-collision-quadrant-3
-  let new-patch patch-ahead lookAhead
+  let new-patch patch-ahead look-ahead-wall-collision
   if new-patch = nobody [report false]
-  let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
-  let new-patch-down  patch-at-heading-and-distance  180 lookAhead
+  let new-patch-left  patch-at-heading-and-distance  -90 look-ahead-wall-collision
+  let new-patch-down  patch-at-heading-and-distance  180 look-ahead-wall-collision
   if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
   if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
 
@@ -2272,10 +2343,10 @@ to-report check-wall-collision-quadrant-3
 end
 
 to-report check-wall-collision-quadrant-4
-  let new-patch patch-ahead lookAhead
+  let new-patch patch-ahead look-ahead-wall-collision
   if new-patch = nobody [report false]
-  let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
-  let new-patch-up    patch-at-heading-and-distance    0 lookAhead
+  let new-patch-left  patch-at-heading-and-distance  -90 look-ahead-wall-collision
+  let new-patch-up    patch-at-heading-and-distance    0 look-ahead-wall-collision
   if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
   if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
 
@@ -2339,8 +2410,8 @@ end
 
 to change-speed-after-wall-collision [speed-change]
   if (speed-change = "zero")     [ set speed 0 ]
-  if (speed-change = "increase")[set speed speed + deltaSpeed]
-  if (speed-change = "decrease")[set speed speed - deltaSpeed]
+  if (speed-change = "increase")[set speed speed + speed-delta-after-collision]
+  if (speed-change = "decrease")[set speed speed - speed-delta-after-collision]
   if (speed-change = "collide") and (speed-change != "collide")
                      [user-message (word "You cannot pair non-collide heading change with collide speed change.")]
 end
@@ -2447,8 +2518,8 @@ end
 to perform-collision-speed-change [speed-change]
   (ifelse
     (speed-change = "zero")    [set speed 0]
-    (speed-change = "increase")[set speed speed + deltaSpeed]
-    (speed-change = "decrease")[set speed speed - deltaSpeed]
+    (speed-change = "increase")[set speed speed + speed-delta-after-collision]
+    (speed-change = "decrease")[set speed speed - speed-delta-after-collision]
   )
 end
 
@@ -2456,8 +2527,8 @@ to perform-collision-speed-change-old [other-ball speed-change]
   ; close duplication of other function
   (ifelse
     (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + deltaSpeed ask other-ball [set speed speed + deltaSpeed]]
-    (speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball [set speed speed - deltaSpeed]]
+    (speed-change = "increase")[set speed speed + speed-delta-after-collision ask other-ball [set speed speed + speed-delta-after-collision]]
+    (speed-change = "decrease")[set speed speed - speed-delta-after-collision ask other-ball [set speed speed - speed-delta-after-collision]]
   )
 end
 
@@ -2495,7 +2566,7 @@ end
 to-report ball-collides-with [other-ball]
   let interBallMaxDist  ((size + [size] of other-ball) / 2)
   let ourDistance distance other-ball
-  report (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - eps-collision)
+  report (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - collision-depth-threshold)
 end
 
 to check-for-collision-with-population [population]
@@ -2597,8 +2668,8 @@ to perform-collision-speed-change-with [other-ball]
   let heading-change collision-heading-change other-ball
   (ifelse
     (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + deltaSpeed ask other-ball [set speed speed + deltaSpeed]]
-    (speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball [set speed speed - deltaSpeed]]
+    (speed-change = "increase")[set speed speed + speed-delta-after-collision ask other-ball [set speed speed + speed-delta-after-collision]]
+    (speed-change = "decrease")[set speed speed - speed-delta-after-collision ask other-ball [set speed speed - speed-delta-after-collision]]
     ((speed-change = "collide") and (heading-change != "collide")) or ((speed-change != "collide") and (heading-change = "collide"))
                       [user-message (word "You cannot pair non-collision heading change with collision speed change.")]
     ((speed-change = "attract") and (heading-change != "attract")) or ((speed-change != "attract") and (heading-change = "attract"))
@@ -2871,7 +2942,7 @@ to factor-repel-and-attract-forces  ; turtle procedure consider repel and attrac
 end
 
 to apply-electric-field [field-strength]
-  if field-count > 0 [
+  if electric-field-count > 0 [
     let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-advance-amount)
     let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-advance-amount)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
@@ -3221,15 +3292,17 @@ to remove-gfx-display-of-patches-to-be-affected-by-drawn-shape
 end
 
 to add-gfx-display-of-patches-to-be-affected-by-drawn-shape
-  ask patches-affected-by-drawn-shape [visually-display-this-patch-as-affected-by-drawn-shape]
+  ask patches-affected-by-drawn-shape [display-this-patch-as-affected-by-drawn-shape]
+  ask gfx-displaying-patches-affected-by-drawn-shape [show-turtle]
 end
 
-to visually-display-this-patch-as-affected-by-drawn-shape
+to display-this-patch-as-affected-by-drawn-shape
   sprout-gfx-overlay 1 [
     set shape "square"
     set color yellow
-    set gfx-displaying-patches-affected-by-drawn-shape (turtle-set gfx-displaying-patches-affected-by-drawn-shape self)
     set heading 0
+    hide-turtle
+    set gfx-displaying-patches-affected-by-drawn-shape (turtle-set gfx-displaying-patches-affected-by-drawn-shape self)
   ]
 end
 
@@ -3409,7 +3482,7 @@ to-report patches-brush-is-drawing-on
 end
 
 to-report patches-brush-moved-over-while-being-held-down
-  report patches-line-intersects-no-wrap item 0 coordinates-of-brush-when-last-held-down item 1 coordinates-of-brush-when-last-held-down item 0 mouse-coordinates item 1 mouse-coordinates
+  report patches-line-intersects-no-wrap item 0 coordinates-of-brush-when-last-held-down item 1 coordinates-of-brush-when-last-held-down item 0 current-mousexy item 1 current-mousexy
 end
 
 to-report coordinates-of-brush-when-last-held-down
@@ -3421,11 +3494,7 @@ to-report newly-drawn-on-patches-brush-is-drawing-on
 end
 
 to-report patch-under-brush
-  report patch-at-point mouse-coordinates
-end
-
-to-report mouse-coordinates
-  report current-mousexy
+  report patch-at-point current-mousexy
 end
 
 to set-brush-style-as-free-form
@@ -3682,7 +3751,7 @@ end
 
 to diplay-brush-xy-as-label-on-brush-mode-icon
   ifelse current-mouse-inside? [
-    ask brush-draw-erase-mode-icon [set label (word int item 0 current-mousexy ", " int item 1 current-mousexy) ] ]
+    ask brush-draw-erase-mode-icon [set label (word [pxcor] of patch-under-brush ", " [pycor] of patch-under-brush) ] ]
   [
     ask brush-draw-erase-mode-icon [set label ""]
   ]
@@ -3891,7 +3960,8 @@ to create-field-with-brush
 end
 
 to-report is-brush-currently-configuring-a-field
-  report last-patch-brush-configured-field-on != nobody
+  report length patches-brush-drew-electric-field-on > 0
+  ;report last-patch-brush-configured-field-on != nobody
 end
 
 to-report has-electric-field
@@ -3900,15 +3970,14 @@ end
 
 to configure-new-field-with-brush
   if not [has-wall] of patch-under-brush and not [has-electric-field] of patch-under-brush[
-    set field-count field-count + 1
-    set last-patch-brush-configured-field-on patch-under-brush
-    set patches-field-drawn-on lput last-patch-brush-configured-field-on patches-field-drawn-on
+    set electric-field-count electric-field-count + 1
+    set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on
     configure-current-field-with-brush
   ]
 end
 
 to-report is-first-patch-electric-field-drawn-on
-  report length patches-field-drawn-on = 1
+  report length patches-brush-drew-electric-field-on = 1
 end
 
 to-report before-last [-list]
@@ -3921,20 +3990,20 @@ to configure-current-field-with-brush
   let field-y-value 0
   let prev-mouse-xcor item 0 mousexy-when-brush-was-last-activated
   let prev-mouse-ycor item 1 mousexy-when-brush-was-last-activated
-  if patch-under-brush != last patches-field-drawn-on [
-    set patches-field-drawn-on lput patch-under-brush patches-field-drawn-on]
+  if patch-under-brush != last patches-brush-drew-electric-field-on [
+    set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on]
 
   if not [has-wall] of patch-under-brush [
     ifelse is-first-patch-electric-field-drawn-on [
       set field-x-value (mouse-xcor - [pxcor] of patch-under-brush)
       set field-y-value (mouse-ycor - [pycor] of patch-under-brush)
     ] [
-      set field-x-value (mouse-xcor - [pxcor] of before-last patches-field-drawn-on)
-      set field-y-value (mouse-ycor - [pycor] of before-last patches-field-drawn-on)
+      set field-x-value (mouse-xcor - [pxcor] of before-last patches-brush-drew-electric-field-on)
+      set field-y-value (mouse-ycor - [pycor] of before-last patches-brush-drew-electric-field-on)
     ]
     if (field-x-value != 0 or field-y-value != 0 ) [ ; mouse moved from prev location
       ask patch-under-brush [
-        set field-number field-count
+        set field-number electric-field-count
         set field-x field-x-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
         set field-y field-y-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
         draw-arrow-in-direction-of-electric-field
@@ -3944,14 +4013,12 @@ to configure-current-field-with-brush
       set prev-mouse-ycor mouse-ycor
     ]
   ]
-  set last-patch-brush-configured-field-on patch-under-brush
 end
 
 to finalize-field-configuration-with-brush
   if is-brush-currently-configuring-a-field [
     fill-field
-    set patches-field-drawn-on []
-    set last-patch-brush-configured-field-on nobody
+    set patches-brush-drew-electric-field-on []
     log-command "paint-field"
   ]
 end
@@ -4003,14 +4070,13 @@ end
 to create-counter-in-patch
   if can-create-counter-in-patch [
     sprout-counters 1 [
-      set shape  "square"
-      set size counter-width
+      set shape  "counter"
       ;set color counter-color
       ;let hsb-color extract-hsb item counter-number-drawn-by-brush base-colors
       ;set hsb-color replace-item 1 hsb-color 100
       ;set hsb-color replace-item 2 hsb-color 100
       set color (item ((counter-number-drawn-by-brush - 1) mod length default-colors-for-ball-populations) default-colors-for-ball-populations) + 2
-      set counter-number counter-number-drawn-by-brush
+      set number counter-number-drawn-by-brush
       set heading 0
     ]
     on-counter-added-to-patch
@@ -4019,7 +4085,7 @@ end
 
 ;patch procedure
 to-report counter-number-here
-  report [counter-number] of one-of counters-here
+  report [number] of one-of counters-here
 end
 
 to-report create-counter-number-gfx [-counter-number]
@@ -4069,7 +4135,7 @@ end
 
 to initialize-counter-information-if-not-initialized-yet [-counter-number]
   if not has-counter-been-initialized -counter-number [
-    table:put counters-information-gfx-overlay -counter-number create-initialized-counter-information-gfx-overlay -counter-number
+    table:put counters-information-gfx -counter-number create-initialized-counter-information-gfx-overlay -counter-number
     table:put ball-count-in-counters -counter-number 0
     update-ball-count-in-counter -counter-number
   ]
@@ -4082,7 +4148,7 @@ to on-counter-added-to-patch
 end
 
 to-report counters-of [-counter-number]
-  report counters with [counter-number = -counter-number]
+  report counters with [number = -counter-number]
 end
 
 to-report counters-with-counter-number-exist [-counter-number]
@@ -4090,7 +4156,7 @@ to-report counters-with-counter-number-exist [-counter-number]
 end
 
 to-report get-counter-information [-counter-number]
-  report table:get counters-information-gfx-overlay -counter-number
+  report table:get counters-information-gfx -counter-number
 end
 
 to hide-counter-information [-counter-number]
@@ -4132,7 +4198,7 @@ to-report counter-number-of-closest-neighbor-of-patches-brush-is-drawing-on-to-m
 end
 
 to-report highest-counter-number-in-use
-  report max [counter-number] of counters
+  report max [number] of counters
 end
 
 to-report highest-counter-number
@@ -4989,7 +5055,7 @@ brush-size
 brush-size
 1
 10
-5.0
+3.0
 1
 1
 NIL
@@ -5257,7 +5323,7 @@ SWITCH
 79
 flash-wall-collision
 flash-wall-collision
-1
+0
 1
 -1000
 
@@ -5778,6 +5844,11 @@ circle outline
 true
 0
 Circle -7500403 false true 0 0 300
+
+counter
+false
+0
+Rectangle -7500403 true true 3 4 296 296
 
 cow
 false
