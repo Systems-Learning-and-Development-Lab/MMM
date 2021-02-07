@@ -3177,7 +3177,8 @@ end
 to draw-with-brush
   (ifelse
     brush-style = "free-form" [draw-with-free-form-brush]
-    brush-style = "shape" [draw-shape-with-brush])
+    brush-style = "shape" [draw-shape-with-brush]
+  )
 end
 
 to draw-shape-with-brush
@@ -3241,7 +3242,7 @@ to set-patches-to-be-affected-by-current-drawn-shape-configuration
 end
 
 to-report radius-of-circle-drawn-by-brush
-  report [distance-no-wrap center-patch-of-drawn-shape] of patch-under-brush
+  report max (list [distance-no-wrap center-patch-of-drawn-shape] of patch-under-brush 0.5)
 end
 
 to-report size-of-square-drawn-by-brush
@@ -3308,16 +3309,16 @@ end
 
 to set-patches-to-be-affected-by-current-drawn-circle-configuration
   let radius radius-of-circle-drawn-by-brush
-  set patches-affected-by-drawn-shape patches with [(distance-no-wrap center-patch-of-drawn-shape > radius - 0.5) and (distance-no-wrap center-patch-of-drawn-shape < radius + 0.5)]
-  ;set patches-affected-by-drawn-shape patches-that-form-a-circular-border-around-center-patch-no-wrap center-patch-of-drawn-shape radius
+  ;set patches-affected-by-drawn-shape patches with [(distance-no-wrap center-patch-of-drawn-shape > radius - 0.5) and (distance-no-wrap center-patch-of-drawn-shape < radius + 0.5)]
+  set patches-affected-by-drawn-shape patches-that-form-a-circular-border-around-center-patch-no-wrap center-patch-of-drawn-shape radius
 end
 
 to-report patches-that-form-a-circular-border-around-center-patch-no-wrap [center radius]
-  ; todo this doesnt work properly
-  let amount-of-patches-in-circle-border radius * 8
-  let heading-interval-to-check-for-border-patch 360 / amount-of-patches-in-circle-border
-  report patch-set n-values amount-of-patches-in-circle-border [interval ->
-    [patch-at-heading-and-distance (interval * heading-interval-to-check-for-border-patch) radius] of center]
+  let amount-of-heading-intervals-to-check (radius * 16) ; 16 seems to be a good sampling rate
+  let heading-interval-to-check-for-border-patch (360 / amount-of-heading-intervals-to-check)
+  let potential-patches (patch-set n-values amount-of-heading-intervals-to-check [interval ->
+      [(patch-at-heading-and-distance (interval * heading-interval-to-check-for-border-patch) (radius))] of center])
+  report potential-patches with [(distance-no-wrap center >= radius - 0.5) and (distance-no-wrap center < radius + 0.5)]
 end
 
 to-report distance-no-wrap [-other]
@@ -3362,7 +3363,8 @@ end
 to-report patches-affected-by-brush-shape-used-at-patch [-patch]
   (ifelse
     brush-shape = "circle" [report patches-affected-by-a-circle-shaped-brush-at-patch -patch]
-    brush-shape = "square" [report patches-affected-by-a-square-shaped-brush-at-patch -patch ] )
+    brush-shape = "square" [report patches-affected-by-a-square-shaped-brush-at-patch -patch ]
+  )
 end
 
 to-report patches-affected-by-a-circle-shaped-brush-at-patch [-patch]
@@ -3399,7 +3401,6 @@ end
 to-report patches-affected-by-a-square-shaped-brush-at-patch [-patch]
   let radius (brush-size / 2)
   let -center-patch select-closest-patch-that-can-be-surrounded-by-radius-in-world -patch radius
-  ;report (patch-set n-values (brush-size ^ 2) [i -> patch (([pxcor] of -center-patch - (brush-size / 2) + 0.5) + i mod brush-size) (([pycor] of -center-patch - (brush-size / 2) + 0.5) + int(i / brush-size))])
   report (patch-set n-values (brush-size ^ 2) [i -> patch (([pxcor] of -center-patch - (brush-size / 2)) + i mod brush-size) (([pycor] of -center-patch - (brush-size / 2)) + int(i / brush-size))])
 end
 
@@ -3408,13 +3409,11 @@ to-report patches-brush-is-drawing-on
 end
 
 to-report patches-brush-moved-over-while-being-held-down
-    ;report patches-line-intersects coordinates-of-brush-when-last-held-down mouse-coordinates
   report patches-line-intersects-no-wrap item 0 coordinates-of-brush-when-last-held-down item 1 coordinates-of-brush-when-last-held-down item 0 mouse-coordinates item 1 mouse-coordinates
 end
 
 to-report coordinates-of-brush-when-last-held-down
   report mousexy-when-brush-was-last-activated
-  ;ifelse mouse-down?-when-brush-was-last-activated [report mousexy-when-brush-was-last-activated] [report mouse-coordinates]
 end
 
 to-report newly-drawn-on-patches-brush-is-drawing-on
