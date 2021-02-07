@@ -3302,9 +3302,22 @@ to set-patches-to-be-affected-by-current-drawn-square-configuration
   set patches-affected-by-drawn-shape patches-that-form-a-rectangular-border-around-center-patch-no-wrap center-patch-of-drawn-shape side-length side-length
 end
 
+to-report in-radius-no-wrap [-patch radius]
+  report distance-no-wrap -patch <= radius
+end
+
 to set-patches-to-be-affected-by-current-drawn-circle-configuration
   let radius radius-of-circle-drawn-by-brush
   set patches-affected-by-drawn-shape patches with [(distance-no-wrap center-patch-of-drawn-shape > radius - 0.5) and (distance-no-wrap center-patch-of-drawn-shape < radius + 0.5)]
+  ;set patches-affected-by-drawn-shape patches-that-form-a-circular-border-around-center-patch-no-wrap center-patch-of-drawn-shape radius
+end
+
+to-report patches-that-form-a-circular-border-around-center-patch-no-wrap [center radius]
+  ; todo this doesnt work properly
+  let amount-of-patches-in-circle-border radius * 8
+  let heading-interval-to-check-for-border-patch 360 / amount-of-patches-in-circle-border
+  report patch-set n-values amount-of-patches-in-circle-border [interval ->
+    [patch-at-heading-and-distance (interval * heading-interval-to-check-for-border-patch) radius] of center]
 end
 
 to-report distance-no-wrap [-other]
@@ -3355,7 +3368,8 @@ end
 to-report patches-affected-by-a-circle-shaped-brush-at-patch [-patch]
   let radius (brush-size / 2)
   let -center-patch select-closest-patch-that-can-be-surrounded-by-radius-in-world -patch radius
-  report [patches in-radius radius] of -center-patch
+  let potential-patches patches-affected-by-a-square-shaped-brush-at-patch -center-patch
+  report [potential-patches in-radius radius] of -center-patch
 end
 
 to-report select-closest-patch-that-can-be-surrounded-by-radius-in-world [-patch radius]
@@ -4976,7 +4990,7 @@ brush-size
 brush-size
 1
 10
-3.0
+5.0
 1
 1
 NIL
