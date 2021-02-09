@@ -1,15 +1,14 @@
 extensions [send-to fetch import-a table]; profiler]
 
 globals [
-  tick-count    ; count how many turns this model has advanced state of world
   current-background-color    ; gets updated when user clicks "paint-world" button
   gravity-acceleration-x    ; acceleration of gravity on x axis
-  tick-advance-amount    ; the amount by which ticks advance each turn
+  time-delta-per-tick    ; the amount by which ticks advance each turn
   flash-time    ; length of time of flash counter or wall
   animators    ; table that holds procedures that animate an animation.
   global-variables-record
   global-variables-new-value-handlers    ; which procedure to run incase value has changed.
-  last-tick-count-display-was-updated
+  last-tick-display-was-updated
 
   ;==== balls ====
   wall-collision-count    ; count wall collisions for each population.
@@ -98,73 +97,43 @@ globals [
   nodes-by-id
   last-used-nodes-by-id
   id-counter
-
-  ;====== DEPRECATED/ UNUSED variables ===============
-  ;heading-acceleration     ; direction of field
-  ;avg-speed-init avg-energy-init      ; initial averages
-  ;avg-speed avg-energy                ; current averages
-  ;particle-mass
-  ;temperature
-  ;volume
-  ;pressure
-  ;outside-energy
-  ;lost-balls                     ; particles that have escaped the pull of gravity (reached the top of the World & View)
-                                      ; these particles are removed from the simulation
-  ;percent-lost-balls
-  ;max-tick-advance-amount             ; the largest a tick length is allowed to be
-  ;obstacles
-  ;field-width
-;  max-field-spread
-;  counter-color
-  ;counter-time-window ; number of time units over which to sum balls on counter
-  ;counter-delta-time  ; will count the time units
-;  fixPrevFieldPatch  ; flag to determine if prev mouse position needs to be added to field
 ]
 
 ; order of breeds determines layering of turtles.
-breed [ counters counter]
-breed [ animations animation]
-breed [ arrows arrow]
-breed [ halos halo]
-breed [ ball-compound-shapes ball-compound-shape]
-breed [ balls ball]
+breed [counters counter]
+breed [animations animation]
+breed [arrows arrow]
+breed [halos halo]
+breed [ball-compound-shapes ball-compound-shape]
+breed [balls ball]
 breed [gfx-overlay a-gfx-overlay] ; turtles used to diplay gfx
 breed [brush-border-outlines brush-border-outline] ; gfx for brush outline
 breed [brush-cursors brush-cursor] ; gfx for brush cursor
 
-undirected-link-breed [
+undirected-link-breed
+[
   compound-shapes
   compound-shape
 ]
 
-animations-own [
+animations-own
+[
   lifespan
   birthday                   ; tick count animation was created
-  animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animate]'
+  animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animator]'
   data                       ; data can be anything the animation needs. table variable
-  -name                      ; temporarily used because of nettango bug
+  -name                      ; used to retrieve animator by name
 ]
 
 balls-own
 [
   population-num             ; Which population the ball belongs to
   speed mass energy          ; particle info
-  tick-count-move-enabled     ; tick count when move was enabled to move if in blocks set to "Move X Steps"
+  tick-move-enabled     ; tick count when move was enabled to move if in blocks set to "Move X Steps"
   last-tick-wall-collision-occured    ; keep track last tick wall collision occured to reduce calculation when changing speed if collision occured
   balls-collided-with
   force-x-sum                     ; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
   force-y-sum                     ; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
-;  last-collision             ; keeps track of last particle this particle collided with
-;  table
-;  leader                     ; for stick togather slider
-;  wall-hits                  ; # of wall hits during this clock cycle
-;  momentum-difference        ; used to calculate pressure from wall hits
-;  momentum-instant           ; used to calculate pressure
-;  stuck-on-wall?             ; pays attention if the balls is stuck to exclude him from movement
-;  turn-amount                ; This is used to make all of the nodes in a cluster turn by
-                              ; the same number of degrees.  Each leader chooses a random
-                              ; amount, then everyone else uses the amount from their leader.
-;  stick-to-wall?
 ]
 
 patches-own
@@ -174,7 +143,7 @@ patches-own
   accum-x             ; accumulates vector  field_x for gobal field computation
   accum-y             ; accumulates vector  field_y for gobal field computation
   accum-w             ; accumulates weights  for gobal field computation
-  field-number        ; holds the component number of the field (was "cluster")
+  field-number        ; holds the component number of the field
   has-wall            ; true if patch has wall
 ]
 
@@ -275,7 +244,6 @@ to initialize-patch
 end
 
 to initialize-global-values
-  set tick-count 0
   set ball-population-properties table:make
   set prev-ball-population-properties ball-population-properties
   set population-to-set-properties-for-in-ui "-"
@@ -302,7 +270,7 @@ to initialize-global-values
   set attraction-strength 30
   set gravity-acceleration-x 0
   set collision-depth-threshold 0.99
-  set tick-advance-amount 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
+  set time-delta-per-tick 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
   setup-logging  "LOGGING/logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
   set prev-line "None"
@@ -315,9 +283,6 @@ to initialize-global-values
   initialize-property-change-procedure-lookup
   initialize-global-variable-changed-lookup
   initialize-animators
-  ;set max-field-spread 20 ; spread the field only within a radius  (max world is -26 <->  +26
-  ;set counter-time-window 1000
-  ;set counter-delta-time 0
 end
 
 to initialize-all-anonymous-procedures
@@ -785,7 +750,7 @@ to initialize-ball-after-creation [population -xcor -ycor]
   set color prop "color"
   set size prop "size"
   update-ball-shape
-  set tick-count-move-enabled tick-count
+  set tick-move-enabled ticks
   set speed prop "speed"
   set mass prop "size"
   setxy -xcor -ycor
@@ -794,12 +759,6 @@ to initialize-ball-after-creation [population -xcor -ycor]
   reset-sum-of-forces-acting-on-balls
   update-balls-by-population self
   reset-balls-collided-with
-  ;set last-collision nobody
-  ;set heading 1000    ; temp value to change below so that only THESE new balls will get new value
-  ;set leader self
-  ;set stuck-on-wall? false
-  ;set wall-hits 0
-  ;set momentum-difference 0
 end
 
 to update-ball-label
@@ -885,10 +844,8 @@ to-report has-neighbors-with-arrows
 end
 
 to draw-arrow-in-direction-of-electric-field
-  ask arrows-here [die]
-  ;if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
   if not has-neighbors-with-arrows [
-    ;if not has-neighbors-with-arrows and length patches-field-drawn-on mod 4 = 0[
+    ask arrows-here [die]
     sprout-arrows 1
     [
       set shape "arrow"
@@ -899,7 +856,7 @@ to draw-arrow-in-direction-of-electric-field
   ]
 end
 
-to fill-field
+to create-electric-field-in-direction-configured-by-brush
   let current-patch []  ; will hold a patch that is being processed
 
   let list-patches  sort patches with [field-number = electric-field-count  ]   ; list of patches that were marked
@@ -910,8 +867,6 @@ to fill-field
   [ set current-patch first list-patches
     set list-patches but-first list-patches
     ask current-patch
-    ;refactor changed "in-radius-nowrap" to "in-radius" since it is not supported in netlogo web
-    ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
     [
       ask neighbors4-no-wrap with [(not has-wall) and (not has-field)]
          [
@@ -948,9 +903,6 @@ to fill-field
   [  if (accum-w != 0)
      [   set field-x  (accum-x / accum-w)
          set field-y  (accum-y / accum-w)
-         ; normalize and set to field strength
-         ;set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
-         ;set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
          set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
          set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
       ]
@@ -1071,24 +1023,20 @@ to-report any-moving-balls?
   report any-ball-moving;
 end
 
-to-report atleast-n-ticks-have-passed-since-last-display-update [n]
-  report tick-count - last-tick-count-display-was-updated >= n
-end
-
-to update-display-every-n-ticks [n]
-  if atleast-n-ticks-have-passed-since-last-display-update n [
-    update-display]
-end
-
 to update-display
   display
+  ; the no-display is not supported by netlogo web. the reasoning for setting no-display
+  ; is so that commands ran while the world was advancing did not update the display and
+  ; make execution slower, such as when a new turtle is created. Need to make sure if
+  ; display really does get updated when new turtles are created, and if so, maybe set them
+  ; to hidden, and and set them to shown on end of turn, so that multiples turtles created one after
+  ; other do not slow down execution by updating display all the time.
   ;no-display
-  set last-tick-count-display-was-updated tick-count
+  set last-tick-display-was-updated ticks
 end
 
 to advance-ticks
-  tick-advance tick-advance-amount
-  set tick-count tick-count + 1
+  tick
 end
 
 to log-go-procedure
@@ -1099,7 +1047,7 @@ to log-go-procedure
 end
 
 to re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
-  ask balls with [is-number? prop "move"] [set tick-count-move-enabled tick-count]
+  ask balls with [is-number? prop "move"] [set tick-move-enabled ticks]
 end
 
 ;============= ast parse ====================
@@ -1340,7 +1288,7 @@ to-report center-xy [agent-set]
 end
 
 to extend-mark-lifespan [mark]
-  ask mark [set birthday tick-count]
+  ask mark [set birthday ticks]
 end
 
 to set-mark-xy [mark x y]
@@ -1352,7 +1300,7 @@ to set-mark-size [mark -size]
 end
 
 to remove-animation-if-past-lifespan
-  if tick-count - birthday > lifespan [die]
+  if ticks - birthday > lifespan [die]
 end
 
 to rotate-animation
@@ -1370,7 +1318,7 @@ end
 
 to flash-animation
   let flash-rate table:get data "flash-every-n-ticks"
-  let should-change-color tick-count mod flash-rate = 0
+  let should-change-color ticks mod flash-rate = 0
   if should-change-color [
     let is-flashing table:get data "is-flashing"
     let next-color ifelse-value is-flashing [table:get data "original-color"] [table:get data "flash-color"]
@@ -1404,7 +1352,7 @@ to create-inflating-animation [-shape -size -color -lifespan]
 end
 
 to create-flashing-animation [-shape -size -color -lifespan]
-  ask hatch-animation "inflate" -lifespan [
+  ask hatch-animation "flash" -lifespan [
     set shape -shape
     set size -size
     set color -color
@@ -1417,7 +1365,7 @@ to create-flashing-animation [-shape -size -color -lifespan]
 end
 
 to create-rotating-animation [-shape -size -color -lifespan]
-  ask hatch-animation "inflate" -lifespan [
+  ask hatch-animation "rotate" -lifespan [
     set shape -shape
     set size -size
     set color -color
@@ -1458,7 +1406,7 @@ end
 
 to initialize-animation [name -lifespan]
   set -name name
-  set birthday tick-count
+  set birthday ticks
   set lifespan -lifespan
   initialize-animator
   set data table:make
@@ -1491,7 +1439,7 @@ to run-draw-block [node population objects]
     set label-color white
     set heading 0
     show-turtle
-    set birthday tick-count
+    set birthday ticks
     set animator [[] -> remove-animation-if-past-lifespan]
   ]
 end
@@ -1523,8 +1471,8 @@ to create-new-mark-for-ball [node objects]
   let -shape table:get parameters "shape"
   let -lifespan table:get parameters "lifespan"
   let mark create-mark -color -shape -lifespan
-  mark-objects mark objects
   table:put node who mark
+  mark-objects mark objects
 end
 
 to mark-objects [mark objects]
@@ -1541,7 +1489,7 @@ to mark-objects [mark objects]
 end
 
 to run-mark-block [node population objects]
-  ifelse ball-already-has-mark node [
+  ifelse not ball-already-has-mark node [
     create-new-mark-for-ball node objects
   ] [
     mark-objects get-ball-mark node objects
@@ -1626,10 +1574,10 @@ end
 to run-at-least-x-ticks-block [node population objects]
   let parameters node-parameters node
   let amount table:get parameters "amount"
-  table:put node who last-n-elements (sentence (table:get-or-default node who []) tick-count) amount
+  table:put node who last-n-elements (sentence (table:get-or-default node who []) ticks) amount
   let arithmetic-sum (amount * (amount + 1)) / 2
   let sum-tick-count-of-last-x-visits-here sum table:get node who
-  let has-visited-node-x-consequtive-ticks (sum-tick-count-of-last-x-visits-here + arithmetic-sum) = (tick-count + 1) * amount
+  let has-visited-node-x-consequtive-ticks (sum-tick-count-of-last-x-visits-here + arithmetic-sum) = (ticks + 1) * amount
   if has-visited-node-x-consequtive-ticks [
     run-children node population objects
   ]
@@ -2042,11 +1990,10 @@ end
 to on-world-advanced
   run-animations
   update-all-plots
-  update-display-every-n-ticks 2
 end
 
 to advance-state-of-world
-  every (tick-advance-amount) [
+  every (time-delta-per-tick) [
     advance-balls-in-world
     advance-ticks
     on-world-advanced
@@ -2132,7 +2079,7 @@ end
 ; ball procedure
 to-report ball-can-move
   let -move-forward prop "move"
-  report ifelse-value is-boolean? -move-forward [-move-forward] [tick-count - tick-count-move-enabled < -move-forward]
+  report ifelse-value is-boolean? -move-forward [-move-forward] [ticks - tick-move-enabled < -move-forward]
 end
 
 ; turtle procedure
@@ -2176,7 +2123,7 @@ to extend-animation-lifespan
 end
 
 to-report animation-age
-  report tick-count - birthday
+  report ticks - birthday
 end
 
 to set-ball-xy-to-return-cyclically-around-world
@@ -2200,7 +2147,7 @@ end
 
 ; ball procedure
 to-report move-distance
-  report (speed * tick-advance-amount)
+  report (speed * time-delta-per-tick)
 end
 
 to-report edge-patches-with-electric-field-like-mine
@@ -2886,8 +2833,8 @@ to apply-force-on [other-balls force]
 end
 
 to apply-forces-acting-on-ball
-  let vx (sin heading * speed) + (force-x-sum * tick-advance-amount)
-  let vy (cos heading * speed) + (force-y-sum * tick-advance-amount)
+  let vx (sin heading * speed) + (force-x-sum * time-delta-per-tick)
+  let vy (cos heading * speed) + (force-y-sum * time-delta-per-tick)
   set speed sqrt ((vy ^ 2) + (vx ^ 2))
   if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
 end
@@ -2924,8 +2871,8 @@ to-report force-vector-acting-on-ball
     ]
   ]
 
-  let vx (sin heading * speed) + (my-field-x * tick-advance-amount)
-  let vy (cos heading * speed) + (my-field-y * tick-advance-amount)
+  let vx (sin heading * speed) + (my-field-x * time-delta-per-tick)
+  let vy (cos heading * speed) + (my-field-y * time-delta-per-tick)
   report (list vx vy)
 end
 
@@ -2943,8 +2890,8 @@ end
 
 to apply-electric-field [field-strength]
   if electric-field-count > 0 [
-    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-advance-amount)
-    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-advance-amount)
+    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * time-delta-per-tick)
+    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * time-delta-per-tick)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
   ]
@@ -2956,8 +2903,8 @@ end
 
 to apply-gravity [strength]  ; turtle procedure
   ;if speed = 0 [stop]  ; GIGI - why? if speed is 0 then should increase by gravity...
-  let vx (sin heading * speed) + (gravity-acceleration-x * tick-advance-amount)
-  let vy (cos heading * speed) + (strength * tick-advance-amount)
+  let vx (sin heading * speed) + (gravity-acceleration-x * time-delta-per-tick)
+  let vy (cos heading * speed) + (strength * time-delta-per-tick)
   set speed sqrt ((vy ^ 2) + (vx ^ 2))
   set heading atan vx vy
 end
@@ -2981,6 +2928,7 @@ to setup   ; called from START NEW TASK button
   ; counting block spaces is slow so keep result between resets
   ;let tmp-amount-of-block-spaces amount-of-block-spaces
   clear-all
+  reset-ticks
   ;set amount-of-block-spaces tmp-amount-of-block-spaces
   initialize-world
   ifelse netlogo-web? [update-ball-population-properties-defined-in-nettango-blocks] [crt-pop]
@@ -2989,7 +2937,6 @@ to setup   ; called from START NEW TASK button
   setup-brush
   recolor-all-patches
   update-display
-  reset-ticks
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3741,7 +3688,7 @@ to display-brush-gfx
   display-brush-border-outline
   display-brush-cursor
   diplay-brush-xy-as-label-on-brush-mode-icon
-  make-sure-brush-gets-updated-in-display-atleast-every 0.04
+  make-sure-brush-gets-updated-in-display-atleast-every 0.005
 end
 
 to make-sure-brush-gets-updated-in-display-atleast-every [seconds]
@@ -4017,7 +3964,7 @@ end
 
 to finalize-field-configuration-with-brush
   if is-brush-currently-configuring-a-field [
-    fill-field
+    create-electric-field-in-direction-configured-by-brush
     set patches-brush-drew-electric-field-on []
     log-command "paint-field"
   ]
@@ -5323,7 +5270,7 @@ SWITCH
 79
 flash-wall-collision
 flash-wall-collision
-0
+1
 1
 -1000
 
@@ -5452,7 +5399,7 @@ BUTTON
 501
 610
 Step
-go\nupdate-display-every-n-ticks 1
+go\nupdate-display
 NIL
 1
 T
