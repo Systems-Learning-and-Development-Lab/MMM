@@ -1589,12 +1589,12 @@ to run-chance-block [node population objects]
 end
 
 to parse-chance-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "field-strength" "create-ball" "chance" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
+  ;validate-node-has-only-children-named node ["heading" "speed" "field-strength" "create-ball" "chance" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
   parse-children node population objects
 end
 
 to parse-if-in-radius-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
+  ;validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
   parse-children node population objects
 end
 
@@ -1606,7 +1606,7 @@ to run-if-in-radius-block [node population objects]
 end
 
 to parse-if-collide-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
+  ;validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
   parse-children node population objects
 end
 
@@ -1616,7 +1616,7 @@ to run-if-collide-block [node population objects]
 end
 
 to parse-if-ball-meets-block-then-clause [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "field-strength" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
+  ;validate-node-has-only-children-named node ["heading" "speed" "field-strength" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
   let name node-name node
   let children node-children node
   if (empty? objects) and (not empty? children) [
@@ -4808,7 +4808,7 @@ number-of-balls-to-add
 number-of-balls-to-add
 1
 100
-11.0
+1.0
 1
 1
 NIL
