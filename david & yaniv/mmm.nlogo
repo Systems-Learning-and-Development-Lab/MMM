@@ -1,103 +1,28 @@
-extensions [send-to fetch import-a table]
-;extensions [send-to fetch import-a table profiler]
+extensions [send-to fetch import-a]
 
 globals [
   tick-count ;; count how many turns this model has executed ("go" procedure invoked)
-  current-background-color ;; gets updated when user clicks "paint-world" button
-  wall-collision-count ;; count wall collisions for each population.
-  gravity-acceleration-x   ;; acceleration of gravity on x axis
-  tick-advance-amount                 ;; the amount by which ticks advance each turn
-  maxballs                       ;; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
-  deltaSpeed    ;  value to increase or decrease speed
-  max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
-  lookAhead  ; distance to check ahead if near wall
-  field-color
-  field-count ; counts the number of different fields (was "clusters")
-  flash-time     ; length of time of flash
-  eps-collision  ; how deep the intersection of balls can be to be considered collision
-  balls-by-population ; for fast access of balls belonging to certain population
-  ball-count-in-populations
-  amount-of-populations-in-nettango ; how many blocks spaces in nettango for configuring populations
-  ball-shape-update-procedure-lookup ; which procedure to run to update shape of turtle, depends on shape name
-  run-me-if-i-throw-error-then-nettango-has-recompiled ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
-  animation-procedure-lookup-by-name
-
-  ;==== ast ====
-  ast-by-population
-  curr-ast-by-population       ; used for comparison of prev ast to check for changes
-  prev-ast-by-population       ; used for comparison to check for changes
-  ast-lookup-table-run-node    ; links node name to function that runs node
-  ast-lookup-table-parse-node  ; links node name to function that parses node
-
-  ;==== counters ====
-  counter-width
-  counters-information-gfx-overlay ;; breed that references 2 gfx-overlay turtles that display information for counter
-  ball-count-in-counters ;; table that keeps track of ball count in all counters
-
-  ;==== population properties ====
-  ball-population-properties ;; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
-  prev-ball-population-properties ;; previous values of properties. used for checking if value has changed.
-  property-change-procedure-lookup ;; which procedure to run incase a specific property has been changed.
+  current-population-properties-are-being-set-for-in-nettango ;; keeps track of which population we are setting properties for
+  ball-population-properties ;; table that holds properties for each population
+  population-to-set-properties-for-in-ui
   default-colors-for-ball-populations
-  population-to-set-properties-for-in-ui ;; which population is selected in the ball pallet in ui
-  current-population-properties-are-being-set-for-in-nettango ;; keeps track of which population we are setting properties for in nettango
-  nettango-what-ball-meets-in-if-ball-meets-block ;; used to keep track for which entity (ball meets) the interaction block is defined for
+  counters-information-gfx-overlay
+  ball-count-in-counters
+  time-when-brush-buttons-were-first-clicked ;; table that holds string name of button as key and timer as value
+  current-background-color
+  brush-radio-button-counter
+  nettango-what-ball-meets-in-if-ball-meets-block
+  wall-collision-count
+  log-history
+  log-picture-count
 
-  ;==== log =====
-  log-history ;; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
-  log-picture-count ;; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
-  log-filename  ; will hold filename
-  log-filename-photo ; will hold photo file name
-  prev-command-name ; will hold the prev command printedin log file (to avoid double logging)
-  prev-line  ; will hold the last line printedin log file
-
-  ;===== lennard jones ======
-  repulsion-strength
-  attraction-strength
-  LJeps   ; Lennard Jones constants
-  LJsigma ; Lennard Jones constants
-
-  ;======= brush ===========
-  brush-shape                           ;; square or circle
-  brush-type                            ;; what is brush drawing?
-  center-patch-of-drawn-shape           ;; keeps track of patch brush first clicked on when shape was first drawn.
-  patches-affected-by-drawn-shape       ;; patches that would be drawn on if user were to draw shape right now
-  gfx-displaying-patches-affected-by-drawn-shape    ;; turtles that only serve to display boundaries of shape currently being configured
-  mouse-xy-when-brush-was-pressed-down  ;; x,y coordinates when brush was first clicked
-  shape-drawn-by-brush                  ;; circle,rectangle,line,square
-  -brush-border-outline                 ;; gfx turtle displaying which patches will get drawn onby brush
-  -brush-cursor                         ;; gfx turtle displaying brush cursor
-  brush-style                           ;; is brush drawing free-form or a shape
-  brush-type-icon                       ;; icon top right of model displaying what brush is drawing
-  brush-draw-erase-mode-icon            ;; icon top right of model displaying if brush is set to draw, erase, or configuring shape
-  brush-icon-size
-  brush-icon-transparency-normalized
-  brush-in-draw-mode                    ;; true if brush is drawing, false if erasing
-  mouse-down?-when-brush-was-last-activated
-  mousexy-when-brush-was-last-activated
-  current-mousexy
-  current-mouse-down?
-  current-mouse-inside?
-  patches-drawn-on-since-brush-was-held-down    ;; keeps track if you do not want to draw twice on the same patch since brush was pressed down.
-  counter-number-drawn-by-brush                 ;; counter number currently being drawn by brush
-  first-patch-brush-configured-field-on
-  brush-activated-after-model-was-advanced      ;; to know if display should be updated because model isnt running which means display isn't updated in "go" procedure
-  click-count-when-radio-buttons-were-first-clicked ;; used for radio buttons for brush. keeps track of what order brush buttons were clicked so the right button is unpressed
-  brush-radio-buttons-click-count ;; increased when one of the brush buttons is clicked, used to keep track of which button was pressed last
-
-  ;======= AST VARIABLES =========
-  ast-root
-  current-node
-  last-added-node
-  nodes-by-id
-  last-used-nodes-by-id
-  id-counter
-
-  ;====== DEPRECATED/ UNUSED variables ===============
+  gravity-acceleration-x   ;; acceleration of field (gravity, electric)
+  gravity-acceleration-y   ;; acceleration of field (gravity, electric)
   ;heading-acceleration     ;; direction of field
   ;avg-speed-init avg-energy-init      ;; initial averages
   ;avg-speed avg-energy                ;; current averages
   ;particle-mass
+  tick-advance-amount                 ;; the amount by which we will advance ticks
   ;temperature
   ;volume
   ;pressure
@@ -106,42 +31,120 @@ globals [
                                       ;; these particles are removed from the simulation
   ;percent-lost-balls
   ;max-tick-advance-amount             ;; the largest a tick length is allowed to be
+  maxballs                       ;; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
+  ;total-balls1-number   total-balls2-number
+  ;box-x box-y                ;; patch coords of box's upper right corner
+  ;box-center-x   box-center-y ;;patch coords of box's center
+  ;circle-radius  ;; radius of circle to be drawn
+  ;patch-colors-saved-FLAG  ;; flag to save the colors of the patch
+  ;first-click-FLAG  ;;; for drawing rectange and circles
   ;obstacles
+  deltaSpeed    ;  value to increase or decrease speed
+  max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
+  ;last-mouse-click-xcor
+  ;last-mouse-click-ycor
+  lookAhead  ; distance to check ahead if near wall
+  ;avg-speed-population1 avg-energy-population1
+  ;avg-speed-population2 avg-energy-population2
+  ;world-color
+  ;wall-color
+  field-color
+  field-count ; counts the number of different fields (was "clusters")
   ;field-width
 ;  max-field-spread
 ;  counter-color
+  counter-width
+  counter-count  ; will hold the number of the counter
   ;counter-time-window ; number of time units over which to sum balls on counter
   ;counter-delta-time  ; will count the time units
+;  flash-color    ; color of flash
+  flash-time     ; length of time of flash
+;  starter
 ;  fixPrevFieldPatch  ; flag to determine if prev mouse position needs to be added to field
+  eps-collision  ; how deep the intersection of balls can be to be considered collision
+
+  log-filename  ; will hold filename
+  log-filename-photo ; will hold photo file name
+  prev-command-name ; will hold the prev command printedin log file (to avoid double logging)
+  prev-line  ; will hold the last line printedin log file
+  repulsion-strength
+  attraction-strength
+  LJeps   ; Lennard Jones constants
+  LJsigma ; Lennard Jones constants
+
+;======= BRUSH VARIABLES ===========
+  brush-shape
+  brush-type
+  center-patch-of-drawn-shape
+  patches-affected-by-drawn-shape
+  gfx-displaying-patches-affected-by-drawn-shape
+  mouse-xy-when-brush-was-pressed-down
+  shape-drawn-by-brush
+  -brush-border-outline
+  -brush-cursor
+  brush-style
+  brush-type-icon
+  brush-draw-erase-mode-icon
+  brush-icon-size
+  brush-icon-transparency-normalized
+  brush-in-draw-mode
+  tick-count-when-brush-was-last-activated
+  mouse-down?-when-brush-was-last-activated
+  mousexy-when-brush-was-last-activated
+  current-mousexy
+  current-mouse-down?
+  current-mouse-inside?
+  patches-drawn-on-since-brush-was-held-down
+  counter-number-drawn-by-brush
+  first-patch-brush-configured-field-on
+  brush-activated-after-model-was-advanced
 ]
 
-; order of breeds determines layering of turtles.
+; order of breeds determines layering of turtles. (Later defined is on top)
 breed [ counter-information-gfx a-counter-information-gfx]
 breed [ batteries battery ]
 breed [ counters counter]
-breed [ flashes flash ]      ; a gfx breed only used to animate a flash
+breed [ flashes flash ]      ;; a breed which is used to mark the spot where a particle just hit the wall or counter
 breed [ arrows arrow]
 breed [ halos halo]
-breed [ ball-compound-shapes ball-compound-shape]
 breed [ balls ball]
-breed [ animations animation]
 breed [ erasers eraser ]
-breed [gfx-overlay a-gfx-overlay] ; turtles used to diplay gfx
-breed [brush-border-outlines brush-border-outline] ; gfx for brush outline
-breed [brush-cursors brush-cursor] ; gfx for brush cursor
+breed [gfx-overlay a-gfx-overlay]
+breed [brush-border-outlines brush-border-outline]
+breed [brush-cursors brush-cursor]
+breed [quadtrees quadtree]
 
-undirected-link-breed [compound-shapes compound-shape]
-
-flashes-own [birthday]       ; flashes only last for a short period and then disappear.
-                             ; their birthday lets us keep track of when they were created and
-                             ; when we need to remove them.
-animations-own [
-  birthday                   ;
-  animate                    ; anonymous procedure to animate animation, use 'ask -animation [run animate]'
-  data                       ; data can be anything the animation needs. table variable
-  -name                       ; temporarily used because of nettango bug
+quadtrees-own [
+  parent
+  north-west
+  north-east
+  south-east
+  south-west
+  objects
+  capacity
+  object-count
+  objects-xcor-sum
+  objects-ycor-sum
+  attract-xcor
+  attract-ycor
+  repel-xcor
+  repel-ycor
+  repel-and-attract-xcor
+  repel-and-attract-ycor
+  attract-object-count
+  repel-object-count
+  repel-and-attract-object-count
+  number-of-populations
 ]
 
+counter-information-gfx-own [
+  counter-number-gfx-overlay
+  ball-count-gfx-overlay
+]
+
+flashes-own [birthday]       ;; flashes only last for a short period and then disappear.
+                             ;; their birthday helps us keep track of when they were created and
+                             ;; when we need to remove them.
 balls-own
 [
   ;table
@@ -158,406 +161,137 @@ balls-own
                                       ;; amount, then everyone else uses the amount from their leader.
 ;  stick-to-wall?
   on-counter
-  tick-count-move-enabled     ;; tick count when move was enabled to move if in blocks set to "Move X Steps"
-  last-tick-wall-collision    ;; keep track last tick wall collision occured to reduce calculation when changing speed if collision occured
-  force-x-sum                     ;; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
-  force-y-sum                     ;; used to efficiently calculate repel and attract forces on ball at end of tick. reset to 0 at start of tick
-  balls-collided-with
+  tick-count-move-enabled
+  -my-field-x
+  -my-field-y
+  quadtree-node                   ;;  node on quadtree this ball is on
+  prev-xcor
+  prev-ycor
+;  my-field-x                 ;;  local field working on ball
+;  my-field-y                 ;;  local field working on ball
 ]
 
 erasers-own [ pressure? ]    ;; new
 
 patches-own
 [
+  population-field-x  ;;  list of vectors field_x and field_y define the distinct direction and strength of the electric field for each population
+  population-field-y  ;;  list of vectors field_x and field_y define the distinct direction and strength of the electric field for each population
   field-x             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
   field-y             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
   accum-x             ;;  accumulates vector  field_x for gobal field computation
   accum-y             ;;  accumulates vector  field_y for gobal field computation
   accum-w             ;;  accumulates weights  for gobal field computation
+;  hold-color          ;; temporarily holds patch color while painting boxes or circles
   field-number        ;; holds the component number of the field (was "cluster")
 ;  cluster             ;; GIGI  - DO WE NEED THIS NOW? holds the label (patch) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
 ;  cluster-number      ;; holds the label (number) of the electric component. we need this to ensure balls leaveand return to same component/cluster  ALSO used for counter numbering
+ ; pcounter            ;; used when patch is a counter
   isPainted           ;; is true on patches that were drawn with draw-field
   has-wall            ;; true if patch has wall
 ]
 
 counters-own
 [
+;  counter-head        ;; holds the label of the counter component which will display th ecounts in this counter.
   counter-number      ;; holds the counter number
+;  ball-count          ;; used when patch is a counter
 ]
 
-to initialize-properties-for-amount-of-ball-populations [amount]
+to initialize-properties-for-ball-populations [amount]
   foreach (range 1 (amount + 1)) [population -> initialize-properties-for-ball-population-if-they-have-not-been-set population]
 end
 
 to crt-pop
-  ; only used in desktop version, since we dont have blocks to define population properties.
-  initialize-properties-for-amount-of-ball-populations 2
-  let pop-properties table:make
-  table:put pop-properties 1 table:from-list
-    [
-      ["size" 0.5]
-      ["wall-heading" "collide"]
-      ["wall-speed" "collide"]
-      ["ball-heading" "collide"]
-      ["ball-speed" "collide"]
-      ["other-ball-heading" "collide"]
-      ["other-ball-speed" "collide"]
-      ["gravity" 0]
-      ["electric-field" 100]
-      ["move" true]
-      ["color" red]
-    ]
-  table:put pop-properties 2 table:from-list
-    [
-      ["size" 0.5]
-      ["wall-heading" "collide"]
-      ["wall-speed" "collide"]
-      ["ball-heading" "collide"]
-      ["ball-speed" "collide"]
-      ["other-ball-heading" "collide"]
-      ["other-ball-speed" "collide"]
-      ["gravity" 0]
-      ["electric-field" 0]
-      ["move" true]
-      ["color" blue]
-    ]
-  foreach table:keys pop-properties [population ->
-   let properties table:get pop-properties population
-   foreach table:keys properties [property ->
-      let value table:get properties property
-      set-prop population property value
-   ]
-  ]
-  set prev-ball-population-properties ball-population-properties
+  ; for testing purposes only
+  initialize-properties-for-ball-populations 2
+  set-property-for-population 1 "initial-size" 0.5
+  set-property-for-population 1 "if-ball-meets-wall-heading" "bounce"
+  set-property-for-population 1 "if-ball-meets-wall-speed" "bounce"
+  set-property-for-population 1 "if-ball-meets-ball-heading" "collide" set-property-for-population 1 "if-ball-meets-ball-speed" "collide"
+  ;set-property-for-population 1 "if-ball-meets-ball-heading" "repel and attract" set-property-for-population 1 "if-ball-meets-ball-speed" "repel and attract"
+  ;set-property-for-population 1 "if-ball-meets-ball-heading" "attract" set-property-for-population 1 "if-ball-meets-ball-speed" "attract"
+  ;set-property-for-population 1 "if-ball-meets-ball-heading" "repel" set-property-for-population 1 "if-ball-meets-ball-speed" "repel"
+  set-property-for-population 1 "if-ball-meets-ball-other-population-heading" "collide"
+  set-property-for-population 1 "if-ball-meets-ball-other-population-speed" "collide"
+  set-property-for-population 1 "gravity" 0
+  set-property-for-population 1 "electric-field" 100
+  set-property-for-population 2 "if-ball-meets-wall-heading" "bounce"
+  set-property-for-population 2 "if-ball-meets-wall-speed" "bounce"
+  set-property-for-population 2 "if-ball-meets-ball-heading" "collide" set-property-for-population 2 "if-ball-meets-ball-speed" "collide"
+  ;set-property-for-population 2 "if-ball-meets-ball-heading" "repel and attract" set-property-for-population 2 "if-ball-meets-ball-speed" "repel and attract"
+  ;set-property-for-population 2 "if-ball-meets-ball-heading" "attract" set-property-for-population 2 "if-ball-meets-ball-speed" "attract"
+  ;set-property-for-population 2 "if-ball-meets-ball-heading" "repel" set-property-for-population 2 "if-ball-meets-ball-speed" "repel"
+  set-property-for-population 2 "if-ball-meets-ball-other-population-heading" "collide"
+  set-property-for-population 2 "if-ball-meets-ball-other-population-speed" "collide"
+  set-property-for-population 2 "gravity" 0
+  set-property-for-population 2 "electric-field" 0
 end
 
-to count-amount-of-populations-in-nettango
-  if amount-of-populations-in-nettango = 0 [
-    let -population-count 0
-    carefully [
-      loop [
-        run (word "let x [ -> configure-population-" (-population-count + 1) " ]")
-        set -population-count -population-count + 1 ]
-    ] []
-    set amount-of-populations-in-nettango -population-count
-  ]
-end
-
-to initialize-world
-  initialize-global-values
-  initialize-patches
-end
-
-to initialize-patches
-  ask patches [set has-wall false]
-end
-
-to initialize-global-values
+to set-global-values
   set tick-count 0
-  set ball-population-properties table:make
-  set prev-ball-population-properties ball-population-properties
+  ;set ball-population-properties table-make
+  set ball-population-properties []
   set population-to-set-properties-for-in-ui "-"
   set default-colors-for-ball-populations [red blue lime orange violet yellow cyan pink brown green sky magenta turquoise gray ]
-  set counters-information-gfx-overlay table:make
-  set ball-count-in-counters table:make
+  set counters-information-gfx-overlay []
   set first-patch-brush-configured-field-on nobody
+  set ball-count-in-counters []
   set brush-activated-after-model-was-advanced false
-  set click-count-when-radio-buttons-were-first-clicked table:make
-  set brush-radio-buttons-click-count 0
+  set time-when-brush-buttons-were-first-clicked table-make
+  ;set time-when-brush-buttons-were-first-clicked table:make
+  set current-background-color background-color
+  set brush-radio-button-counter 0
   set log-history ""
   set log-picture-count 0
-  set current-background-color background-color
-  set wall-collision-count table:make
-  set balls-by-population table:make
-  set maxballs 200
+  set wall-collision-count [0 0]
+
+  set maxballs 2000
   set deltaSpeed 0.5;
-  set max-speed 40
+  set max-speed 10
   set lookAhead 0.6
+  ;set world-color black
+  ;set wall-color blue
   set field-color 87
   set field-count 0
+  ;set max-field-spread 20 ; spread the field only within a radius  (max world is -26 <->  +26
   set counter-width 1.25
+  ;set counter-color Gray
+  set counter-count 1.5 ;refactor change back to 0
+;  set counter-time-window 1000
+;  set counter-delta-time 0
+;  set flash-color wall-color + 2
   set flash-time  15
   set-default-shape flashes "square"
   set repulsion-strength 100
   set attraction-strength 30
   set gravity-acceleration-x 0
+  set gravity-acceleration-y -9.8
   set eps-collision 0.99
   set tick-advance-amount 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
   setup-logging  "LOGGING/logFile"  ; sets the log file name log-filename
+  ;setup-logging  "logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
   set prev-line "None"
   set LJeps 0.5  ; Lennard Jones constants
+;  set LJsigma balls-Size; Lennard Jones constants
   set-default-shape halos "thin ring"
-  set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
-  initialize-ast
-  initialize-ball-shape-update-procedure-lookup
-  initialize-property-change-procedure-lookup
-  ;count-amount-of-populations-in-nettango
-  ;set max-field-spread 20 ; spread the field only within a radius  (max world is -26 <->  +26
-  ;set counter-time-window 1000
-  ;set counter-delta-time 0
-end
-
-to initialize-all-anonymous-procedures
-  set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
-  initialize-ast-run-lookup-table
-  initialize-ast-parse-lookup-table
-  initialize-property-change-procedure-lookup
-  initialize-ball-shape-update-procedure-lookup
-  initialize-animation-anonymous-procedures
-end
-
-to initialize-animation-anonymous-procedures
-  initialize-animation-procedure-lookup-by-name
-  ask animations [set animate animation-by-name -name]
-end
-
-to-report animation-by-name [name]
-  report table:get animation-procedure-lookup-by-name name
-end
-
-to initialize-all-lookup-tables-if-nettango-has-recompiled
-  ; temporary fix to solve a nettango bug, after a block is moved and nettango
-  ; is recompiled then error "Importing and then running lambdas is not supported!" is thrown
-  ; if an anonymous procedure that was stored in a variable before nettango was recompiled
-  ; is ran, so all lookup tables need to be initialized.
-  carefully [
-    run run-me-if-i-throw-error-then-nettango-has-recompiled ]
-  [
-    initialize-all-anonymous-procedures
+  ;set patch-colors-saved-FLAG FALSE
+  ;set first-click-FLAG TRUE
+  ask patches [
+    set has-wall false
+    set population-field-x []
+    set population-field-y []
+    ;set population-field-x table:make
+    ;set population-field-y table:make
+    ;set population-field-x table-make
+    ;set population-field-y table-make
   ]
-end
-
-to initialize-animation-procedure-lookup-by-name
-  set animation-procedure-lookup-by-name table:from-list (list
-    (list "mark" [[] -> remove-animation-if-past-lifespan])
-    (list "rotate" [[] -> flash-animation])
-    (list "flash" [[] -> rotate-animation])
-    (list "inflate" [[] -> increase-animation-size])
-  )
-end
-
-to initialize-property-change-procedure-lookup
-  set property-change-procedure-lookup table:from-list (list
-    (list "shape" [[population] -> update-shapes-of-population population])
-    (list "size" [[population] -> update-size-of-population population])
-    (list "color" [[population] -> update-color-of-population population])
-  )
-end
-
-to initialize-ball-shape-update-procedure-lookup
-  set ball-shape-update-procedure-lookup table:from-list (list
-    (list "molecule-ha" [[] -> update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]])
-    (list "molecule-ao" [[] -> update-compound-shape "molecule-ao" ["a" "o"] ["a" "o"]])
-    (list "molecule-no2" [[] -> update-compound-shape "molecule-no2" ["n" "o2"] ["o2" "n"]])
-    (list "molecule-h2o" [[] -> update-compound-shape "molecule-h2o" ["h2" "o"] ["o" "h2"]])
-    (list "molecule-co2" [[] -> update-compound-shape "molecule-co2" ["c" "o2"] ["o2" "c"]])
-    (list "molecule-nh3" [[] -> update-compound-shape "molecule-nh3" ["n" "h3"] ["n" "h3"]])
-    (list "molecule-ch4" [[] -> update-compound-shape "molecule-ch4" ["c" "h4"] ["c" "h4"]])
-    (list "molecule-candle" [[] -> update-compound-shape "molecule-candle" ["c" "h"] ["c" "h"]])
-    (list "molecule-alcohol" [[] -> update-compound-shape "molecule-alcohol" ["c2" "h5" "oh"] ["c2" "oh" "h5"]])
-  )
-end
-
-to default-shape-update
-  kill-existing-compound-shapes
-  set shape prop "shape"
-end
-
-to-report population-colors [population]
-  report (sentence pprop population "color" pprop population "secondary-colors")
-end
-
-to-report prev-population-colors [population]
-  report (sentence prev-pprop population "color" prev-pprop population "secondary-colors")
-end
-
-to-report population-colors-changed? [population]
-  report population-colors population != prev-population-colors population
-end
-
-to-report shape-update-procedure
-  report table:get-or-default ball-shape-update-procedure-lookup (prop "shape") [[] -> default-shape-update]
-end
-
-to update-compound-shape [base-name part-names view-order]
-  set shape "empty"
-  kill-existing-compound-shapes
-  create-compound-shapes base-name part-names view-order
-end
-
-to kill-existing-compound-shapes
-  ask compound-shape-neighbors [die]
-  ask my-compound-shapes [die]
-end
-
-to-report add-default-colors-if-not-defined [colors -length]
-  let amount-of-colors-missing -length - length colors
-  report (sentence colors n-values amount-of-colors-missing [gray])
-end
-
-to create-compound-shapes [base-name part-names view-order]
-  let amount-of-compound-shapes length part-names
-  let colors ball-colors
-  if length colors < length part-names [set colors add-default-colors-if-not-defined colors length part-names]
-  foreach range amount-of-compound-shapes [index ->
-    create-compound-shape base-name (item index view-order) (item (position (item index view-order) part-names) colors)
-  ]
-end
-
-to create-compound-shape [base-name part-name -color]
-  let shape-name (word base-name "-" part-name)
-  hatch-ball-compound-shapes 1 [
-    set shape shape-name
-    set size [size] of myself
-    set color -color
-    set label ""
-    set label-color white
-    create-compound-shape-with myself [
-      tie
-    ]
-  ]
-end
-
-to-report ball-colors
-  report population-colors population-num
-end
-
-to initialize-ast
-  set ast-root table:make
-  set current-node false
-  set last-added-node false
-  set nodes-by-id []
-  set last-used-nodes-by-id []
-  set id-counter 0
-  set ast-by-population table:make
-  set curr-ast-by-population table:make
-  set prev-ast-by-population table:make
-  initialize-ast-run-lookup-table
-  initialize-ast-parse-lookup-table
-end
-
-to initialize-ast-run-lookup-table
-  set ast-lookup-table-run-node table:from-list (list
-    ;(list "" [[node population objects] -> func node population objects])
-    (list "properties" [[node population objects] -> run-properties-clause node population])
-    (list "actions" [[node population objects] -> run-actions-clause node population])
-    (list "interactions" [[node population objects] -> run-interactions-clause node population])
-
-    (list "color" [[node population objects] -> run-color-block node population])
-    (list "size" [[node population objects] -> run-property-block node population])
-    (list "shape" [[node population objects] -> run-property-block node population])
-    (list "initial-heading" [[node population objects] -> run-property-block node population])
-    (list "initial-speed" [[node population objects] -> run-property-block node population])
-    (list "name" [[node population objects] -> run-property-block node population])
-
-    (list "move-forever" [[node population objects] -> run-move-forever-block node population])
-    (list "move-x-steps" [[node population objects] -> run-move-x-steps-block node population])
-
-    (list "if-ball-meets" [[node population objects] -> run-if-ball-meets-block node population])
-    (list "objects" [[node population objects] -> run-if-ball-meets-block-objects-clause node population])
-    (list "then" [[node population objects] -> run-if-ball-meets-block-then-clause node population objects])
-
-    (list "wall" [[node population objects] -> run-wall-block node population])
-    (list "gravity-field" [[node population objects] -> run-gravity-field-block node population])
-    (list "electric-field" [[node population objects] -> run-electric-field-block node population])
-    (list "ball-same-population" [[node population objects] -> run-ball-same-population-block node population])
-    (list "ball-from-population" [[node population objects] -> run-ball-other-population-block node population])
-
-    (list "heading" [[node population objects] -> run-heading-block node population objects])
-    (list "speed" [[node population objects] -> run-speed-block node population objects])
-    (list "field-strength" [[node population objects] -> run-field-strength-block node population objects])
-    (list "create-ball" [[node population objects] -> run-create-balls-block node population])
-    (list "add" [[node population objects] -> run-add-block node population])
-    (list "disappear" [[node population objects] -> run-disappear-block node population objects])
-    (list "kill-balls-that-meet" [[node population objects] -> run-kill-balls-that-meet-block node population objects])
-    (list "chance" [[node population objects] -> run-chance-block node population objects])
-    (list "if-collide" [[node population objects] -> run-if-collide-block node population objects])
-    (list "if-in-radius" [[node population objects] -> run-if-in-radius-block node population objects])
-    (list "repeat" [[node population objects] -> run-repeat-block node population objects])
-    (list "mark" [[node population objects] -> run-mark-block node population objects])
-    (list "draw" [[node population objects] -> run-draw-block node population objects])
-    (list "animate" [[node population objects] -> run-animate-block node population objects])
-    (list "at-least-x-ticks" [[node population objects] -> run-at-least-x-ticks-block node population objects])
-  )
-end
-
-to initialize-ast-parse-lookup-table
-  set ast-lookup-table-parse-node table:from-list (list
-    (list "properties" [[node population objects] -> parse-properties-clause node population])
-    (list "actions" [[node population objects] -> parse-actions-clause node population])
-    (list "interactions" [[node population objects] -> parse-interactions-clause node population])
-
-    (list "color" [[node population objects] -> parse-color-block node population])
-    (list "size" [[node population objects] -> parse-property-block node population])
-    (list "shape" [[node population objects] -> parse-property-block node population])
-    (list "initial-heading" [[node population objects] -> parse-property-block node population])
-    (list "initial-speed" [[node population objects] -> parse-property-block node population])
-    (list "name" [[node population objects] -> parse-property-block node population])
-
-    (list "move-forever" [[node population objects] -> parse-move-forever-block node population])
-    (list "move-x-steps" [[node population objects] -> parse-move-x-steps-block node population])
-
-    (list "if-ball-meets" [[node population objects] -> parse-if-ball-meets-block node population])
-    (list "objects" [[node population objects] -> parse-if-ball-meets-block-objects-clause node population])
-    (list "then" [[node population objects] -> parse-if-ball-meets-block-then-clause node population objects])
-
-    (list "wall" [[node population objects] -> parse-wall-block node population])
-    (list "gravity-field" [[node population objects] -> parse-gravity-field-block node population])
-    (list "electric-field" [[node population objects] -> parse-electric-field-block node population])
-    (list "ball-same-population" [[node population objects] -> parse-ball-same-population-block node population])
-    (list "ball-from-population" [[node population objects] -> parse-ball-other-population-block node population])
-
-    (list "heading" [[node population objects] -> parse-heading-block node population objects])
-    (list "speed" [[node population objects] -> parse-speed-block node population objects])
-    (list "field-strength" [[node population objects] -> parse-field-strength-block node population objects])
-    (list "create-ball" [[node population objects] -> parse-create-balls-block node population])
-    (list "add" [[node population objects] -> parse-add-block node population])
-    (list "disappear" [[node population objects] -> parse-disappear-block node population objects])
-    (list "kill-balls-that-meet" [[node population objects] -> parse-kill-balls-that-meet-block node population objects])
-    (list "chance" [[node population objects] -> parse-chance-block node population objects])
-    (list "if-collide" [[node population objects] -> parse-if-collide-block node population objects])
-    (list "if-in-radius" [[node population objects] -> parse-if-in-radius-block node population objects])
-    (list "repeat" [[node population objects] -> parse-repeat-block node population objects])
-    (list "mark" [[node population objects] -> parse-mark-block node population objects])
-    (list "draw" [[node population objects] -> parse-draw-block node population objects])
-    (list "animate" [[node population objects] -> parse-animate-block node population objects])
-    (list "at-least-x-ticks" [[node population objects] -> parse-at-least-x-ticks-block node population objects])
-  )
-end
+  ;initialize-global-properties
+end                            ;; when we need to remove them.
 
 to update-display-every [seconds]
   every seconds [display]
-end
-
-to update-all-plots
-  ;update-ball-population-plot
-  ;update-ball-collisions-plot
-end
-
-to update-ball-population-plot
-  set-current-plot "Ball Population"
-  foreach population-numbers [population -> update-ball-population-in-plot population]
-end
-
-to update-ball-population-in-plot [population]
-  set-ball-population-plot-pen population
-  plotxy ticks ball-count-in-population population
-end
-
-to set-ball-population-plot-pen [population]
-  let pen (word population)
-  ifelse plot-pen-exists? pen [
-    set-current-plot-pen pen ]
-  [
-    create-temporary-plot-pen pen
-    set-plot-pen-color pprop population "color"
-  ]
-end
-
-to update-ball-collisions-plot
-
 end
 
 to iterate-through-population-number-in-ui-by-ascending-circular-order
@@ -572,7 +306,9 @@ to iterate-through-population-number-in-ui-by-ascending-circular-order
 end
 
 to-report population-numbers
-  report table:keys ball-population-properties
+  ;report table-all-keys ball-population-properties
+  ;report table:keys ball-population-properties
+  report filter [population -> population-properties-initialized? population] n-values (length ball-population-properties) [i -> i + 1]
 end
 
 to-report any-population-exists
@@ -582,6 +318,7 @@ end
 to select-next-population-in-properties-ui
   if any-population-exists [
     iterate-through-population-number-in-ui-by-ascending-circular-order
+    ;update-properties-in-ui-for-current-population
   ]
 end
 
@@ -602,8 +339,8 @@ to set-new-population-to-set-properties-for-in-ui
 end
 
 to-report default-color-for-population [population-number]
-  let -population-colors map [population -> pprop population "color"] population-numbers
-  let default-colors-not-used-by-any-population filter [default-color -> not member? default-color -population-colors] default-colors-for-ball-populations
+  let population-colors map [population -> get-ball-population-property population "initial-color"] population-numbers
+  let default-colors-not-used-by-any-population filter [default-color -> not member? default-color population-colors] default-colors-for-ball-populations
   ifelse not empty? default-colors-not-used-by-any-population [
     report first default-colors-not-used-by-any-population ]
   [
@@ -615,41 +352,30 @@ to-report is-a-population-selected-in-ui
   report is-number? population-to-set-properties-for-in-ui
 end
 
-to-report any-record-of-radio-button-requesting-to-be-clicked? [button]
-  report not table:has-key? click-count-when-radio-buttons-were-first-clicked button
-end
-
-to-report is-first-time-radio-button-is-activated [button]
-  report any-record-of-radio-button-requesting-to-be-clicked? button
-end
-
-to increase-radio-button-press-count
-  set brush-radio-buttons-click-count brush-radio-buttons-click-count + 1
-end
-
-to record-radio-button-clicked [button]
-  increase-radio-button-press-count
-  table:put click-count-when-radio-buttons-were-first-clicked button brush-radio-buttons-click-count
-end
-
-to remove-record-of-buttons-clicked-previous-to [button]
-  let first-time-button-was-pressed table:get click-count-when-radio-buttons-were-first-clicked button
-  foreach (filter [key -> (key != button) and (table:get click-count-when-radio-buttons-were-first-clicked key < first-time-button-was-pressed)] table:keys click-count-when-radio-buttons-were-first-clicked )
-    [key -> table:remove click-count-when-radio-buttons-were-first-clicked key]
+to-report is-first-time-radio-button-is-pressed-down [button]
+  report not table-has-key? time-when-brush-buttons-were-first-clicked button
+  ;report not table:has-key? time-when-brush-buttons-were-first-clicked button
 end
 
 to update-record-of-when-brush-radio-button-was-first-clicked [button]
-  ifelse any-record-of-radio-button-requesting-to-be-clicked? button [
-    record-radio-button-clicked button]
+  ifelse is-first-time-radio-button-is-pressed-down button [
+    set brush-radio-button-counter brush-radio-button-counter + 1
+    set time-when-brush-buttons-were-first-clicked table-put time-when-brush-buttons-were-first-clicked button brush-radio-button-counter ]
+    ;table:put time-when-brush-buttons-were-first-clicked button brush-radio-button-counter ]
   [
-    remove-record-of-buttons-clicked-previous-to button
+    let first-time-button-was-pressed table-get time-when-brush-buttons-were-first-clicked button
+    foreach (filter [key -> (key != button) and (table-get time-when-brush-buttons-were-first-clicked key < first-time-button-was-pressed)] table-all-keys time-when-brush-buttons-were-first-clicked )
+      [key -> set time-when-brush-buttons-were-first-clicked table-remove time-when-brush-buttons-were-first-clicked key]
+    ;let first-time-button-was-pressed table:get time-when-brush-buttons-were-first-clicked button
+    ;foreach (filter [key -> (key != button) and (table:get time-when-brush-buttons-were-first-clicked key < first-time-button-was-pressed)] table:keys time-when-brush-buttons-were-first-clicked )
+    ;  [key -> table:remove time-when-brush-buttons-were-first-clicked key]
   ]
 end
 
 to-report should-release-brush-radio-button? [button]
-  ;should be called from a procedure ran by a brush button in the interface, only once per button name
   unselect-brush-radio-button-if-another-button-was-clicked-more-recently button
-  report not table:has-key? click-count-when-radio-buttons-were-first-clicked button
+  report not table-has-key? time-when-brush-buttons-were-first-clicked button
+  ;report not table:has-key? time-when-brush-buttons-were-first-clicked button
 end
 
 to unselect-brush-radio-button-if-another-button-was-clicked-more-recently [button]
@@ -659,15 +385,76 @@ to unselect-brush-radio-button-if-another-button-was-clicked-more-recently [butt
 end
 
 to-report another-brush-radio-button-was-clicked-more-recently [button]
-  let first-time-button-was-pressed table:get click-count-when-radio-buttons-were-first-clicked button
-  let buttons-pressed-more-recently filter [key -> (key != button) and (table:get click-count-when-radio-buttons-were-first-clicked key > first-time-button-was-pressed)]
-    (table:keys click-count-when-radio-buttons-were-first-clicked)
+  let first-time-button-was-pressed table-get time-when-brush-buttons-were-first-clicked button
+  let buttons-pressed-more-recently filter [key -> (key != button) and (table-get time-when-brush-buttons-were-first-clicked key > first-time-button-was-pressed)]
+    (table-all-keys time-when-brush-buttons-were-first-clicked)
+  ;let first-time-button-was-pressed table:get time-when-brush-buttons-were-first-clicked button
+  ;let buttons-pressed-more-recently filter [key -> (key != button) and (table:get time-when-brush-buttons-were-first-clicked key > first-time-button-was-pressed)]
+  ;  (table:keys time-when-brush-buttons-were-first-clicked)
   report not empty? buttons-pressed-more-recently
 end
 
 to deselect-brush-radio-button [button]
-  table:remove click-count-when-radio-buttons-were-first-clicked button
+  set time-when-brush-buttons-were-first-clicked table-remove time-when-brush-buttons-were-first-clicked button
+  ;table:remove time-when-brush-buttons-were-first-clicked button
 end
+
+;========== these procedures replace the extension "table" temporarily
+; because it is not supported in netlogo web.
+
+to-report table-make
+  report []
+end
+
+to-report table-from-list [-list]
+  report -list
+end
+
+to-report table-has-key? [-table key]
+  report key-index -table key != false
+end
+
+to-report table-put [-table key value]
+  let -key-index key-index -table key
+  let key-already-exists -key-index != false
+  ifelse key-already-exists [
+    report replace-item -key-index -table (list key value)
+  ] [
+    report lput (list key value) -table
+  ]
+end
+
+to-report table-get [-table key]
+  report item 1 (item (key-index -table key) -table)
+end
+
+to-report table-remove [-table key]
+  let key-exists key-index -table key != false
+  ifelse key-exists [
+    report remove-item (key-index -table key) -table ]
+  [
+    report -table
+  ]
+end
+
+to-report key-index [-table key]
+  let index false
+  let i 0
+  while [i < length -table] [
+    if (item 0 (item i -table)) = key [
+      set index i
+      set i length -table ;exit while loop
+    ]
+    set i i + 1
+  ]
+  report index
+end
+
+to-report table-all-keys [-table]
+  report map [key-value-pair -> item 0 key-value-pair] -table
+end
+
+;======================== end of alternative "table" extension procedures ======
 
 to #nettango#set-current-population-of-properties-being-set [population]
   ;maybe change name to set-population-that-properties-are-being-set-for-in-nettango
@@ -676,59 +463,78 @@ to #nettango#set-current-population-of-properties-being-set [population]
 end
 
 to-report population-properties-initialized? [population]
-  report table:has-key? ball-population-properties population
+  ;report length (item (population - 1) ball-population-properties) > 0
+  report ifelse-value population > length ball-population-properties [false] [length (item (population - 1) ball-population-properties) > 0]
 end
 
 to initialize-properties-for-ball-population-if-they-have-not-been-set [population]
+  ;if not table-has-key? ball-population-properties population [
+
+  ;if not table:has-key? ball-population-properties population [
+  ;  initialize-ball-population-properties population
+  ;]
+
   if not population-properties-initialized? population [
-    initialize-ball-population-properties population
+     initialize-ball-population-properties population
   ]
-end
-
-to initialize-properties-for-all-populations
-  foreach population-numbers [population ->
-     table:put ball-population-properties population initialized-population-properties
-  ]
-end
-
-to-report population-count
-  report length table:keys ball-population-properties
-end
-
-to initialize-ball-population-properties-old [population]
-  let population-color default-color-for-population population
-  table:put ball-population-properties population initialized-population-properties
-  set-prop population "color" population-color
 end
 
 to initialize-ball-population-properties [population]
-  table:put ball-population-properties population initialized-population-properties
+  if population > length ball-population-properties [
+    foreach (range length ball-population-properties population 1) [
+      index -> set ball-population-properties insert-item index ball-population-properties []
+        ask patches [
+          set population-field-x insert-item index population-field-x 0
+          set population-field-y insert-item index population-field-y 0
+        ]
+    ]
+  ]
+  let population-color default-color-for-population population
+  ;set ball-population-properties table-put ball-population-properties population initialized-population-properties
+  ;table:put ball-population-properties population initialized-population-properties
+  set ball-population-properties replace-item (population - 1) ball-population-properties initialized-population-properties2
+  ;set-initial-color-for-population population population-color
 end
 
-to-report initialized-population-properties
-  report table:from-list [
-    ["size" 0.5]
-    ["shape" "circle"]
-    ["heading" "random"]
-    ["speed" 10]
-    ["color" gray]
-    ["name" ""]
-    ["secondary-colors" []]
-    ["move" false]
-    ["wall-heading" "no change"]
-    ["wall-speed" "no change"]
-    ["ball-heading" "no change"]
-    ["ball-speed" "no change"]
-    ["other-ball-heading" "no change"]
-    ["other-ball-speed" "no change"]
-    ["gravity" 0]
-    ["electric-field" 0]
-  ]
+to-report initialized-population-properties2
+  report (list
+    0.5
+    "random"
+    10
+    gray
+    true
+    "no change"
+    "no change"
+    "no change"
+    "no change"
+    "no change"
+    "no change"
+    0
+    0)
 end
+
+;to-report initialized-population-properties
+;  ;report table-from-list [
+;  report table:from-list [
+;    ["initial-size" 0.5]
+;    ["initial-heading" "random"]
+;    ["initial-speed" 10]
+;    ["initial-color" gray]
+;    ["move-forward" true]
+;    ["if-ball-meets-wall-heading" "no change"]
+;    ["if-ball-meets-wall-speed" "no change"]
+;    ["if-ball-meets-ball-heading" "no change"]
+;    ["if-ball-meets-ball-speed" "no change"]
+;    ["if-ball-meets-ball-other-population-heading" "no change"]
+;    ["if-ball-meets-ball-other-population-speed" "no change"]
+;    ["gravity" 0]
+;    ["electric-field" 0]
+;  ]
+;end
 
 to-report amount-of-balls-that-can-be-created-given-maximum-capacity [requested-amount]
   let maximum-amount-of-balls-that-can-currently-be-created (maxballs - count balls)
-  report min (list requested-amount maximum-amount-of-balls-that-can-currently-be-created)
+  report ifelse-value requested-amount > maximum-amount-of-balls-that-can-currently-be-created [maximum-amount-of-balls-that-can-currently-be-created] [requested-amount]
 end
 
 to notify-user-unable-to-create-balls-due-to-maximum-capacity
@@ -745,119 +551,326 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
   ]
 end
 
-to update-ball-shape
-  run shape-update-procedure
-end
-
-to reset-sum-of-forces-acting-on-balls
-  set force-x-sum 0
-  set force-y-sum 0
-end
-
-to update-balls-by-population [-ball]
-  let population [population-num] of -ball
-  table:put balls-by-population population (turtle-set balls-of population -ball)
-end
-
-to initialize-ball-after-creation [population -xcor -ycor]
-  set population-num population
-  set color prop "color"
-  set size prop "size"
-  update-ball-shape
-  set tick-count-move-enabled tick-count
-  set speed prop "speed"
-  set mass prop "size"
-  set last-collision nobody
-  setxy -xcor -ycor
-  update-ball-label
-  initialize-ball-heading
-  reset-sum-of-forces-acting-on-balls
-  update-balls-by-population self
-  reset-balls-collided-with
-  ; set heading 1000    ;; temp value to change below so that only THESE new balls will get new value
-  ;set leader self
-  ;set stuck-on-wall? false
-  ;set wall-hits 0
-  ;set momentum-difference 0
-end
-
-to update-ball-label
-  ;ifelse show-name [show-ball-label] [hide-ball-label]
-end
-
-to hatch-balls-at [population amount -xcor -ycor]
-  hatch-balls amount [
-    initialize-ball-after-creation population -xcor -ycor
-  ]
-  on-ball-created
-end
-
 to create-balls-at [population amount -xcor -ycor]
   create-balls amount [
-    initialize-ball-after-creation population -xcor -ycor
-    ifelse amount > 1 [ randomly-move-ball-inside-radius 3 ] [randomly-move-ball-inside-radius 0.1]
+    set population-num population
+    set shape  "circle"
+    set color initial-color
+    set size initial-size
+    set tick-count-move-enabled tick-count
+    set speed initial-speed
+    set mass initial-size
+   ; set heading 1000    ;; temp value to change below so that only THESE new balls will get new value
+    ;set leader self
+    set last-collision nobody
+    ;set stuck-on-wall? false
+    ;set wall-hits 0
+    ;set momentum-difference 0
+    setxy -xcor -ycor
+    ;; if we're only placing -one particle, use the exact position
+    ifelse amount > 1 [ jump random-float 3 ] [jump random-float 0.01]
+    initialize-ball-heading
+]
+  if (prev-command-name != "place-balls") [
+         log-output "place-balls"
   ]
-  on-ball-created
-end
-
-to randomly-move-ball-inside-radius [radius]
-  setxy (xcor + (random-float (radius * 2)) - radius) (ycor + (random-float (radius * 2)) - radius)
-end
-
-to on-ball-created
-  ;update-ball-population-plot
-  log-command "place-balls"
 end
 
 ; ball procedure
 to initialize-ball-heading
-  ifelse prop "heading" = "random" [
+  ifelse initial-heading = "random" [
     set heading random-float 360 ]
   [
-    set heading prop "heading"
+    set heading [initial-heading] of self
   ]
 end
 
+to-report get-ball-population-property [population property]
+  ;report table-get (get-ball-population-properties population) property
+  ;report table:get (get-ball-population-properties population) property
+  ( ifelse
+    property = "initial-size" [report item 0 (item (population - 1) ball-population-properties)]
+    property = "initial-heading" [report item 1 (item (population - 1) ball-population-properties)]
+    property = "initial-speed" [report item 2 (item (population - 1) ball-population-properties)]
+    property = "initial-color" [report item 3 (item (population - 1) ball-population-properties)]
+    property = "move-forward" [report item 4 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-wall-heading" [report item 5 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-wall-speed" [report item 6 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-ball-heading" [report item 7 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-ball-speed" [report item 8 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-ball-other-population-heading" [report item 9 (item (population - 1) ball-population-properties)]
+    property = "if-ball-meets-ball-other-population-speed" [report item 10 (item (population - 1) ball-population-properties)]
+    property = "gravity" [report item 11 (item (population - 1) ball-population-properties)]
+    property = "electric-field" [report item 12 (item (population - 1) ball-population-properties)]
+  )
+end
+
 to-report population-repels-or-attracts-other-populations? [population]
-  let interaction pprop population "other-ball-heading"
-  report member? interaction ["repel" "attract" "repel and attract"]
+  let interaction item 9 (item (population - 1) ball-population-properties)
+  report interaction = "repel" or interaction = "attract" or interaction = "repel and attract"
 end
 
-;========== getters and setters for ball properties ========
-
-to-report pprop [population property]
-  report table:get (properties-of population) property
+;ball procedure
+to-report get-ball-property [property]
+  report get-ball-population-property population-num property
 end
 
-to-report prev-pprop [population property]
-  report table:get (prev-properties-of population) property
+; ball procedure
+to-report initial-heading
+  ;report get-ball-property "initial-heading"
+  report item 1 (item (population-num - 1) ball-population-properties)
 end
 
-to-report pprop-changed? [population property]
-  report pprop population property != prev-pprop population property
+; ball procedure
+to-report initial-speed
+  ;report get-ball-property "initial-speed"
+  report item 2 (item (population-num - 1) ball-population-properties)
 end
 
-to-report prop [property] ; ball procedure
-  report pprop population-num property
+; ball procedure
+to-report initial-color
+  ;report get-ball-property "initial-color"
+  report item 3 (item (population-num - 1) ball-population-properties)
 end
 
-to-report is-affected-by-gravity ; ball procedure
-  report prop "gravity" > 0
+; ball procedure
+to-report initial-size
+  ;report get-ball-property "initial-size"
+  report item 0 (item (population-num - 1) ball-population-properties)
 end
 
-to-report properties-of [population]
-  report table:get ball-population-properties population
+;ball procedure
+to-report move-forward
+  ;report get-ball-property "move-forward"
+  report item 4 (item (population-num - 1) ball-population-properties)
 end
 
-to-report prev-properties-of [population]
-  report table:get prev-ball-population-properties population
+; ball procedure
+to-report wall-collision-heading-change
+  ;report get-ball-property "if-ball-meets-wall-heading"
+  report item 5 (item (population-num - 1) ball-population-properties)
 end
 
-to set-prop [population property value]
-  table:put (properties-of population) property value
+; ball procedure
+to-report wall-collision-speed-change
+  ;report get-ball-property "if-ball-meets-wall-speed"
+  report item 6 (item (population-num - 1) ball-population-properties)
 end
 
-;==============================
+; ball procedure
+to-report ball-collision-heading-change
+  ;report get-ball-property "if-ball-meets-ball-heading"
+  report item 7 (item (population-num - 1) ball-population-properties)
+end
+
+; ball procedure
+to-report ball-collision-speed-change
+  ;report get-ball-property "if-ball-meets-ball-speed"
+  report item 8 (item (population-num - 1) ball-population-properties)
+end
+
+; ball procedure
+to-report is-affected-by-gravity
+  ;report get-ball-property "gravity" > 0
+  report ball-gravity-acceleration != 0
+end
+
+;ball procedure
+to-report ball-collision-different-populations-heading-change
+  ;report global-ball-collide-heading
+  ;report get-ball-property "if-ball-meets-ball-other-population-heading"
+  report item 9 (item (population-num - 1) ball-population-properties)
+end
+
+;ball procedure
+to-report ball-collision-different-populations-speed-change
+  ;report global-ball-collide-speed
+  ;report get-ball-property "if-ball-meets-ball-other-population-speed"
+  report item 10 (item (population-num - 1) ball-population-properties)
+end
+
+;ball procedure
+to-report ball-gravity-acceleration
+  ;report get-ball-property "gravity"
+  report item 11 (item (population-num - 1) ball-population-properties)
+end
+
+;ball procedure
+to-report ball-electric-field
+  ;report get-ball-property "electric-field"
+  report item 12 (item (population-num - 1) ball-population-properties)
+end
+
+to #nettango#setup-if-ball-meets-block
+end
+to #nettango#teardown-if-ball-meets-block
+end
+
+to #nettango#set-if-ball-meets-block-what-ball-meets [what-ball-meets]
+  set nettango-what-ball-meets-in-if-ball-meets-block what-ball-meets
+end
+
+to-report what-ball-meets-in-nettango-block
+  report nettango-what-ball-meets-in-if-ball-meets-block
+end
+
+to #nettango#set-heading-change [heading-change]
+  let what-ball-meets what-ball-meets-in-nettango-block
+  let population current-population-properties-are-being-set-for-in-nettango
+  (ifelse
+    what-ball-meets = "wall" [
+      set heading-change ifelse-value heading-change = "collide" ["bounce"] [heading-change]
+      set-if-ball-meets-wall-heading-for-population population heading-change ]
+    what-ball-meets = "ball-same-population" [
+      set-if-ball-meets-ball-heading-for-population population heading-change ]
+    what-ball-meets = "ball-other-population" [
+        set-if-ball-meets-ball-other-population-heading-for-population population heading-change] )
+end
+
+to #nettango#set-speed-change [speed-change]
+  let what-ball-meets what-ball-meets-in-nettango-block
+  let population current-population-properties-are-being-set-for-in-nettango
+  ifelse what-ball-meets = "wall" [
+    set speed-change ifelse-value speed-change = "collide" ["bounce"] [speed-change]
+    set-if-ball-meets-wall-speed-for-population population speed-change
+  ]
+  [
+    ifelse what-ball-meets = "ball-same-population" [
+      set-if-ball-meets-ball-speed-for-population population speed-change
+    ]
+    [
+      if what-ball-meets = "ball-other-population" [
+        set-if-ball-meets-ball-other-population-speed-for-population population speed-change
+      ]
+    ]
+  ]
+end
+
+to #nettango#set-field [strength]
+  let population current-population-properties-are-being-set-for-in-nettango
+  (ifelse
+    what-ball-meets-in-nettango-block = "gravity-field" [set-gravity-property-for-population population strength]
+    what-ball-meets-in-nettango-block = "electric-field" [set-property-for-population population "electric-field" strength]
+  )
+end
+
+to-report get-ball-population-properties [population]
+  ;report table-get ball-population-properties population
+  ;report table:get ball-population-properties population
+  report item (population - 1) ball-population-properties
+end
+
+to set-property-for-population [population property value]
+  ;table:put (get-ball-population-properties population) property value
+
+  ;set ball-population-properties table-put ball-population-properties  population
+  ;      (table-put (get-ball-population-properties population) property value)
+
+  set ball-population-properties replace-item (population - 1) ball-population-properties (replace-item (property-index property) (item (population - 1) ball-population-properties) value)
+end
+
+to-report property-index [property]
+  let index 0
+  (ifelse
+    property = "initial-size" [set index 0]
+    property = "initial-heading" [set index 1]
+    property = "initial-speed" [set index 2]
+    property = "initial-color" [set index 3]
+    property = "move-forward" [set index 4]
+    property = "if-ball-meets-wall-heading" [set index 5]
+    property = "if-ball-meets-wall-speed" [set index 6]
+    property = "if-ball-meets-ball-heading" [set index 7]
+    property = "if-ball-meets-ball-speed" [set index 8]
+    property = "if-ball-meets-ball-other-population-heading" [set index 9]
+    property = "if-ball-meets-ball-other-population-speed" [set index 10]
+    property = "gravity" [set index 11]
+    property = "electric-field" [set index 12]
+  )
+  report index
+end
+
+to set-initial-speed-for-population [population -speed]
+  set-property-for-population population "initial-speed" -speed
+end
+
+to set-initial-size-for-population [population -size]
+  set-property-for-population population "initial-size" -size
+end
+
+to set-initial-color-for-population [population -color]
+  set-property-for-population population "initial-color" -color
+end
+
+to set-initial-heading-for-population [population -heading]
+  set-property-for-population population "initial-heading" -heading
+end
+
+to set-if-ball-meets-wall-heading-for-population [population -heading]
+  set-property-for-population population "if-ball-meets-wall-heading" -heading
+end
+
+to set-if-ball-meets-wall-speed-for-population [population -speed]
+  set-property-for-population population "if-ball-meets-wall-speed" -speed
+end
+
+to set-if-ball-meets-ball-heading-for-population [population -heading]
+  set-property-for-population population "if-ball-meets-ball-heading" -heading
+end
+
+to set-if-ball-meets-ball-speed-for-population [population -speed]
+  set-property-for-population population "if-ball-meets-ball-speed" -speed
+end
+
+to set-ball-forward-property-for-population [population -move-forward]
+  set-property-for-population population "move-forward" -move-forward
+end
+
+to set-if-ball-meets-ball-other-population-heading-for-population [population -heading]
+  set-property-for-population population "if-ball-meets-ball-other-population-heading" -heading
+end
+
+to set-if-ball-meets-ball-other-population-speed-for-population [population -speed]
+  set-property-for-population population "if-ball-meets-ball-other-population-speed" -speed
+end
+
+to set-gravity-property-for-population [population strength]
+  set-property-for-population population "gravity" strength
+end
+
+to set-electric-field-property-for-population [population strength]
+  if strength != get-ball-population-property population "electric-field" [
+    set-property-for-population population "electric-field" strength
+    recalculate-field-values-for-population population
+  ]
+end
+
+to #nettango#if-ball-meets-wall [-heading -speed]
+  let population current-population-properties-are-being-set-for-in-nettango
+  set-if-ball-meets-wall-heading-for-population population -heading
+  set-if-ball-meets-wall-speed-for-population population -speed
+end
+
+to #nettango#if-ball-meets-ball [-heading -speed]
+  let population current-population-properties-are-being-set-for-in-nettango
+  set-if-ball-meets-ball-heading-for-population population -heading
+  set-if-ball-meets-ball-speed-for-population population -speed
+end
+
+to #nettango#move-ball
+  let population current-population-properties-are-being-set-for-in-nettango
+  let -move-forward true
+  set-ball-forward-property-for-population population -move-forward
+end
+
+to #nettango#if-ball-meets-electric-field [is-population-affected-by-electric-field]
+  let population current-population-properties-are-being-set-for-in-nettango
+  set-electric-field-property-for-population population is-population-affected-by-electric-field
+end
+
+to #nettango#if-ball-meets-gravity [is-population-affected-by-gravity]
+  let population current-population-properties-are-being-set-for-in-nettango
+  set-gravity-property-for-population population is-population-affected-by-gravity
+end
 
 to paint-arrow [this-patch]
   if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
@@ -880,7 +893,7 @@ to fill-field
   [ set current-patch first list-patches
     set list-patches but-first list-patches
     ask current-patch
-    ;refactor changed "in-radius-nowrap" to "in-radius" since it is not supported in netlogo web
+    ;refactor changed "in-radius-nowrap" to "in-radius"
     ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
     [    ask patches in-radius 1 with [(not has-wall) and (not has-field)]
          [  set pcolor field-color
@@ -924,41 +937,48 @@ to fill-field
       ]
   ]
 
-  log-command "fill-field"
+  foreach population-numbers [population -> recalculate-field-values-for-population population]
+
+if (prev-command-name != "fill-field") [
+         log-output "fill-field"
+    ]
 end
 
-;patch procedure
-to remove-electric-field-from-patch
-  ask arrows-here [die]
-  set field-number 0
-  set isPainted FALSE
-  set field-x  0
-  set field-y  0
-  set accum-x  0
-  set accum-y  0
-  set accum-w  0
-end
-
-to update-field-count
-  set field-count max [field-number] of patches
-end
-
-to erase-field [-field-number]
-  let patches-occupied-by-field patches with [field-number = -field-number]
-  ask patches-occupied-by-field
+to recalculate-field-values-for-population [population]
+  ask patches
   [
-    remove-electric-field-from-patch
+    set population-field-x replace-item (population - 1) population-field-x (field-x * get-ball-population-property population "electric-field")
+    set population-field-y replace-item (population - 1) population-field-y (field-y * get-ball-population-property population "electric-field")
+    ;table:put population-field-x population (field-x * get-ball-population-property population "electric-field")
+    ;table:put population-field-y population (field-y * get-ball-population-property population "electric-field")
+    ;set population-field-x table-put population-field-x population (field-x * get-ball-population-property population "electric-field")
+    ;set population-field-y table-put population-field-y population (field-y * get-ball-population-property population "electric-field")
+  ]
+end
+
+;;if population > length ball-population-properties [foreach (range length ball-population-properties population 1) [index -> set ball-population-properties insert-item index ball-population-properties [] ]]
+to erase-field [-field-number]
+  ask patches with [field-number = -field-number]
+  [
+    ask arrows-here [die]
+    set field-number 0
+    set isPainted FALSE
+    set field-x  0
+    set field-y  0
+    set accum-x  0
+    set accum-y  0
+    set accum-w  0
+    set population-field-x n-values length population-numbers [0]
+    set population-field-y n-values length population-numbers [0]
+    ;foreach population-numbers [population -> table:put population-field-x population 0 table:put population-field-y population 0]
+    ;foreach population-numbers [population -> set population-field-x table-put population-field-x population 0 set population-field-y table-put population-field-y population 0]
     recolor-patch
   ]
-  update-field-count
+  set field-count max [field-number] of patches
 end
 
 to-report has-field
   report field-number > 0
-end
-
-to-report field-exists
-  report field-count > 0
 end
 
 to recolor-patch
@@ -969,75 +989,38 @@ to recolor-patch
 end
 
 to paint-world
-  set current-background-color background-color
-  paint-patches
-  log-command "paint-world"
+    set current-background-color background-color
+    paint-patches
+    if (prev-command-name != "paint-world") [
+          log-output "paint-world"]
 end
 
 to paint-patches
   ask patches [recolor-patch]
 end
 
-to-report interaction-clause-of-population [population]
-  report child-by-name table:get ast-by-population population "interactions"
-end
-
-to netlogo-web-advance-balls-in-world
-    ask balls [
-      run-interactions-clause (interaction-clause-of-population population-num) population-num
-      factor-forces-acting-on-ball
-      set-ball-speed-to-maximum-if-above-max-speed
-      reset-balls-collided-with
-    ]
-    ask balls [
-      move
-      recolor
-    ]
-end
-
-to factor-forces-acting-on-ball
-  apply-forces-acting-on-ball
-  reset-sum-of-forces-acting-on-balls
-end
-
-to advance-balls-in-world2
-  netlogo-web-advance-balls-in-world
-end
-
 to advance-balls-in-world
-  ifelse netlogo-web? [
-    netlogo-web-advance-balls-in-world ]
-  [
-    ask balls [
-      ; if nextpatch == wall then call perform-hit-wall
-      ; if in same patch as other ball - call  perform-meet-ball
-      ; Then move
-      factor-electric-field ; add change of speed and heading due to electric field
-      factor-repel-and-attract-forces
-      factor-gravity;
-      check-for-wall-collision
-      check-for-ball-collision
-      set-ball-speed-to-maximum-if-above-max-speed
-      reset-balls-collided-with
-    ]
-    ask balls [
-      move
-      recolor
-    ]
+  ask balls [
+    ; if nextpatch == wall then call perform-hit-wall
+    ; if in same patch as other ball - call  perform-meet-ball
+    ; Then move
+    factor-field ; add change of speed and heading due to electric field
+    ;if who mod 5 = 0 [factor-field-interaction] ;Janan Interaction beween balls , repulsion and attraction
+    factor-field-interaction
+    factor-gravity;
+    check-for-wall ;  changes speed and heading when ball meets wall
+    check-for-collision  ; changes speed and heading when 2 balls meet
+
+    ; now move one step with updated heading and speed.
+  ]  ; end of askballs
+  ask balls [
+    move
+    recolor
   ]
 end
 
-to reset-balls-collided-with
-  set balls-collided-with no-turtles
-end
-
 to remove-flashes-past-their-lifespan
-  ask flashes with [tick-count - birthday > flash-time] [die]
-end
-
-to run-animations
-  ask animations [run animate]
-  ;ask animations with [tick-count - birthday > lifespan] [die]
+  ask flashes with [ticks - birthday > flash-time * tick-advance-amount] [die]
 end
 
 to-report any-moving-balls?
@@ -1063,913 +1046,43 @@ to log-go-procedure
 end
 
 to re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
-  ask balls with [is-number? prop "move"] [set tick-count-move-enabled tick-count]
+  ask balls with [is-number? move-forward] [set tick-count-move-enabled tick-count]
 end
 
-;============= ast parse ====================
-
-to-report map-population-names-to-populaiton-number
-  let mapped-population-names table:make
-  foreach population-numbers [population-number -> table:put mapped-population-names (pprop population-number "name") population-number]
-  report mapped-population-names
-end
-
-to-report convert-to-number-if-possible [input]
-  let output input
-  carefully [
-    set output read-from-string input
-  ] []
-  report output
-end
-
-to-report user-population-input-to-population-number [raw-input]
-  let population-input convert-to-number-if-possible raw-input
-  let mapped-population-names map-population-names-to-populaiton-number
-  let population-names table:keys mapped-population-names
-  let input-is-population-number member? population-input population-numbers
-  let input-is-population-name member? population-input population-names
-  (ifelse
-    input-is-population-number [report population-input]
-    input-is-population-name [report table:get mapped-population-names population-input]
-  )
-  report false
-end
-
-to-report is-multiple-objects [objects]
-  report length objects > 1
-end
-
-to apply-heading-change-if-meets-with-ball [other-balls heading-change]
-  (ifelse
-    heading-change = "collide" [change-heading-if-collides-with other-balls heading-change]
-    heading-change = "no change" []
-    heading-change = "turn left" [change-heading-if-collides-with other-balls heading-change]
-    heading-change = "turn right" [change-heading-if-collides-with other-balls heading-change]
-    heading-change = "repel" [apply-force-on other-balls heading-change]
-    heading-change = "attract" [apply-force-on other-balls heading-change]
-    heading-change = "repel and attract" [apply-force-on other-balls heading-change]
-  )
-end
-
-to apply-speed-change-if-meets-with-ball [other-balls speed-change]
-  (ifelse
-    speed-change = "collide" []
-    speed-change = "zero" [change-speed-if-collides-with other-balls speed-change]
-    speed-change = "increase" [change-speed-if-collides-with other-balls speed-change]
-    speed-change = "decrease" [change-speed-if-collides-with other-balls speed-change]
-  )
-end
-
-to-report random-chance [probability]
-  let normalized-probability probability / 100
-  report random-float 1 < normalized-probability
-end
-
-to-report object-is-balls [object]
-  report is-turtle-set? object
-end
-
-to-report objects-colliding-with [objects]
-  report ifelse-value is-multiple-objects objects [objects-colliding-with-multiple-objects objects] [objects-colliding-with-single-object objects]
-end
-
-to-report objects-colliding-with-multiple-objects [objects]
-  ifelse multiple-objects-already-set objects [
-    report ifelse-value count ((turtle-set objects) with [ball-collides-with myself]) = length objects [objects] [false] ]
-  [
-    let all-balls-in-collision balls-colliding
-    let ball-populations objects
-    let balls-in-collision [] ; a single combination set (of all possible) from balls in radius
-    ask all-balls-in-collision [
-      if member? population-num ball-populations [
-        set ball-populations remove-item (position population-num ball-populations) ball-populations
-        set balls-in-collision lput self balls-in-collision
-        if empty? ball-populations [stop]
-      ]
-    ]
-    report ifelse-value empty? ball-populations [balls-in-collision] [false]
-  ]
-end
-
-to-report objects-colliding-with-single-object [objects]
-  let -objects-colliding balls-colliding-from (first objects)
-  report ifelse-value any? -objects-colliding [(list -objects-colliding)] [false]
-end
-
-to-report objects-in-radius [objects radius]
-  report ifelse-value is-multiple-objects objects [objects-in-radius-multiple-objects objects radius] [objects-in-radius-single-object objects radius]
-end
-
-to-report parse-function-of [node]
-  let a table:get-or-default ast-lookup-table-parse-node node-name node false
-  if a = false [error (word "can not find parse function for " node)]
-  report table:get ast-lookup-table-parse-node node-name node
-end
-
-to-report run-function-of [node]
-  report table:get ast-lookup-table-run-node node-name node
-end
-
-to-report parse-result-of-node [node population objects]
-  report (runresult (parse-function-of node) node population objects)
-end
-
-to-report run-result-of-node [node population objects]
-  report (runresult (run-function-of node) node population objects)
-end
-
-to parse-node [node population objects]
-  (run (parse-function-of node) node population objects)
-end
-
-to run-node [node population objects]
-  (run (run-function-of node) node population objects)
-end
-
-to-report parse-result-children [node population objects]
-  report map [child -> parse-result-of-node child population objects] node-children node
-end
-
-to parse-children [node population objects]
-  foreach node-children node [child -> parse-node child population objects]
-end
-
-to-report run-result-children [node population objects]
-  report map [child -> run-result-of-node child population objects] node-children node
-end
-
-to run-children [node population objects]
-  foreach node-children node [child -> run-node child population objects]
-end
-
-to parse-heading-block [node population objects]
-  let parameters node-parameters node
-  let heading-change table:get parameters "heading"
-  ifelse not is-multiple-objects objects [
-    let object first objects
-    if not member? object ["wall" "ball-same-population" "ball-from-population"] [
-      let message (word "Heading can not be set for '" object "'" )
-      throw-ast-error node message
-    ]
-    if member? heading-change ["repel" "attract" "repel and attract"] and not member? object ["ball-same-population" "ball-from-population"] [
-      let message (word "Heading '" heading-change "' can not be set for '" object "'" )
-      throw-ast-error node message
-    ]
-  ]
-  [
-    let message (word "Heading can not be set for multiple objects: " objects )
-    throw-ast-error node message
-  ]
-end
-
-to run-heading-block [node population objects]
-  let parameters node-parameters node
-  let heading-change table:get parameters "heading"
-  let object first objects
-  (ifelse
-    object = "wall" [change-heading-if-collides-with-wall heading-change]
-    object-is-balls object [apply-heading-change-if-meets-with-ball object heading-change]
-  )
-end
-
-to parse-speed-block [node population objects]
-  let parameters node-parameters node
-  let speed-change table:get parameters "speed"
-  let object first objects
-  ifelse not is-multiple-objects objects [
-    if not member? object ["wall" "ball-same-population" "ball-from-population"] [
-      let message (word "Speed can not be set for '" object "'" )
-      throw-ast-error node message
-    ]
-    if member? speed-change ["repel" "attract" "repel and attract"] and not member? object ["ball-same-population" "ball-from-population"] [
-      let message (word "Speed '" speed-change "' can not be set for '" object "'" )
-      throw-ast-error node message
-    ]
-  ]
-  [
-    let message (word "Speed can not be set for multiple objects: " objects )
-    throw-ast-error node message
-  ]
-end
-
-to run-speed-block [node population objects]
-  let parameters node-parameters node
-  let speed-change table:get parameters "speed"
-  let object first objects
-  (ifelse
-    object = "wall" [change-speed-if-collides-with-wall speed-change]
-    object-is-balls object [apply-speed-change-if-meets-with-ball object speed-change ]
-  )
-end
-
-to parse-field-strength-block [node population objects]
-  let object first objects
-  if not member? object ["gravity-field" "electric-field"] [
-    let message (word "field strength can not be set for " object )
-    throw-ast-error node message
-  ]
-end
-
-to run-field-strength-block [node population objects]
-  let parameters node-parameters node
-  let field-strength table:get parameters "strength"
-  let object first objects
-  (ifelse
-    object = "gravity-field" [apply-gravity (- field-strength)]
-    object = "electric-field" [apply-electric-field field-strength]
-  )
-end
-
-to parse-create-balls-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  if population-of-ball-being-created = false [
-    let message (word "Population '" user-defined-population "' defined in '" name "' block does not exist.")
-    throw-ast-error node message
-  ]
-end
-
-to run-create-balls-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let amount table:get parameters "amount"
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  hatch-balls-at population-of-ball-being-created amount xcor ycor
-end
-
-to-report center-xy [agent-set]
-  report (list mean [xcor] of agent-set mean [ycor] of agent-set)
-end
-
-to extend-mark-lifespan [mark]
-  ask mark [set birthday tick-count]
-end
-
-to set-mark-xy [mark x y]
-  ask mark [setxy x y]
-end
-
-to set-mark-size [mark -size]
-  ask mark [set size -size]
-end
-
-to-report create-mark [x y -size -color -shape -lifespan]
-  let mark-created nobody
-  hatch-animations 1 [
-    set -name "mark"
-    setxy x y
-    set shape -shape
-    set color add-transparency -color 0.35
-    set size -size
-    set label ""
-    set label-color white
-    set heading 0
-    show-turtle
-    set birthday tick-count
-    set data table:from-list (list (list "lifespan" -lifespan))
-    set animate [[] -> remove-animation-if-past-lifespan]
-    set mark-created self
-  ]
-  report mark-created
-end
-
-to remove-animation-if-past-lifespan
-  let lifespan table:get data "lifespan"
-  if tick-count - birthday > lifespan [die]
-end
-
-to rotate-animation
-  ; Need to find a way to chain animatin procedures, such as
-  ; chain-animation (list rotate-animation remove-animation-if-past-lifespan)
-  set heading heading + table:get data "angle"
-  remove-animation-if-past-lifespan
-end
-
-to increase-animation-size
-  let increase table:get data "increase"
-  set size size * ((100 + increase) / 100)
-  remove-animation-if-past-lifespan
-end
-
-to flash-animation
-  let flash-rate table:get data "flash-every-n-ticks"
-  let should-change-color tick-count mod flash-rate = 0
-  if should-change-color [
-    let is-flashing table:get data "is-flashing"
-    let next-color ifelse-value is-flashing [table:get data "original-color"] [table:get data "flash-color"]
-    table:put data "is-flashing" not is-flashing
-    set color next-color
-  ]
-  remove-animation-if-past-lifespan
-end
-
-to-report animation-data-by-name [effect -shape -color -lifespan]
-  ; Should be a global variable for animation data lookup.
-  (ifelse
-    effect = "rotate" [report table:from-list [["angle" 10]]]
-    effect = "flash" [report table:from-list (list
-      (list "flash-every-n-ticks" 2)
-      (list "is-flashing" false)
-      (list "original-color" -color)
-      (list "flash-color" set-color-brightness -color 1))]
-    effect = "inflate" [report table:from-list [["increase" 5]]]
-  )
-end
-
-to run-animate-block [node population objects]
-  let parameters node-parameters node
-  let -shape table:get parameters "shape"
-  let -lifespan table:get parameters "lifespan"
-  let -color add-transparency table:get parameters "color" 0.35
-  let -effect table:get parameters "effect"
-  let -size table:get parameters "size"
-  let -data animation-data-by-name -effect -shape -color -lifespan
-  table:put -data "lifespan" -lifespan
-  hatch-animations 1 [
-    set -name -effect
-    set shape -shape
-    set color -color
-    set size -size
-    set label ""
-    set label-color white
-    set heading 0
-    show-turtle
-    set birthday tick-count
-    set data -data
-    set animate animation-by-name -name
-  ]
-end
-
-to parse-animate-block [node population objects]
-  ; check if lifespan is negative
-end
-
-to run-draw-block [node population objects]
-  let parameters node-parameters node
-  let -shape table:get parameters "shape"
-  let -lifespan table:get parameters "lifespan"
-  let -color table:get parameters "color"
-  let -size table:get parameters "size"
-  hatch-animations 1 [
-    set shape -shape
-    set color add-transparency -color 0.35
-    set size -size
-    set label ""
-    set label-color white
-    set heading 0
-    show-turtle
-    set birthday tick-count
-    set data table:from-list (list (list "lifespan" -lifespan))
-    set animate [[] -> remove-animation-if-past-lifespan]
-  ]
-end
-
-to parse-draw-block [node population objects]
-  ; check if lifespan is negative
-end
-
-to run-mark-block [node population objects]
-  let balls-to-mark (turtle-set self ifelse-value is-multiple-objects objects [objects] [one-of first objects])
-  let parameters node-parameters node
-  let mark-shape table:get parameters "shape"
-  let mark-lifespan table:get parameters "lifespan"
-  let mark-color table:get parameters "color"
-  let mark-center center-xy balls-to-mark
-  let mark-xcor first mark-center
-  let mark-ycor last mark-center
-  let mark-radius max [(distancexy mark-xcor mark-ycor) + size + 1.5] of balls-to-mark
-  let my-mark table:get-or-default node who nobody
-  ifelse my-mark = nobody [
-    table:put node who create-mark mark-xcor mark-ycor mark-radius mark-color mark-shape mark-lifespan
-  ]
-  [
-    ask my-mark [
-      setxy mark-xcor mark-ycor
-      set size mark-radius
-    ]
-    extend-mark-lifespan my-mark
-  ]
-end
-
-to parse-mark-block [node population objects]
-  validate-has-one-of-ancestors node ["if-collide" "if-in-radius"]
-  ; check if lifespan negative
-end
-
-to run-repeat-block [node population objects]
-  let parameters node-parameters node
-  let amount table:get parameters "amount"
-  repeat amount [run-children node population objects]
-end
-
-to parse-repeat-block [node population objects]
-  let parameters node-parameters node
-  let amount table:get parameters "amount"
-  if amount < 0 [
-    let message (word "Repeat amount can not be negative: " amount)
-    throw-ast-error node message
-  ]
-  parse-children node population objects
-end
-
-to parse-disappear-block [node population objects]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  if population-of-ball-being-created = false [
-    let message (word "Population '" user-defined-population "' defined in '" name "' block does not exist.")
-    throw-ast-error node message
-  ]
-end
-
-to run-disappear-block [node population objects]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-removed user-population-input-to-population-number user-defined-population
-  let removal-candidates (turtle-set objects) with [population-num = population-of-ball-being-removed]
-  ifelse any? removal-candidates [
-    remove-ball one-of removal-candidates ]
-  [
-    if population-num = population-of-ball-being-removed [remove-ball self]
-  ]
-end
-
-to parse-add-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  if population-of-ball-being-created = false [
-    let message (word "Population '" user-defined-population "' defined in '" name "' block does not exist.")
-    throw-ast-error node message
-  ]
-end
-
-to run-add-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  hatch-balls-at population-of-ball-being-created 1 xcor ycor
-end
-
-to parse-at-least-x-ticks-block [node population objects]
-  let name node-name node
-  let parameters node-parameters node
-  let amount table:get parameters "amount"
-  if amount < 0 [
-    let message (word "Tick amount can not be negative: " amount)
-    throw-ast-error node message
-  ]
-  parse-children node population objects
-end
-
-to run-at-least-x-ticks-block [node population objects]
-  let name node-name node
-  let parameters node-parameters node
-  let amount table:get parameters "amount"
-  table:put node who last-n-elements (sentence (table:get-or-default node who []) tick-count) amount
-  let arithmetic-sum (amount * (amount + 1)) / 2
-  let sum-tick-count-of-last-x-visits-here sum table:get node who
-  let has-visited-node-x-consequtive-ticks (sum-tick-count-of-last-x-visits-here + arithmetic-sum) = (tick-count + 1) * amount
-  if has-visited-node-x-consequtive-ticks [
-    run-children node population objects
-  ]
-end
-
-to run-chance-block [node population objects]
-  let probability table:get node-parameters node "probability"
-  if random-chance probability [run-children node population objects]
-end
-
-to parse-chance-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "field-strength" "create-ball" "chance" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
-  parse-children node population objects
-end
-
-to parse-if-in-radius-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
-  parse-children node population objects
-end
-
-to run-if-in-radius-block [node population objects]
-  let parameters node-parameters node
-  let radius table:get parameters "radius"
-  let -objects-in-radius objects-in-radius objects radius
-  if -objects-in-radius != false [run-children node population -objects-in-radius]
-end
-
-to parse-if-collide-block [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
-  parse-children node population objects
-end
-
-to run-if-collide-block [node population objects]
-  let -objects-colliding-with objects-colliding-with objects
-  if -objects-colliding-with != false [run-children node population -objects-colliding-with]
-end
-
-to parse-if-ball-meets-block-then-clause [node population objects]
-  validate-node-has-only-children-named node ["heading" "speed" "field-strength" "chance" "create-ball" "kill-balls-that-meet" "if-collide" "if-in-radius" "add" "disappear" "repeat" "mark" "at-least-x-ticks"]
-  let name node-name node
-  let children node-children node
-  if (empty? objects) and (not empty? children) [
-    let message (word "No objects defined" )
-    throw-ast-error node message
-  ]
-  parse-children node population objects
-end
-
-to run-if-ball-meets-block-then-clause [node population objects]
-  run-children node population objects
-end
-
-to parse-kill-balls-that-meet-block [node population objects]
-  validate-has-one-of-ancestors node ["if-collide" "if-in-radius"]
-end
-
-to run-kill-balls-that-meet-block [node population objects]
-  ifelse is-multiple-objects objects [foreach [self] of turtle-set objects remove-ball] [remove-ball one-of turtle-set objects]
-  remove-ball self
-end
-
-to parse-if-ball-meets-block [node population]
-  let children node-children node
-  let children-names map node-name children
-  let objects-clause child-by-name node "objects"
-  let then-clause child-by-name node "then"
-  let objects parse-result-of-node objects-clause population []
-  parse-node then-clause population objects
-end
-
-to run-if-ball-meets-block [node population]
-  let children node-children node
-  let objects-clause child-by-name node "objects"
-  let then-clause child-by-name node "then"
-  let objects run-result-of-node objects-clause population []
-  run-node then-clause population objects
-end
-
-to-report run-wall-block [node population]
-  report "wall"
-end
-
-to parse-wall-block [node population]
-  ; nothing to parse
-end
-
-to-report run-ball-same-population-block [node population]
-  ;report (list "ball" population)
-  report population
-end
-
-to parse-ball-same-population-block [node population]
-  ; nothing to parse
-end
-
-to-report run-ball-other-population-block [node population]
-  report ifelse-value population = 1 [2] [1]
-  ;let name node-name node
-  ;let parameters node-parameters node
-  ;let user-defined-population table:get parameters "population"
-  ;let other-population user-population-input-to-population-number user-defined-population
-  ;print (word "population: " other-population " is string?: " is-string? other-population " is number?: " is-number? other-population)
-  ;report other-population
-end
-
-to parse-ball-other-population-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let other-population user-population-input-to-population-number user-defined-population
-  if other-population = false [
-    let message (word "Population '" user-defined-population "' defined in '" name "' block does not exist.")
-    throw-ast-error node message
-  ]
-end
-
-to-report run-gravity-field-block [node population]
-  report "gravity-field"
-end
-
-to parse-gravity-field-block [node population]
-  ; nothing to parse
-end
-
-to-report run-electric-field-block [node population]
-  report "electric-field"
-end
-
-to parse-electric-field-block [node population]
-  ; nothing to parse
-end
-
-to-report parse-if-ball-meets-block-objects-clause [node population]
-  validate-node-has-only-children-named node ["wall" "ball-same-population" "ball-from-population" "gravity-field" "electric-field"]
-  let children node-children node
-  let objects map node-name children
-  let non-ball-objects filter [object -> not member? object ["ball-same-population" "ball-from-population"]] objects
-  let objects-contain-non-ball-object not empty? non-ball-objects
-  if (length children > 1) and (objects-contain-non-ball-object) [
-    let message (word "Multiple objects is only defined for ball type objects, please remove the following: "
-      non-ball-objects " from objects: " objects)
-    throw-ast-error node message
-  ]
-  parse-children node population []
-  report objects
-end
-
-to-report objects-clause-has-multiple-ball-objects [node]
-  let children-names map node-name node-children node
-  report not empty? filter [name -> member? name ["ball-same-population" "ball-from-population"]] children-names
-end
-
-to-report run-if-ball-meets-block-objects-clause [node population]
-  let objects run-result-children node population []
-  ; only balls can be multiple objects, if so then handle what their values should be.
-  ; if single object then return agent-set of balls
-  ; if multiple objects then return population-numbers of balls in a list as is
-  ; if multiple objects and has gone through a block that changes object then return list of turtles (not done in this function)
-  if objects-clause-has-multiple-ball-objects node [
-    report ifelse-value is-multiple-objects objects [objects] [map [object -> other balls-of object] objects] ]
-  report objects
-end
-
-to parse-actions-and-properties-of-configure-population-block [node]
-  let parameters node-parameters node
-  let population table:get parameters "population"
-  let properties-clause child-by-name node "properties"
-  let actions-clause child-by-name node "actions"
-  parse-properties-clause properties-clause population
-  parse-actions-clause actions-clause population
-end
-
-to run-actions-and-properties-of-configure-population-block [node]
-  let parameters node-parameters node
-  let population table:get parameters "population"
-  initialize-ball-population-properties population
-  let properties-clause child-by-name node "properties"
-  let actions-clause child-by-name node "actions"
-  run-properties-clause properties-clause population
-  run-actions-clause actions-clause population
-end
-
-to parse-interactions-clause [node population]
-  validate-node-has-only-children-named node ["if-ball-meets"]
-  parse-children node population []
-end
-
-to run-interactions-clause [node population]
-  run-children node population []
-end
-
-to parse-actions-clause [node population]
-  validate-node-has-only-children-named node ["move-forever" "move-x-steps"]
-  validate-only-one-of-children-exists node ["move-forever" "move-x-steps"]
-  validate-no-duplicate-children-named node ["move-forever" "move-x-steps"]
-  parse-children node population []
-end
-
-to run-actions-clause [node population]
-  run-children node population []
-end
-
-to parse-move-forever-block [node population]
-  ; nothing to parse
-end
-
-to run-move-forever-block [node population]
-  set-prop population "move" true
-end
-
-to parse-move-x-steps-block [node population]
-  ; nothing to parse
-end
-
-to run-move-x-steps-block [node population]
-  let parameters node-parameters node
-  let steps table:get parameters "steps"
-  set-prop population "move" steps
-end
-
-to parse-properties-clause [node population]
-  validate-node-has-only-children-named node ["color" "size" "shape" "initial-heading" "initial-speed" "name"]
-  parse-children node population []
-end
-
-to run-properties-clause [node population]
-  run-children node population []
-end
-
-to parse-property-block [node population]
-  ; nothing to currently parse in general property block
-end
-
-to run-property-block [node population]
-  let parameters node-parameters node
-  let property-name first table:keys parameters
-  let property-value table:get parameters property-name
-  set-prop population property-name property-value
-end
-
-to parse-color-block [node population]
-  ; nothing to currently parse in color block
-end
-
-to run-color-block [node population]
-  let color-value node-parameter node "color"
-  ifelse is-first-color-property-to-be-defined node [
-    set-prop population "color" color-value]
-  [
-    add-secondary-color-to-population population color-value
-  ]
-end
-
-to add-secondary-color-to-population [population -color]
-  set-prop population "secondary-colors" lput -color pprop population "secondary-colors"
-end
-
-to-report is-first-color-property-to-be-defined [node]
-  let parent node-parent node
-  let sibling-nodes node-children parent
-  let node-index position node sibling-nodes
-  report empty? filter [sibling-node -> node-name sibling-node = "color"] sublist sibling-nodes 0 node-index
-end
-
-to-report multiple-objects-already-set [objects]
-  report is-turtle? one-of objects
-end
-
-to-report objects-in-radius-multiple-objects [objects radius]
-  ifelse multiple-objects-already-set objects [
-    report ifelse-value count (turtle-set objects in-radius radius) = length objects [objects] [false]
-  ] [
-    let all-balls-in-radius other (balls in-radius radius)
-    let ball-populations objects
-    let balls-in-radius [] ; a single combination set (of all possible) from balls in radius
-    ask all-balls-in-radius [
-      if member? population-num ball-populations [
-        set ball-populations remove-item (position population-num ball-populations) ball-populations
-        set balls-in-radius lput self balls-in-radius
-        if empty? ball-populations [stop]
-      ]
-    ]
-    report ifelse-value empty? ball-populations [balls-in-radius] [false]
-  ]
-end
-
-to-report objects-in-radius-single-object [objects radius]
-  let -objects-in-radius (first objects) in-radius radius
-  report ifelse-value any? -objects-in-radius [(list -objects-in-radius)] [false]
-end
-
-to update-shapes-of-population [population]
-  ask balls-of population [update-ball-shape]
-end
-
-to update-color-of-population [population]
-  ask balls-of population [update-ball-color]
-end
-
-to update-size-of-population [population]
-  ask balls-of population [update-ball-size]
-end
-
-to update-ball-size
-  set size prop "size"
-  ; compound shapes need to be updated to new size as well
-  update-ball-shape
-end
-
-to update-ball-color
-  set color prop "color"
-  ; compound shapes need to be updated to new color as well
-  update-ball-shape
-end
-
-to-report unequal-keys [table1 table2]
-  report filter [key -> table:get table1 key != table:get table2 key] table:keys table1
-end
-
-to-report properties-that-changed-for-population [population]
-  report unequal-keys (properties-of population) (prev-properties-of population)
-end
-
-to notify-property-changed-for-population [population property]
-  (run property-changed-procedure property population)
-end
-
-to-report property-changed-procedure [property]
-  report table:get-or-default property-change-procedure-lookup property [[population] -> ]
-end
-
-to notify-properties-that-changed-for-population [population]
-  foreach properties-that-changed-for-population population [
-    changed-property -> notify-property-changed-for-population population changed-property ]
-end
-
-to notify-properties-that-changed-for-each-population
-  foreach population-numbers notify-properties-that-changed-for-population
-end
-
-to update-ball-population-properties-defined-in-nettango-blocks
-  ; in order to account for changes to property blocks, every turn the population properties are initialized
-  ; and reset. The reason is that if a block is removed, then the option for that property must
-  ; be set to default, which is done by initializing all population properties and reapplying
-  ; properties of remaining blocks.
-  ; these functions are defined in nettango, so to reduce the amount of lines
-  ; needed to be changed between desktop and web use, the primitive "run"
-  ; is used because the compiler can not check if these procedures exist until runtime
-  initialize-all-lookup-tables-if-nettango-has-recompiled
-  set nodes-by-id []
-  set id-counter 0
-
-  let amount-of-populations 2
-  ;foreach (range 1 (amount-of-populations + 1)) [ population ->
-  ;  run (word "configure-population-" population)
-  ;  table:put ast-by-population population ast-root
-  ;]
+to update-ball-populaiton-properties-defined-in-nettango-blocks
+  let pop1-electric-field get-ball-population-property 1 "electric-field"
+  let pop2-electric-field get-ball-population-property 2 "electric-field"
+  initialize-ball-population-properties 1
+  initialize-ball-population-properties 2
   configure-population-1
-  table:put ast-by-population 1 ast-root
   configure-population-2
-  table:put ast-by-population 2 ast-root
-  ;keep-prev-ast-if-new-ast-did-not-change
-  ;todo parsing is redundant if ast has not changed
-  ;need to run actions here
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    parse-actions-and-properties-of-configure-population-block table:get ast-by-population population
-  ]
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    run-actions-and-properties-of-configure-population-block table:get ast-by-population population
-  ]
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    parse-interactions-clause interaction-clause-of-population population population
-  ]
-  notify-properties-that-changed-for-each-population
+  if pop1-electric-field != get-ball-population-property 1 "electric-field" [recalculate-field-values-for-population 1]
+  if pop2-electric-field != get-ball-population-property 2 "electric-field" [recalculate-field-values-for-population 2]
 end
 
-to keep-prev-ast-if-new-ast-did-not-change
-  if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
-    set ast-by-population copy-table curr-ast-by-population
-    set last-used-nodes-by-id nodes-by-id
-  ]
-  set prev-ast-by-population table-as-list curr-ast-by-population
-  set curr-ast-by-population table:make
-  ; this line of code is important, since every tick a new ast is formed, and
-  ; nodes-by-id gets updated with the new nodes, however it needs to get set to
-  ; the list of nodes that the current running ast is using, which is not the same
-  ; as the ast the was just formed in nettango. The nodes need this to know how to
-  ; refer to each other by id.
-  ; TODO: find a more elegant solution.
-  set nodes-by-id last-used-nodes-by-id
-end
-
-to time-run
-  ;if tick-count = 0 [profiler:reset profiler:start]
-  ;if tick-count = 500 [print profiler:report profiler:reset]
-end
+;to time-run
+;  if tick-count = 0 [profiler:reset profiler:start]
+;  if tick-count = 500 [print profiler:report profiler:reset]
+;end
 
 
 to go
-  time-run
-  ;log-go-procedure
-  ;update-ball-population-properties-defined-in-nettango-blocks
-  if netlogo-web? [
-    update-ball-population-properties-defined-in-nettango-blocks ]
+  ;time-run
+  log-go-procedure
+  update-ball-populaiton-properties-defined-in-nettango-blocks
   ifelse any-moving-balls? [
     every (tick-advance-amount) [
+      ;update-electricity
       advance-balls-in-world
       remove-flashes-past-their-lifespan
-      run-animations
       advance-ticks
-      update-all-plots
       update-display
     ]
   ][
-    re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
-    on-end-of-turn
     stop  ;; unselect "play" button
+    re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
   ]
-  on-end-of-turn
-end
-
-to on-end-of-turn
   set brush-activated-after-model-was-advanced false
-  set prev-ball-population-properties copy-table ball-population-properties
-  update-ball-labels
-end
-
-to update-ball-labels
-  ;ifelse show-name [
-  ;  ask balls [show-ball-label]]
-  ;[
-  ;  ask balls [hide-ball-label]
-  ;]
 end
 
 to color-population-by-speed [population]
@@ -1991,22 +1104,13 @@ to recolor  ;; particle procedure
   ifelse Color-Speed [
     foreach population-numbers [population -> color-population-by-speed population] ]
   [
-    set color [prop "color"] of self
+    set color [initial-color] of self
   ]
-end
-
-to show-ball-label
-  set label prop "name"
-  set label-color white
-end
-
-to hide-ball-label
-  set label-color add-transparency label-color 0
 end
 
 ; ball procedure
 to-report is-ball-moving?
-  let -move-forward prop "move"
+  let -move-forward move-forward
   report ifelse-value is-boolean? -move-forward [-move-forward] [tick-count - tick-count-move-enabled < -move-forward]
 end
 
@@ -2025,8 +1129,7 @@ end
 to create-flash-here [-flash-color]
   sprout-flashes 1 [
     set color -flash-color
-    set birthday tick-count
-    set heading 0
+    set birthday ticks
   ]
 end
 
@@ -2063,203 +1166,139 @@ to return-ball-cyclically-around-world
   ]
 end
 
-; ball procedure
-to-report move-distance
-  report (speed * tick-advance-amount)
-end
+to move ;; particle procedure
 
-; ball procedure
-to move
   if is-ball-moving?
   [
-    ;look at the patch the ball will be moving to:
-    let pahead patch-ahead move-distance
-    ifelse (pahead = nobody)
-    [ ; when ball leaves world - instead of die:
-      ; if it is inside a efield then choose random location on an edge patch of that field and move ball to that new location.
-      ; ensure that ball returns to same field-number
-      ; if it is not inside a field then it returns cyclically.
-      ifelse field-exists
-      [
-        let patches-on-edge patches with [(field-number = [field-number] of myself) and (pxcor = max-pxcor  or pxcor = min-pxcor  or pycor = max-pycor  or pycor = min-pycor) ]
-        ifelse  (any? patches-on-edge) ; there is atleast 1 patch marked at edge of world
-        [
-          let new-patch one-of patches-on-edge   ;
-          set xcor  [pxcor] of new-patch
-          set ycor  [pycor] of new-patch
-          if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0))
-          [
-            set heading atan [field-x] of new-patch  [field-y] of new-patch
-          ]
-             ; otherwise continue in same direction as exited window
-        ]
-        [ ; else there are no patches of field on edge of world, ball returns cyclic
-              return-ball-cyclically-around-world
-        ]
-       ]
-       [  ; else - there is no efield balls return cyclic
-         return-ball-cyclically-around-world
-       ]
-    ]
-    ; ball did not leave the world - move it and deal with collision with other ball:
-    [
-      if pahead != patch-here [ set last-collision nobody ]
-      jump move-distance
-    ]
-  on-ball-moved
-  ]
-end
+    ; if ball on counter  - create a flash
+    ;  counters-report   ; changed to count flashes and not balls on counters bcs too many ticks balls are on counter
+    if (counter-count > 0)
+    [  ifelse (any? counters-here) and (on-counter = False) [  ; if there is a counter at the pos of the ball (we are inside ask balls in go) and ball was not counted yet
+        set on-counter True
+        increase-counter counter-number-here
+        flash-counter-here
+      ]
+      [ set on-counter False
+      ]
+    ] ; end if count-counters > 0
 
-to on-ball-moved
-  increase-counter-on-patch-ball-is-on
-end
 
-to increase-counter-on-patch-ball-is-on
-  if any? counters-here [
-    increase-counter counter-number-here
-    flash-counter-here
+    ; look at th epatch the ball will be moving to:
+      let pahead patch-ahead (speed * tick-advance-amount)
+      ifelse (pahead = nobody)
+      [ ; when ball leaves world - instead of die:
+        ; if it is inside a efield then choose random location on an edge patch of that field and move ball to that new location.
+        ; ensure that ball returns to same field-number
+        ; if it is not inside an efield then it returns cyclically.
+        ifelse field-count > 0  ; there is a field in the world
+        [   let patches-on-edge patches with [(field-number = [field-number] of myself) and (pxcor = max-pxcor  or pxcor = min-pxcor  or pycor = max-pycor  or pycor = min-pycor) ]
+            ifelse  (any? patches-on-edge)  ; there is atleast 1 patch marked at edge of world
+            [ let  new-patch one-of patches-on-edge   ;
+              set xcor  [pxcor] of new-patch
+              set ycor  [pycor] of new-patch
+              if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0))
+               [ set heading atan [field-x] of new-patch  [field-y] of new-patch
+               ]
+               ; otherwise continue in same direction as exited window
+            ]
+            [ ; else there are no patches of field on edge of world, ball returns cyclic
+                return-ball-cyclically-around-world
+            ]
+         ] ; end if field-count > 0
+         [  ; else - there is no efield balls return cyclic
+           return-ball-cyclically-around-world
+         ]
+      ]
+      ; ball did not leave the world - move it and deal with collision with other ball:
+      [   if pahead != patch-here
+                 [ set last-collision nobody ]
+          jump (speed * tick-advance-amount)
+      ]
   ]
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;bounce;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report heading-quadrant
-  let -heading heading mod 360
-  (ifelse
-    (-heading >= 0) and (-heading < 90) [report 1]
-    (-heading >= 90) and (-heading < 180) [report 2]
-    (-heading >= 180) and (-heading < 270) [report 3]
-    (-heading >= 270) and (-heading < 360) [report 4]
-  )
-end
+to   check-for-wall ;  if next to wall patch, change speed and heading of ball
+;output-print "in check for wall"
+;output-type (round heading)
+;output-show (shade-of? blue [pcolor] of new-patch)
+;clear-output
 
-to-report check-wall-collision-quadrant-1
- let new-patch patch-ahead lookAhead
- if new-patch = nobody [report false]
- let new-patch-right  patch-at-heading-and-distance  90 lookAhead
- let new-patch-up    patch-at-heading-and-distance    0 lookAhead
- if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
- if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
+ let new-patch patch-ahead lookAhead ;  GIGI was look atnext patch but changed to look where ACTUALLY will be
+;let new-patch patch-ahead (speed * tick-advance-amount)
+let headingM  heading mod 360   ; ensure heading is 0..360
 
- (ifelse
-   (([has-wall] of new-patch-right) and ([has-wall] of new-patch-up) ) [report (list "corner" [pxcor] of new-patch-right [pycor] of new-patch-right)]
-   ([has-wall] of new-patch-right)   [report (list "right" [pxcor] of new-patch-right [pycor] of new-patch-right)]
-   ([has-wall] of new-patch-up)     [report (list "up" [pxcor] of new-patch-up [pycor] of new-patch-up)]
-   ([has-wall] of new-patch)        [report (list "corner" [pxcor] of new-patch [pycor] of new-patch)]
-    [report false]
- )
-end
+  if new-patch = nobody [stop]
+;  if ( ([pxcor] of new-patch = max-pxcor ) or ([pxcor] of new-patch = min-pxcor ) or ([pycor] of new-patch = max-pycor ) or ([pycor] of new-patch = min-pycor ))  [stop]
+if (headingM >= 0) and (headingM < 90)   ; Quadrant I check only right and up walls
+[     let new-patch-right  patch-at-heading-and-distance  90 lookAhead
+      let new-patch-up    patch-at-heading-and-distance    0 lookAhead
+      if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
+      if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
 
-to-report check-wall-collision-quadrant-2
-  let new-patch patch-ahead lookAhead
-  if new-patch = nobody [report false]
-  let new-patch-right  patch-at-heading-and-distance   90 lookAhead
-  let new-patch-down  patch-at-heading-and-distance  180 lookAhead
-  if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
-  if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
+    if (([has-wall] of new-patch-right) and ([has-wall] of new-patch-up) ) [perform-hit-wall "corner" [pxcor] of new-patch-right [pycor] of new-patch-right stop]
+      if ([has-wall] of new-patch-right)   [perform-hit-wall "right" [pxcor] of new-patch-right [pycor] of new-patch-right stop]
+      if ([has-wall] of new-patch-up)     [perform-hit-wall "up" [pxcor] of new-patch-up [pycor] of new-patch-up stop]
+      if ([has-wall] of new-patch)        [perform-hit-wall "corner" [pxcor] of new-patch [pycor] of new-patch stop]
+]
 
-  (ifelse
-    (([has-wall] of new-patch-right) and ([has-wall] of new-patch-down))  [report (list "corner" [pxcor] of new-patch-right [pycor] of new-patch-right)]
-    ([has-wall] of new-patch-right)   [report (list "right" [pxcor] of new-patch-right [pycor] of new-patch-right)]
-    ([has-wall] of new-patch-down)   [report (list "down" [pxcor] of new-patch-down [pycor] of new-patch-down)]
-    ([has-wall] of new-patch)        [report (list "corner" [pxcor] of new-patch [pycor] of new-patch)]
-    [report false]
-  )
-end
+if (headingM >= 90) and (headingM < 180)   ; Quadrant II check only right and down walls
+[     let new-patch-right  patch-at-heading-and-distance   90 lookAhead
+      let new-patch-down  patch-at-heading-and-distance  180 lookAhead
+      if (new-patch-right = nobody) [set new-patch-right patch-here]  ; if at edge of world
+      if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
 
-to-report check-wall-collision-quadrant-3
-  let new-patch patch-ahead lookAhead
-  if new-patch = nobody [report false]
-  let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
-  let new-patch-down  patch-at-heading-and-distance  180 lookAhead
-  if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
-  if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
+      if (([has-wall] of new-patch-right) and ([has-wall] of new-patch-down))  [perform-hit-wall "corner" [pxcor] of new-patch-right [pycor] of new-patch-right stop]
+      if ([has-wall] of new-patch-right)   [perform-hit-wall "right" [pxcor] of new-patch-right [pycor] of new-patch-right stop]
+      if ([has-wall] of new-patch-down)   [perform-hit-wall "down" [pxcor] of new-patch-down [pycor] of new-patch-down stop]
+      if ([has-wall] of new-patch)        [perform-hit-wall "corner" [pxcor] of new-patch [pycor] of new-patch stop]
+]
 
-  (ifelse
-    (([has-wall] of new-patch-left) and ([has-wall] of new-patch-down))  [report (list "corner" [pxcor] of new-patch-left [pycor] of new-patch-left)]
-    ([has-wall] of new-patch-left)   [report (list "left" [pxcor] of new-patch-left [pycor] of new-patch-left)]
-    ([has-wall] of new-patch-down)   [report (list "down" [pxcor] of new-patch-down [pycor] of new-patch-down)]
-    ([has-wall] of new-patch)        [report (list "corner" [pxcor] of new-patch [pycor] of new-patch)]
-    [report false]
-  )
-end
+if (headingM >= 180) and (headingM < 270)   ; Quadrant III check only left and down walls
+[     let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
+      let new-patch-down  patch-at-heading-and-distance  180 lookAhead
+      if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
+      if (new-patch-down = nobody) [set new-patch-down patch-here]  ; if at edge of world
 
-to-report check-wall-collision-quadrant-4
-  let new-patch patch-ahead lookAhead
-  if new-patch = nobody [report false]
-  let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
-  let new-patch-up    patch-at-heading-and-distance    0 lookAhead
-  if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
-  if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
+      if (([has-wall] of new-patch-left) and ([has-wall] of new-patch-down))  [perform-hit-wall "corner" [pxcor] of new-patch-left [pycor] of new-patch-left stop]
+      if ([has-wall] of new-patch-left)   [perform-hit-wall "left" [pxcor] of new-patch-left [pycor] of new-patch-left stop]
+      if ([has-wall] of new-patch-down)   [perform-hit-wall "down" [pxcor] of new-patch-down [pycor] of new-patch-down stop]
+      if ([has-wall] of new-patch)        [perform-hit-wall "corner" [pxcor] of new-patch [pycor] of new-patch stop]
+]
 
-  (ifelse
-    (([has-wall] of new-patch-left) and ([has-wall] of new-patch-up)) [report (list "corner" [pxcor] of new-patch-left [pycor] of new-patch-left)]
-    ([has-wall] of new-patch-left)   [report (list "left" [pxcor] of new-patch-left [pycor] of new-patch-left)]
-    ([has-wall] of new-patch-up)     [report (list "up" [pxcor] of new-patch-up [pycor] of new-patch-up)]
-    ([has-wall] of new-patch)        [report (list "corner" [pxcor] of new-patch [pycor] of new-patch)]
-    [report false]
-  )
-end
+if (headingM >= 270) and (headingM < 360)   ; Quadrant IV check only left and up walls
+[     let new-patch-left  patch-at-heading-and-distance  -90 lookAhead
+      let new-patch-up    patch-at-heading-and-distance    0 lookAhead
+      if (new-patch-left = nobody) [set new-patch-left patch-here]  ; if at edge of world
+      if (new-patch-up = nobody) [set new-patch-up patch-here]  ; if at edge of world
 
-to-report wall-collision-direction-and-xy
- let quadrant heading-quadrant
- (ifelse
-   quadrant = 1 [report check-wall-collision-quadrant-1]
-   quadrant = 2 [report check-wall-collision-quadrant-2]
-   quadrant = 3 [report check-wall-collision-quadrant-3]
-   quadrant = 4 [report check-wall-collision-quadrant-4]
- )
-  report false
-end
-
-to check-for-wall-collision ;  if next to wall patch, change speed and heading of ball
-  let direction-and-pos wall-collision-direction-and-xy
-  if direction-and-pos != false [
-    let direction item 0  direction-and-pos
-    let -xcor item 1  direction-and-pos
-    let -ycor item 2  direction-and-pos
-    perform-hit-wall direction -xcor -ycor
-  ]
-end
-
-to change-heading-if-collides-with-wall [heading-change]
-  let direction-and-pos wall-collision-direction-and-xy
-  if direction-and-pos != false [
-    let direction item 0  direction-and-pos
-    let -xcor item 1  direction-and-pos
-    let -ycor item 2  direction-and-pos
-    collide-with-wall heading-change direction -xcor -ycor
-  ]
-end
-
-to-report has-collided-with-wall
-  report (last-tick-wall-collision = ticks) or (wall-collision-direction-and-xy != false)
-end
-
-to change-speed-if-collides-with-wall [speed-change]
-  if has-collided-with-wall [
-    change-speed-after-wall-collision prop "wall-speed"
-  ]
+      if (([has-wall] of new-patch-left) and ([has-wall] of new-patch-up)) [perform-hit-wall "corner" [pxcor] of new-patch-left [pycor] of new-patch-left stop]
+      if ([has-wall] of new-patch-left)   [perform-hit-wall "left" [pxcor] of new-patch-left [pycor] of new-patch-left stop]
+      if ([has-wall] of new-patch-up)     [perform-hit-wall "up" [pxcor] of new-patch-up [pycor] of new-patch-up stop]
+      if ([has-wall] of new-patch)        [perform-hit-wall "corner" [pxcor] of new-patch [pycor] of new-patch stop]
+]
 end
 
 ;ball procedure
-to change-heading-after-wall-collision [wall-direction heading-change]
-  if (heading-change = "no change")[]
-  if (heading-change = "turn left")[  set heading (heading - 90 ) ]
-  if (heading-change = "turn right")[ set heading (heading + 90 )  ]
-  if (heading-change = "collide")[bounce wall-direction]  ; change heading (speed remains the same)
+to change-heading-after-wall-collision [wall-direction xpos ypos]
+  if (wall-collision-heading-change = "no change")[]
+  if (wall-collision-heading-change = "turn left")[  set heading (heading - 90 ) ]
+  if (wall-collision-heading-change = "turn right")[ set heading (heading + 90 )  ]
+  if (wall-collision-heading-change = "bounce")[ bounce wall-direction  xpos ypos]  ; change heading (speed remains the same)
 end
 
-to change-speed-after-wall-collision [speed-change]
-  if (speed-change = "zero")     [ set speed 0 ]
-  if (speed-change = "increase")[set speed speed + deltaSpeed]
-  if (speed-change = "decrease")[set speed speed - deltaSpeed]
-  if (speed-change = "collide") and (speed-change != "collide")
-                     [user-message (word "You cannot pair non-collide heading change with collide speed change.")]
+to change-speed-after-wall-collision
+  if (wall-collision-speed-change = "zero")     [ set speed 0 ]
+  if (wall-collision-speed-change = "increase")[set speed speed + deltaSpeed]
+  if (wall-collision-speed-change = "decrease")[set speed speed - deltaSpeed]
+  if (wall-collision-speed-change = "bounce") and (wall-collision-heading-change != "bounce")
+                     [user-message (word "You cannot pair non-bounce heading change with bounce speed change.")]
 end
 
 to set-ball-speed-to-maximum-if-above-max-speed
+  ; make sure speed does not exceed limit
   if (speed > max-speed) [set speed max-speed]
 end
 
@@ -2275,30 +1314,23 @@ to flash-wall-at [-xcor -ycor]
 end
 
 to increase-wall-collision-count-for-ball-population
-  increment-table-value wall-collision-count population-num 1
-end
-
-to collide-with-wall [heading-change wall-direction xpos ypos]
-  increase-wall-collision-count-for-ball-population
-  on-wall-hit xpos ypos
-  change-heading-after-wall-collision wall-direction heading-change
+  let index (population-num - 1)
+  set wall-collision-count replace-item index wall-collision-count (item index wall-collision-count + 1)
 end
 
 to perform-hit-wall [wall-direction xpos ypos]
   increase-wall-collision-count-for-ball-population
-  on-wall-hit xpos ypos
-  change-heading-after-wall-collision wall-direction prop "wall-heading"
-  change-speed-after-wall-collision prop "wall-speed"
-end
-
-to on-wall-hit [xpos ypos]
   flash-wall-at xpos ypos
-  set last-tick-wall-collision ticks
+  change-heading-after-wall-collision wall-direction xpos ypos
+  change-speed-after-wall-collision
+  set-ball-speed-to-maximum-if-above-max-speed
 end
 
-to bounce [direction]
+to bounce [direction xpos ypos]
 ;  sets new heading of ball when hits wall
 ;  direction is the direction of the wall from ball "left" "right" "up" "down" "corner"
+; xpos ypox is the coordinate of the wall patch. Needed for flashing
+;output-show "in bounce"
 
   if ((direction = "right") or (direction = "left")) [set heading (-1 * heading)]  ; hit a horizontal wall
   if ((direction = "up")    or (direction = "down")) [set heading (180 - heading)] ; hit vertical wall
@@ -2309,122 +1341,7 @@ end
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;collision;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report should-perform-collision-with [other-ball]
-  ;report (who < [who] of other-ball) and (other-ball != last-collision)
-  report not already-collided-with? other-ball
-end
-
-to remember-collided-with [other-ball]
-  set balls-collided-with (turtle-set balls-collided-with other-ball)
-end
-
-to-report already-collided-with? [other-ball]
-  report member? other-ball balls-collided-with
-end
-
-to-report balls-colliding
-  report collision-candidates with [ball-collides-with myself]
-end
-
-to-report balls-colliding-from [other-balls]
-  report balls-colliding with [member? self other-balls]
-end
-
-to change-heading-if-collides-with [other-balls heading-change]
-  ask balls-colliding-from other-balls [
-    if should-perform-collision-with myself [
-      ask myself [perform-collision-heading-change myself heading-change set last-collision  myself remember-collided-with myself]
-      set last-collision myself
-      remember-collided-with myself
-    ]
-  ]
-end
-
-to change-speed-if-collides-with [other-balls speed-change]
-  ask collision-candidates-with other-balls [
-    if ball-collides-with myself [
-        ask myself [perform-collision-speed-change speed-change]
-    ]
-  ]
-end
-
-to perform-collision-heading-change [other-ball heading-change]
-  ; close duplication of other function
-  (ifelse
-    (heading-change = "no change") []
-    (heading-change = "turn left") [  set heading (heading - 90) ask other-ball [set heading (heading - 90)]]
-    (heading-change = "turn right") [ set heading (heading + 90 ) ask other-ball [set heading (heading + 90)]]
-    (heading-change = "collide") [collide-with other-ball]
-  )
-end
-
-to perform-collision-speed-change [speed-change]
-  (ifelse
-    (speed-change = "zero")    [set speed 0]
-    (speed-change = "increase")[set speed speed + deltaSpeed]
-    (speed-change = "decrease")[set speed speed - deltaSpeed]
-  )
-end
-
-to perform-collision-speed-change-old [other-ball speed-change]
-  ; close duplication of other function
-  (ifelse
-    (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + deltaSpeed ask other-ball [set speed speed + deltaSpeed]]
-    (speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball [set speed speed - deltaSpeed]]
-  )
-end
-
-
-to-report collision-candidates-with [other-balls]
-  report collision-candidates with [member? self other-balls]
-end
-
-to-report collision-candidates-of [population]
-  report collision-candidates with [population-num = population]
-end
-
-to-report collision-candidates-from [ball-set]
-  report collision-candidates with [member? self ball-set]
-end
-
-to-report in-radius-candidates [radius]
-  let -length abs ((round (xcor - (radius / 2))) - (round (xcor + (radius / 2) ))) + 1
-  let top-left-xcor (round (xcor - (radius / 2)))
-  let top-left-ycor (round (ycor + (radius / 2)))
-  report other (turtle-set n-values (-length ^ 2) [i ->
-    ifelse-value abs (top-left-xcor + i mod -length) < max-pxcor and abs (top-left-ycor - int(i / -length)) < max-pycor
-                 [[balls-here] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
-end
-
-to-report collision-candidates
-  let -length abs ((round (xcor - (size / 2))) - (round (xcor + (size / 2) ))) + 1
-  let top-left-xcor (round (xcor - (size / 2)))
-  let top-left-ycor (round (ycor + (size / 2)))
-  report other (turtle-set n-values (-length ^ 2) [i ->
-    ifelse-value abs (top-left-xcor + i mod -length) < max-pxcor and abs (top-left-ycor - int(i / -length)) < max-pycor
-                 [[balls-here] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
-end
-
-to-report ball-collides-with [other-ball]
-  let interBallMaxDist  ((size + [size] of other-ball) / 2)
-  let ourDistance distance other-ball
-  report (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - eps-collision)
-end
-
-to check-for-collision-with-population [population]
-  ask collision-candidates-of population [
-    if ball-collides-with myself [
-      if should-perform-collision-with myself [
-        ask myself [perform-collision myself set last-collision  myself]
-        set last-collision myself
-      ]
-    ]
-  ]
-end
-
-to check-for-ball-collision
-  ;; check if 2 balls collide. If so Change speed and heading of the 2 balls
+ to check-for-collision  ;; check if 2 balls collide. If so Change speed and heading of the 2 balls
 
   ;; Here we impose a rule that collisions only take place when there
   ;; are exactly two balls per patch.  We do this because when the
@@ -2456,77 +1373,130 @@ to check-for-ball-collision
   ;; until they have spread out a lot.  (And in fact, if you observe
   ;; the wavefront closely, you will see that it is not completely smooth,
   ;; because some collisions eventually do start occurring when it thins out while fanning.)
-
+  let candidate 0
+  let ourDistance 0
+  let mySize  size
+  let mySpeed speed
+  let interBallMaxDist 0
+;
   ; Collision occurs if there is a ball in the same patch at the borders of the balls  (GIGI at this point assume a ball can collide with only 1 ball)
     ;; the following conditions are imposed on collision candidates:
     ;;   1. they must have a lower who number than my own, because collision
     ;;      code is asymmetrical: it must always happen from the point of view
     ;;      of just one ball.
-    ;;      Update: Balls now keep track with who they collided with in current tick, instead of checking for who numbers.
     ;;   2. they must not be the same ball that we last collided with on
     ;;      this patch, so that we have a chance to leave the patch after we've
     ;;      collided with someone.
+  ;ask other balls
+  ;ask other balls-here
+  let -length abs ((round (xcor - (size / 2))) - (round (xcor + (size / 2) ))) + 1
+  let top-left-xcor (round (xcor - (size / 2)))
+  let top-left-ycor (round (ycor + (size / 2)))
+  let my-who who
+  ;ask (turtle-set n-values (-length ^ 2) [i -> [balls-here with [who < my-who]] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))])
+  ask (turtle-set n-values (-length ^ 2) [i ->
+  ifelse-value abs (top-left-xcor + i mod -length) < max-pxcor and abs (top-left-ycor - int(i / -length)) < max-pycor
+                 [[balls-here with [who < my-who]] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
+  ; other ball == candidate in older code
+  [ set interBallMaxDist  ((size + mySize) / 2)
+    set ourDistance  distance myself
+    if (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - eps-collision)    ; collision!!
+       [ if (who < [who] of myself) and (myself != last-collision)  ; perform the collision if other ball number is smaller than me.
+         [
+            if TRUE ;(speed > 0 or mySpeed > 0)   ; at least one ball is moving
+              [
+                set candidate self   ; set candidate variabe as self so as to call perform-collision function
+                ask myself [perform-collision candidate]
+                set last-collision myself
+                ask myself [set last-collision  candidate]
+              ]
+          ]
 
-  ;ask collision-candidates [
-  ;  if ball-collides-with myself [
-  ask balls in-radius 3 with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
-  ;ask (in-radius-candidates 3) with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
-      if should-perform-collision-with myself [
-        ask myself [perform-collision myself set last-collision  myself]
-        set last-collision myself
-      ]
+    ]
   ]
-  ;  ]
-  ;]
 end
 
 to-report balls-belong-to-same-population [ball1 ball2]
   report [population-num] of ball1 = [population-num] of ball2
 end
 
-to-report collision-heading-change [other-ball]
-  report ifelse-value balls-belong-to-same-population self other-ball
-                       [prop "ball-heading"] [prop "other-ball-heading"]
+;ball procedure
+to perform-collision-with-ball-belonging-to-same-population [other-ball]
+  perform-collision-heading-change-with-ball-belonging-to-same-population other-ball
+  perform-collision-speed-change-with-ball-belonging-to-same-population other-ball
+  set-ball-speed-to-maximum-if-above-max-speed
+  ask other-ball [set-ball-speed-to-maximum-if-above-max-speed]
 end
 
-to-report collision-speed-change [other-ball]
-  report ifelse-value balls-belong-to-same-population self other-ball
-                       [prop "ball-speed"] [prop "other-ball-speed"]
+;ball procedure
+to perform-collision-with-ball-belonging-to-different-population [other-ball]
+  perform-collision-heading-change-with-ball-belonging-to-different-population other-ball
+  perform-collision-speed-change-with-ball-belonging-to-different-population other-ball
+  set-ball-speed-to-maximum-if-above-max-speed
+  ask other-ball [set-ball-speed-to-maximum-if-above-max-speed]
 end
 
-to perform-collision-heading-change-with [other-ball]
-  let heading-change collision-heading-change other-ball
-  let speed-change collision-speed-change other-ball
+;ball procedure
+to perform-collision-heading-change-with-ball-belonging-to-same-population [other-ball]
   (ifelse
-    (heading-change = "no change")[]
-    (heading-change = "turn left")[  set heading (heading - 90) ask other-ball [set heading (heading - 90)]]
-    (heading-change = "turn right")[ set heading (heading + 90 ) ask other-ball [set heading (heading + 90)]]
-    ((heading-change = "collide") and (speed-change = "collide")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
-    ((heading-change = "attract") and (speed-change = "attract")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
+    (ball-collision-heading-change = "no change")[]
+    (ball-collision-heading-change = "turn left")[  set heading (heading - 90) ask other-ball [set heading (heading - 90)]]
+    (ball-collision-heading-change = "turn right")[ set heading (heading + 90 ) ask other-ball [set heading (heading + 90)]]
+    ((ball-collision-heading-change = "collide") and (ball-collision-speed-change = "collide")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
+    ((ball-collision-heading-change = "attract") and (ball-collision-speed-change = "attract")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
   )
 end
 
-to perform-collision-speed-change-with [other-ball]
-  let speed-change collision-speed-change other-ball
-  let heading-change collision-heading-change other-ball
+;ball procedure
+to perform-collision-speed-change-with-ball-belonging-to-same-population [other-ball]
   (ifelse
-    (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + deltaSpeed ask other-ball [set speed speed + deltaSpeed]]
-    (speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball [set speed speed - deltaSpeed]]
-    ((speed-change = "collide") and (heading-change != "collide")) or ((speed-change != "collide") and (heading-change = "collide"))
+    (ball-collision-speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
+    (ball-collision-speed-change = "increase")[set speed speed + deltaSpeed ask other-ball [set speed speed + deltaSpeed]]
+    (ball-collision-speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball [set speed speed - deltaSpeed]]
+    ((ball-collision-speed-change = "collide") and (ball-collision-heading-change != "collide")) or ((ball-collision-speed-change != "collide") and (ball-collision-heading-change = "collide"))
                       [user-message (word "You cannot pair non-collision heading change with collision speed change.")]
-    ((speed-change = "attract") and (heading-change != "attract")) or ((speed-change != "attract") and (heading-change = "attract"))
+    ((ball-collision-speed-change = "attract") and (ball-collision-heading-change != "attract")) or ((ball-collision-speed-change != "attract") and (ball-collision-heading-change = "attract"))
                       [user-message (word "You cannot pair non-attraction heading change with attraction speed change.")]
   )
 end
 
 ;ball procedure
-to perform-collision [other-ball]
-  perform-collision-heading-change-with other-ball
-  perform-collision-speed-change-with other-ball
+to perform-collision-heading-change-with-ball-belonging-to-different-population [other-ball]
+  (ifelse
+    (ball-collision-different-populations-heading-change = "no change")[]
+    (ball-collision-different-populations-heading-change = "turn left")[ set heading (heading - 90) ask other-ball [set heading (heading - 90)]]
+    (ball-collision-different-populations-heading-change = "turn right")[ set heading (heading + 90 ) ask other-ball [set heading (heading + 90)]]
+    ((ball-collision-different-populations-heading-change = "collide") and (ball-collision-different-populations-speed-change = "collide")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
+    ((ball-collision-different-populations-heading-change = "attract") and (ball-collision-different-populations-speed-change = "attract")) [ collide-with other-ball ]   ; changes heading and speed of BOTH  balls
+  )
 end
 
-to collide-with [other-ball] ;;
+;ball procedure
+to perform-collision-speed-change-with-ball-belonging-to-different-population [other-ball]
+  (ifelse
+    (ball-collision-different-populations-speed-change = "zero")     [ set speed 0 ask other-ball[set speed 0]]
+    (ball-collision-different-populations-speed-change = "increase")[set speed speed + deltaSpeed ask other-ball[set speed speed + deltaSpeed]]
+    (ball-collision-different-populations-speed-change = "decrease")[set speed speed - deltaSpeed ask other-ball[set speed speed - deltaSpeed]]
+    ((ball-collision-different-populations-speed-change = "collide") and (ball-collision-different-populations-heading-change != "collide")) or
+            ((ball-collision-different-populations-speed-change != "collide") and (ball-collision-different-populations-heading-change = "collide"))
+            [user-message (word "You cannot pair non-collision heading change with collision speed change.")]
+    ((ball-collision-different-populations-speed-change = "attract") and (ball-collision-different-populations-heading-change != "attract")) or
+            ((ball-collision-different-populations-speed-change != "attract") and (ball-collision-different-populations-heading-change = "attract"))
+            [user-message (word "You cannot pair non-attraction heading change with attraction speed change.")]
+  )
+end
+
+;ball procedure
+to perform-collision [other-ball]
+;  when self and candidate balls meet will change the heading and speed of both balls
+  ifelse balls-belong-to-same-population self other-ball [
+    perform-collision-with-ball-belonging-to-same-population other-ball ]
+  [
+    perform-collision-with-ball-belonging-to-different-population other-ball
+  ]
+end
+
+to collide-with [ other-ball ] ;;
 ;; implements a collision with another ball.
 ;;
 ;; THIS IS THE HEART OF THE PARTICLE SIMULATION, AND YOU ARE STRONGLY ADVISED
@@ -2561,12 +1531,23 @@ to collide-with [other-ball] ;;
   let v2l 0
   let vcm 0
 
+;output-print "me in collide with"
+;  output-print population-num
+;  output-print speed
+;  output-print heading
+;
+;  output-print "other ball"
+; output-print  [population-num] of other-ball
+;  output-print [speed] of other-ball
+; output-print [heading] of other-ball
+
+
   ;; Step 0 - If one of the populations shouldnt move (==ballsX-forward == FALSE) the other ball should bounce bck (heading = -heading)
   ;; Actually we enter here with myself is moving. Cant be that my balls-forward is FALSE
   ;refactor
   let this-ball-is-moving is-ball-moving?
   let other-ball-is-moving [is-ball-moving?] of other-ball
-  let both-balls-are-moving this-ball-is-moving and other-ball-is-moving
+  let both-balls-are-moving ifelse-value this-ball-is-moving and other-ball-is-moving [true] [false]
 
   if not this-ball-is-moving [
     ask other-ball [ set heading heading + 180  ] ; heading is reflected but speed remains the same and my speed+heading doesnt change (but is irrelevt anyway)
@@ -2618,6 +1599,16 @@ to collide-with [other-ball] ;;
   set v1t (2 * vcm - v1t)
   set v2t (2 * vcm - v2t)
 
+;  output-print "me after"
+;  output-print population-num
+;  output-print speed
+;  output-print heading
+;
+;  output-print "other ball after "
+; output-print  [population-num] of other-ball
+;  output-print [speed] of other-ball
+; output-print [heading] of other-ball
+
   ;;; PHASE 4: convert back to normal speed/heading
 
   ;; now convert my velocity vector into my new speed and heading
@@ -2633,6 +1624,8 @@ to collide-with [other-ball] ;;
   ;; and do the same for other-ball
   ask other-ball [
     set speed sqrt ((v2t ^ 2) + (v2l ^ 2))
+    ; make sure speed does not exceed limit
+    if (speed > max-speed) [set speed max-speed]
     if v2l != 0 or v2t != 0
       [ set heading (theta - (atan v2l v2t)) ]
   ]
@@ -2672,141 +1665,118 @@ to update-electricity   ;; updates the per patch gravity field vector by adding 
 
     ask patch-list [
       set dist  sqrt max ( list ((pxcor - ball-pos-x) ^ 2 + (pycor - ball-pos-y) ^ 2)  1)   ; dist holds distance to patch but does not alllow 0
+;output-print  dist
 
       set field-x  (field-x +   (pxcor - ball-pos-x) / (dist ^ 3)  * max-electric-strength)
       set field-y  (field-y +   (pycor - ball-pos-y) / (dist ^ 3)  * max-electric-strength)
   ]
+
   ]
-end
-
-to-report own-population-repels-or-attracts-ball
-  report member? prop "ball-heading" ["repel" "attract" "repel and attract"]
-end
-
-to-report other-populations-repel-or-attract-ball
-  let other-populations remove population-num population-numbers
-  foreach other-populations [population -> if population-repels-or-attracts-other-populations? population [report true]]
-  report false
 end
 
 to-report is-ball-affected-by-repel-or-attract-forces
-  report own-population-repels-or-attracts-ball or other-populations-repel-or-attract-ball
+  let own-population-interaction ball-collision-heading-change
+  if own-population-interaction = "repel" or own-population-interaction = "attract" or own-population-interaction = "repel and attract" [report true]
+  foreach (remove-item (population-num - 1) population-numbers) [population -> if population-repels-or-attracts-other-populations? population [report true]]
+  report false
 end
 
-to-report balls-of [population]
-  report table:get-or-default balls-by-population population no-turtles
-end
+to factor-field-interaction  ;; turtle procedure consider the electric field
+  if is-ball-affected-by-repel-or-attract-forces [
+    let my-field-x 0 ; null my field data
+    let my-field-y 0 ; null my field data
 
-to apply-force-on [other-balls force]
-  let  mypos-x xcor
-  let  mypos-y ycor
-  let dist 0  ; will be used to calculate distance between balls
+    let  mypos-x xcor
+    let  mypos-y ycor
+    let dist 0  ; will be used to calculate distance between balls
+    let force 0 ; will hold the LJ force between 2 balls
 
-  ask other-balls
-  [
-    (ifelse
-      force = "repel" [
-        set dist sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-        set force-x-sum  (force-x-sum -   (mypos-x - xcor) / (dist ^ 3)  * repulsion-strength)
-        set force-y-sum  (force-y-sum -   (mypos-x - ycor) / (dist ^ 3)  * repulsion-strength)
-      ]
-
-      force = "attract" [
+    ask other balls
+    ; other ball
+    ;[ if ([population-num] of myself = 1) and (population-num = 1)  [ ; compute interaction with other ball like me
+    ;refactor
+    [ ifelse balls-belong-to-same-population myself self [
+      if ((ball-collision-heading-change = "repel") and (ball-collision-speed-change = "repel")) [ ; add repulsion factor to my field
         set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-        set force-x-sum  (force-x-sum  +   (mypos-x - xcor) / (dist ^ 3)  * attraction-strength)
-        set force-y-sum  (force-y-sum  +   (mypos-y - ycor) / (dist ^ 3)  * attraction-strength)
+        set my-field-x  (my-field-x -   (xcor - mypos-x) / (dist ^ 3)  * repulsion-strength)
+        set my-field-y  (my-field-y -   (ycor - mypos-y) / (dist ^ 3)  * repulsion-strength)
       ]
-
-      force = "repel and attract" [
+      if ((ball-collision-heading-change = "attract") and (ball-collision-speed-change = "attract")) [ ; add attraction factor to my field
+        set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
+        set my-field-x  (my-field-x  +   (xcor - mypos-x) / (dist ^ 3)  * attraction-strength)
+        set my-field-y  (my-field-y  +   (ycor - mypos-y) / (dist ^ 3)  * attraction-strength)
+      ]
+      if ((ball-collision-heading-change = "repel and attract") and (ball-collision-speed-change = "repel and attract")) [ ; add leonard-Jones factor to my field
         set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
         set LJsigma size  ; set this LJ param to be size of ball
-        let lj-force ((24 * LJeps / LJsigma ^ 2 * ( 2 * (LJsigma / (dist )) ^ 14 - (LJsigma / (dist)) ^ 8 ) ))  ;LJ formula from Eilon's code
-        set force-x-sum  (force-x-sum    - lj-force *  (mypos-x - xcor) / (dist))     ; (xcor - mypos-x) / (dist)  is sin(theta)
-        set force-y-sum  (force-y-sum    - lj-force *  (mypos-y - ycor) / (dist))     ; (ycor - mypos-y) / (dist)  is cos(theta)
+        set force ((24 * LJeps / LJsigma ^ 2 * ( 2 * (LJsigma / (dist )) ^ 14 - (LJsigma / (dist)) ^ 8 ) ))  ;LJ formula from Eilon's code
+                                                                                                             ;output-print (word "force = " force  " dist = "  dist )
+        set my-field-x  (my-field-x    - force *  (xcor - mypos-x) / (dist))     ; (xcor - mypos-x) / (dist)  is sin(theta)
+        set my-field-y  (my-field-y    - force *  (ycor - mypos-y) / (dist))     ; (ycor - mypos-y) / (dist)  is cos(theta)
       ]
-    )
-  ]
-end
+      ] ; end if both balls are pop1
 
-to apply-forces-acting-on-ball
-  let vx (sin heading * speed) + (force-x-sum * tick-advance-amount)
-  let vy (cos heading * speed) + (force-y-sum * tick-advance-amount)
-  set speed sqrt ((vy ^ 2) + (vx ^ 2))
-  if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
-end
+      [(ifelse
+        ((ball-collision-different-populations-heading-change = "repel") and (ball-collision-different-populations-speed-change = "repel")) [ ; add repulsion factor to my field
+          set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
+          set my-field-x  (my-field-x -   (xcor - mypos-x) / (dist ^ 3)  * repulsion-strength)
+          set my-field-y  (my-field-y -   (ycor - mypos-y) / (dist ^ 3)  * repulsion-strength)
+        ]
+        ((ball-collision-different-populations-heading-change = "attract") and (ball-collision-different-populations-speed-change = "attract")) [ ; add attraction factor to my field
+          set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
+          set my-field-x  (my-field-x  +   (xcor - mypos-x) / (dist ^ 3)  * attraction-strength)
+          set my-field-y  (my-field-y  +   (ycor - mypos-y) / (dist ^ 3)  * attraction-strength)
 
-to-report force-vector-acting-on-ball
-  let my-field-x 0 ; null my field data
-  let my-field-y 0 ; null my field data
-  let  mypos-x xcor
-  let  mypos-y ycor
-  let distance-between-balls 0
-  let force 0 ; will hold the LJ force between 2 balls
+        ]
+        ((ball-collision-different-populations-heading-change = "repel and attract") and (ball-collision-different-populations-speed-change = "repel and attract")) [ ; add leonard-Jones factor to my field
+          set dist  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
+          set LJsigma size  ; set this LJ param to be size of ball
+          set force ((24 * LJeps / LJsigma ^ 2 * ( 2 * (LJsigma / (dist )) ^ 14 - (LJsigma / (dist)) ^ 8 ) ))  ;LJ formula from Eilon's code
+          set my-field-x  (my-field-x    - force * (xcor - mypos-x) / (dist))     ; (xcor - mypos-x) / (dist)  is sin(theta)
+          set my-field-y  (my-field-y    - force * (ycor - mypos-y) / (dist))     ; (ycor - mypos-y) / (dist)  is cos(theta)
+        ]
 
-  ask other balls
-  [
-    let heading-change collision-heading-change myself
-    let speed-change collision-speed-change myself
-
-    if ((heading-change = "repel") and (speed-change = "repel")) [ ; add repulsion factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set my-field-x  (my-field-x -   (xcor - mypos-x) / (distance-between-balls ^ 3)  * repulsion-strength)
-      set my-field-y  (my-field-y -   (ycor - mypos-y) / (distance-between-balls ^ 3)  * repulsion-strength)
-    ]
-    if ((heading-change = "attract") and (speed-change = "attract")) [ ; add attraction factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set my-field-x  (my-field-x  +   (xcor - mypos-x) / (distance-between-balls ^ 3)  * attraction-strength)
-      set my-field-y  (my-field-y  +   (ycor - mypos-y) / (distance-between-balls ^ 3)  * attraction-strength)
-    ]
-    if ((heading-change = "repel and attract") and (speed-change = "repel and attract")) [ ; add leonard-Jones factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set LJsigma size  ; set this LJ param to be size of ball
-      set force ((24 * LJeps / LJsigma ^ 2 * ( 2 * (LJsigma / (distance-between-balls )) ^ 14 - (LJsigma / (distance-between-balls)) ^ 8 ) ))  ;LJ formula from Eilon's code
-      set my-field-x  (my-field-x    - force *  (xcor - mypos-x) / (distance-between-balls))     ; (xcor - mypos-x) / (dist)  is sin(theta)
-      set my-field-y  (my-field-y    - force *  (ycor - mypos-y) / (distance-between-balls))     ; (ycor - mypos-y) / (dist)  is cos(theta)
-    ]
-  ]
-
-  let vx (sin heading * speed) + (my-field-x * tick-advance-amount)
-  let vy (cos heading * speed) + (my-field-y * tick-advance-amount)
-  report (list vx vy)
-end
+      )]; end if  balls are from two pops
 
 
+    ] ; end ask other balls
 
-to factor-repel-and-attract-forces  ;; turtle procedure consider repel and attract forces
-  if is-ball-affected-by-repel-or-attract-forces [
-    let force-vector force-vector-acting-on-ball
-    let vx first force-vector
-    let vy last force-vector
+    let vx (sin heading * speed) + (my-field-x * tick-advance-amount)
+    let vy (cos heading * speed) + (my-field-y * tick-advance-amount)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
+    ; if (speed > max-speed) [set speed max-speed]
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
   ]
 end
 
-to apply-electric-field [field-strength]
+to factor-field  ;; turtle procedure consider the electric field
+                 ;output-print "inside FACTOR FIELD"
+                 ;output-print (word "field of patch " [field-x] of patch-here " " [field-y] of patch-here)
+                 ;output-print (word " patch xy : " [pxcor] of patch-here  [pycor] of patch-here)
   if field-count > 0 [
-    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-advance-amount)
-    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-advance-amount)
+    let ball-population-number population-num
+    let vx ((sin heading) * speed) + ([item (ball-population-number - 1) population-field-x] of patch-here  * tick-advance-amount)
+    let vy ((cos heading) * speed) + ([item (ball-population-number - 1) population-field-y] of patch-here  * tick-advance-amount)
+    ;let vx ((sin heading) * speed) + ([table:get population-field-x ball-population-number] of patch-here  * tick-advance-amount)
+    ;let vy ((cos heading) * speed) + ([table:get population-field-y ball-population-number] of patch-here  * tick-advance-amount)
+    ;let vx ((sin heading) * speed) + ([table-get population-field-x ball-population-number] of patch-here  * tick-advance-amount)
+    ;let vy ((cos heading) * speed) + ([table-get population-field-y ball-population-number] of patch-here  * tick-advance-amount)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
+    ;set-ball-speed-to-maximum-if-above-max-speed
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
   ]
-end
-
-to factor-electric-field
-  apply-electric-field prop "electric-field"
-end
-
-to apply-gravity [strength]  ;; turtle procedure
-  ;if speed = 0 [stop]  ; GIGI - why? if speed is 0 then should increase by gravity...
-  let vx (sin heading * speed) + (gravity-acceleration-x * tick-advance-amount)
-  let vy (cos heading * speed) + (strength * tick-advance-amount)
-  set speed sqrt ((vy ^ 2) + (vx ^ 2))
-  set heading atan vx vy
 end
 
 to factor-gravity  ;; turtle procedure
-  if is-affected-by-gravity [apply-gravity (- prop "gravity")]
+  if (not is-affected-by-gravity) [stop]  ; no gravity field - return
+
+  if speed = 0 [stop]  ; GIGI - why? if speed is 0 then should increase by gravity...
+  let vx (sin heading * speed) + (gravity-acceleration-x * tick-advance-amount)
+  ;let vy (cos heading * speed) + (gravity-acceleration-y * tick-advance-amount)
+  let vy (cos heading * speed) + ((- ball-gravity-acceleration) * tick-advance-amount)
+  set speed sqrt ((vy ^ 2) + (vx ^ 2))
+  set-ball-speed-to-maximum-if-above-max-speed
+  set heading atan vx vy
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;STICK;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2820,14 +1790,12 @@ end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;earser;;;;;;;;;;;;;;;
 
-to setup   ; called from START NEW TASK button
-  ; running procedure count-amount-of-populations-in-nettango is slow so keep result between resets
-  ;let tmp amount-of-populations-in-nettango
+to start-new-task   ; called from START NEW TASK button
   clear-all
-  ;set amount-of-populations-in-nettango tmp
-  initialize-world
-  ifelse netlogo-web? [update-ball-population-properties-defined-in-nettango-blocks] [crt-pop]
-  ;update-ball-population-properties-defined-in-nettango-blocks
+  set-global-values
+  initialize-properties-for-ball-populations 2
+  update-ball-populaiton-properties-defined-in-nettango-blocks
+  ;crt-pop
   select-next-population-in-properties-ui
   setup-brush
   paint-patches
@@ -2851,7 +1819,7 @@ to-report delimit-hashtag [-left -right]
 end
 
 to-report delimited-population-settings [population -settings]
-  report reduce delimit-comma map [property -> pprop population property] -settings
+  report reduce delimit-comma map [property -> get-ball-population-property population property] -settings
 end
 
 to-report delimited-all-populations-settings [-settings]
@@ -2863,14 +1831,14 @@ to-report delimited-all-populations-numerous-settings [settings-list]
 end
 
 to-report populations-settings-delimited-string
-  let properties ["size" "color" "speed" "heading"]
-  let actions ["move"]
-  let interactions ["wall-heading" "wall-speed" "ball-heading" "ball-speed"
-        "other-ball-heading" "other-ball-speed" "gravity" "electric-field"]
+  let properties ["initial-size" "initial-color" "initial-speed" "initial-heading"]
+  let actions ["move-forward"]
+  let interactions ["if-ball-meets-wall-heading" "if-ball-meets-wall-speed" "if-ball-meets-ball-heading" "if-ball-meets-ball-speed"
+        "if-ball-meets-ball-other-population-heading" "if-ball-meets-ball-other-population-speed" "gravity" "electric-field"]
   report delimited-all-populations-numerous-settings (list properties actions interactions)
 end
 
-to-report count-balls-in-population [population]
+to-report population-count [population]
   report count balls with [population-num = population]
 end
 
@@ -2879,7 +1847,7 @@ to-report amount-of-balls-being-traced
 end
 
 to-report delimited-population-count
-  report reduce delimit-comma map count-balls-in-population population-numbers
+  report reduce delimit-comma map population-count population-numbers
 end
 
 to-report delimited-log-string
@@ -2933,10 +1901,6 @@ to add-log-history [new-log]
  set log-history word log-history new-log
 end
 
-to log-command [command-name]
-  if (prev-command-name != command-name) [log-output command-name]
-end
-
 to log-output [command-name]
   if log-enabled [
     add-log-history (word timer "," command-name "," ticks ",#," delimited-log-string)
@@ -2945,6 +1909,7 @@ to log-output [command-name]
   set prev-line (word command-name  ",#,"  delimited-log-string)
   ]
 end
+
 
 to make-halo  ;; runner procedure
   ;; when you use HATCH, the new turtle inherits the
@@ -2962,15 +1927,16 @@ to make-halo  ;; runner procedure
     ;; runner moves, the halo moves with it.
     create-link-from myself
     [ tie
-      hide-link ]
-  ]
-  log-command "make-halo"
+      hide-link ] ]
+  if (prev-command-name != "make-halo") [
+    log-output "make-halo"]
+
 end
 
 to save-existing-layout
   let file-name user-input "איזה שם לתת לקובץ?"
   export-world (word file-name)
-  log-command "save-existing-layout"
+  if (prev-command-name != "save-existing-layout") [log-output "save-existing-layout"]
 end
 
 to load-existing-layout
@@ -2983,7 +1949,7 @@ to load-existing-layout
       ]
     ]
   ]
-  log-command "load-existing-layout"
+  if (prev-command-name != "load-existing-layout") [log-output "load-existing-layout"]
 end
 
 ;patch procedure
@@ -3049,7 +2015,7 @@ to remove-wall-in-patch
 end
 
 to erase-all-balls-of-population-selected-in-ui
-  if is-a-population-selected-in-ui [ask balls with [population-num = population-to-set-properties-for-in-ui] [remove-ball self]]
+  if is-a-population-selected-in-ui [ask balls with [population-num = population-to-set-properties-for-in-ui] [remove-ball]]
 end
 
 ;======== BRUSH ===========================
@@ -3069,6 +2035,7 @@ to setup-brush
   set shape-drawn-by-brush "rectangle"
   set center-patch-of-drawn-shape nobody
   set patches-affected-by-drawn-shape no-patches
+  set tick-count-when-brush-was-last-activated 0
   set brush-icon-transparency-normalized 0.8
   set gfx-displaying-patches-affected-by-drawn-shape no-turtles
   create-brush-border-outlines 1 [hide-turtle set -brush-border-outline self]
@@ -3140,7 +2107,6 @@ to visually-display-this-patch-as-affected-by-drawn-shape
     set shape "square"
     set color yellow
     set gfx-displaying-patches-affected-by-drawn-shape (turtle-set gfx-displaying-patches-affected-by-drawn-shape self)
-    set heading 0
   ]
 end
 
@@ -3157,7 +2123,7 @@ to-report radius-of-circle-drawn-by-brush
 end
 
 to-report size-of-square-drawn-by-brush
-  report max list (delta-pxcor center-patch-of-drawn-shape patch-under-brush) (delta-pycor center-patch-of-drawn-shape patch-under-brush)
+  report (max list delta-pxcor center-patch-of-drawn-shape patch-under-brush delta-pycor center-patch-of-drawn-shape patch-under-brush)
 end
 
 to-report delta-pycor [patch1 patch2]
@@ -3384,67 +2350,7 @@ to-report is-brush-in-erase-mode
 end
 
 to-report add-transparency [-color transparency-normalized]
-  let transparency (transparency-normalized * 255)
-  (ifelse
-    is-rgb -color [report add-transparency-rgb -color transparency]
-    is-rgba -color [report add-transparency-rgba -color transparency]
-  )
-  report add-transparency-netlogo-color -color transparency
-end
-
-to-report is-rgb [-color]
-  report (is-list? -color) and (length -color = 3)
-end
-
-to-report is-rgba [-color]
-  report (is-list? -color) and (length -color = 4)
-end
-
-to-report add-transparency-rgb [-color transparency]
-  report lput transparency -color
-end
-
-to-report add-transparency-rgba [-color transparency]
-  report replace-item 3 -color transparency
-end
-
-to-report add-transparency-netlogo-color [-color transparency]
-  report lput transparency extract-rgb -color
-end
-
-to-report rgba-to-hsb [-color]
-  report extract-hsb sublist -color 0 3
-end
-
-to-report set-color-brightness [-color brightness-normalized]
-  let brightness brightness-normalized * 100
-  (ifelse
-    is-rgb -color [report set-rgb-brightness -color brightness]
-    is-rgba -color [report set-rgba-brightness -color brightness]
-  )
-  report set-netlogo-color-brightness -color brightness
-end
-
-to-report set-rgb-brightness [-color brightness]
-  let -hsb extract-hsb -color
-  let hue item 0 -hsb
-  let saturation  item 1 -hsb
-  report hsb hue saturation brightness
-end
-
-to-report set-rgba-brightness [-color brightness]
-  let -hsb extract-hsb sublist -color 0 3
-  let hue item 0 -hsb
-  let saturation  item 1 -hsb
-  let alpha item 3 -color
-  report lput alpha hsb hue saturation brightness
-end
-
-to-report set-netlogo-color-brightness [-color brightness]
-  let -hsb extract-hsb -color
-  let hue item 0 -hsb
-  let saturation  item 1 -hsb
-  report approximate-hsb hue saturation brightness
+  report lput (transparency-normalized * 255) extract-rgb -color
 end
 
 to hide-brush-cursor
@@ -3478,6 +2384,27 @@ to make-sure-brush-gets-updated-in-display-atleast-every [seconds]
   if brush-activated-after-model-was-advanced [ every seconds [display] ]
   ;update-display-every-given-time-interval-if-ticks-have-not-advanced-since-brush-was-last-activated seconds
 end
+
+;to update-display-every-given-time-interval-if-ticks-have-not-advanced-since-brush-was-last-activated [seconds]
+;  every seconds [
+;    update-display-if-ticks-have-not-advanced-since-brush-was-last-activated
+;  ]
+;end
+
+;to-report time-passed-since-display-was-last-updated
+;  report brush-activations-since-model-was-advanced
+;end
+
+;to update-display-if-ticks-have-not-advanced-since-brush-was-last-activated
+;  ;if not ticks-have-advanced-since-last-time-brush-was-activated [
+;  if time-passed-since-display-was-last-updated > 1 [
+;    display ]
+;end
+
+;to-report ticks-have-advanced-since-last-time-brush-was-activated
+;  let amount-of-ticks-advanced-since-last-time-brush-was-activated tick-count - tick-count-when-brush-was-last-activated
+;  report amount-of-ticks-advanced-since-last-time-brush-was-activated > 0
+;end
 
 to diplay-brush-xy-as-label-on-brush-mode-icon
   ifelse current-mouse-inside? [
@@ -3543,6 +2470,7 @@ to keep-track-of-current-brush-state
   update-which-patches-have-been-affected-by-brush-since-it-was-held-down
   set mouse-down?-when-brush-was-last-activated current-mouse-down?
   set mousexy-when-brush-was-last-activated current-mousexy
+  set tick-count-when-brush-was-last-activated tick-count
   set brush-activated-after-model-was-advanced true
 end
 
@@ -3714,6 +2642,7 @@ to configure-current-field-with-brush
     set field-y-value (mouse-ycor - prev-mouse-ycor)
     if (field-x-value != 0 or field-y-value != 0 ) [ ; mouse moved from prev location
       ask patch-under-brush [
+        ;output-print (word   field-x-value " " field-y-value " " patch-under-brush)
         set pcolor field-color
         set field-number field-count
         set isPainted  TRUE
@@ -3732,7 +2661,7 @@ to finalize-field-configuration-with-brush
   if is-brush-currently-configuring-a-field [
     set first-patch-brush-configured-field-on nobody
     fill-field
-    log-command "paint-field"
+    if (prev-command-name != "paint-field") [log-output "paint-field"]
   ]
 end
 
@@ -3767,10 +2696,6 @@ to remove-counter-from-patch
   ]
 end
 
-to-report ball-count-in-population [population]
-  report count balls-of population
-end
-
 to on-counter-removed-from-patch [counter-number-removed]
   update-position-of-counter-information counter-number-removed
 end
@@ -3791,7 +2716,6 @@ to create-counter-in-patch
       ;set hsb-color replace-item 2 hsb-color 100
       set color (item ((counter-number-drawn-by-brush - 1) mod length default-colors-for-ball-populations) default-colors-for-ball-populations) + 2
       set counter-number counter-number-drawn-by-brush
-      set heading 0
     ]
     on-counter-added-to-patch
   ]
@@ -3802,33 +2726,28 @@ to-report counter-number-here
   report [counter-number] of one-of counters-here
 end
 
-to-report create-counter-number-gfx [-counter-number]
-  let -counter-number-gfx sprout-initialized-gfx-overlay
-  ask -counter-number-gfx [set label word "Area: " -counter-number]
-  report -counter-number-gfx
-end
-
 to-report create-initialized-counter-information-gfx-overlay [-counter-number]
-  let counter-information table:make
-  table:put counter-information "counter-number" create-counter-number-gfx -counter-number
-  table:put counter-information "ball-count" sprout-initialized-gfx-overlay
-  report counter-information
+  let new-counter-information-gfx-overlay nobody
+  let new-gfx-overlays n-values 3 [sprout-initialized-gfx-overlay]
+  sprout-counter-information-gfx 1 [
+    set new-counter-information-gfx-overlay self
+    hide-turtle
+    set shape "empty"
+    set counter-number-gfx-overlay item 0 new-gfx-overlays
+    ask counter-number-gfx-overlay [set label word "Area: " -counter-number]
+    set ball-count-gfx-overlay item 1 new-gfx-overlays
+  ]
+  report new-counter-information-gfx-overlay
 end
 
 to-report ball-count-in-counter [-counter-number]
-  report table:get-or-default ball-count-in-counters -counter-number 0
-end
-
-to-report ball-count-gfx [-counter-number]
-  report table:get get-counter-information -counter-number "ball-count"
-end
-
-to-report counter-number-gfx [-counter-number]
-  report table:get get-counter-information -counter-number "counter-number"
+  report item (-counter-number - 1) ball-count-in-counters
 end
 
 to update-ball-count-in-counter [-counter-number]
-  ask ball-count-gfx -counter-number [set label (word "Count: " ball-count-in-counter -counter-number)]
+  ask get-counter-information -counter-number [
+    ask ball-count-gfx-overlay [set label (word "Count: " ball-count-in-counter -counter-number)]
+  ]
 end
 
 ; patch procedure
@@ -3839,18 +2758,14 @@ to-report sprout-initialized-gfx-overlay
 end
 
 to increase-counter [-counter-number]
-  increment-table-value ball-count-in-counters -counter-number 1
+  set ball-count-in-counters replace-item (-counter-number - 1) ball-count-in-counters ((ball-count-in-counter -counter-number) + 1)
   update-ball-count-in-counter -counter-number
 end
 
-to-report has-counter-been-initialized [-counter-number]
-  report table:has-key? ball-count-in-counters -counter-number
-end
-
 to initialize-counter-information-if-not-initialized-yet [-counter-number]
-  if not has-counter-been-initialized -counter-number [
-    table:put counters-information-gfx-overlay -counter-number create-initialized-counter-information-gfx-overlay -counter-number
-    table:put ball-count-in-counters -counter-number 0
+  if -counter-number > length counters-information-gfx-overlay [
+    set counters-information-gfx-overlay lput create-initialized-counter-information-gfx-overlay -counter-number counters-information-gfx-overlay
+    set ball-count-in-counters lput 0 ball-count-in-counters
     update-ball-count-in-counter -counter-number
   ]
 end
@@ -3870,12 +2785,14 @@ to-report counters-with-counter-number-exist [-counter-number]
 end
 
 to-report get-counter-information [-counter-number]
-  report table:get counters-information-gfx-overlay -counter-number
+  report item (-counter-number - 1) counters-information-gfx-overlay
 end
 
 to hide-counter-information [-counter-number]
-  ask counter-number-gfx -counter-number [hide-turtle]
-  ask ball-count-gfx -counter-number [hide-turtle]
+  ask get-counter-information -counter-number [
+    ask counter-number-gfx-overlay [hide-turtle]
+    ask ball-count-gfx-overlay [hide-turtle]
+  ]
 end
 
 to-report center-turtle [-turtles]
@@ -3888,10 +2805,12 @@ to set-counter-information-in-center [-counter-number]
   let center-counter center-turtle counters-of -counter-number
   let center-counter-xcor [xcor] of center-counter
   let center-counter-ycor [ycor] of center-counter
-  carefully [
-    ask counter-number-gfx -counter-number [setxy center-counter-xcor center-counter-ycor show-turtle]
-    ask ball-count-gfx -counter-number [setxy center-counter-xcor (center-counter-ycor - 1) show-turtle]
-  ][]
+  ask get-counter-information -counter-number [
+    carefully [
+      ask counter-number-gfx-overlay [setxy center-counter-xcor center-counter-ycor show-turtle]
+      ask ball-count-gfx-overlay [setxy center-counter-xcor (center-counter-ycor - 1) show-turtle]
+    ][]
+  ]
 end
 
 to update-position-of-counter-information [-counter-number]
@@ -3915,16 +2834,12 @@ to-report highest-counter-number-in-use
   report max [counter-number] of counters
 end
 
-to-report highest-counter-number
-  report max table:keys ball-count-in-counters
-end
-
-to-report any-counters-created-so-far
-  report table:length ball-count-in-counters > 0
-end
-
-to-report new-highest-counter-number
-  report ifelse-value any-counters-created-so-far [highest-counter-number + 1] [1]
+to-report new-counter-number
+  ifelse length ball-count-in-counters > 0 [
+    report length ball-count-in-counters + 1 ]
+  [
+    report 1
+  ]
 end
 
 to-report one-of-patches-brush-is-drawing-on-has-a-counter
@@ -3939,7 +2854,7 @@ to set-counter-number-to-be-drawn-with-brush
   ifelse one-of-patches-brush-is-drawing-on-has-a-counter [
     set counter-number-drawn-by-brush counter-number-in-patch-brush-is-drawing-on-closest-to-mouse-xy]
   [
-    set counter-number-drawn-by-brush new-highest-counter-number
+    set counter-number-drawn-by-brush new-counter-number
   ]
 end
 
@@ -3952,6 +2867,7 @@ to on-brush-held-down-with-halo
 end
 
 to on-brush-clicked-with-ball
+  update-ball-populaiton-properties-defined-in-nettango-blocks
   if is-brush-in-draw-mode [create-balls-of-population-selected-in-ui]
 end
 
@@ -3960,7 +2876,7 @@ to on-brush-held-down-with-ball
 end
 
 to remove-balls-from-patches-brush-is-drawing-on
-  foreach [self] of balls-in-patches-brush-is-drawing-on remove-ball
+  ask balls-in-patches-brush-is-drawing-on [remove-ball]
 end
 
 to create-balls-of-population-selected-in-ui
@@ -3975,7 +2891,7 @@ to on-brush-used-with-wall
 end
 
 to on-wall-brush-button-clicked
-  if is-first-time-radio-button-is-activated "wall" [
+  if is-first-time-radio-button-is-pressed-down "wall" [
     set-brush-type "wall"
     set-brush-style-as-free-form ]
   if should-release-brush-radio-button? "wall" [stop]
@@ -3983,7 +2899,7 @@ to on-wall-brush-button-clicked
 end
 
 to on-field-brush-button-clicked
-  if is-first-time-radio-button-is-activated "field" [
+  if is-first-time-radio-button-is-pressed-down "field" [
     set-brush-type "field"
     set-brush-style-as-free-form
   ]
@@ -3992,7 +2908,7 @@ to on-field-brush-button-clicked
 end
 
 to on-counter-brush-button-clicked
-  if is-first-time-radio-button-is-activated "counter" [
+  if is-first-time-radio-button-is-pressed-down "counter" [
     set-brush-type "counter"
     set-brush-style-as-free-form
   ]
@@ -4046,7 +2962,7 @@ to on-wall-circle-brush-button-clicked
 end
 
 to on-wall-square-brush-button-clicked
-  if is-first-time-radio-button-is-activated "wall-square" [
+  if is-first-time-radio-button-is-pressed-down "wall-square" [
     set-brush-type "wall"
     set-shape-drawn-by-brush "square"
     set-brush-style-as-shape
@@ -4104,9 +3020,9 @@ to remove-halo
 end
 
 ;ball procedure
-to remove-ball [-ball]
-  ask -ball [remove-halo die]
-  update-ball-population-plot
+to remove-ball
+  remove-halo
+  die
 end
 
 to remove-halo-from-balls [-balls]
@@ -4153,341 +3069,6 @@ end
 to-report heading-between-points [x1 y1 x2 y2]
   report ((90 - atan (y2 - y1) (x2 - x1) ) mod 360)
 end
-
-;========= AST TREE ======================
-
-to-report path-to-node-from-root [node]
-  report reverse fput node-name node ancestors-names node
-end
-
-to-report ancestors-names [node]
-  report map node-name ancestors-of node
-end
-
-to-report ancestors-of [node]
-  let path-to-root []
-  let curr-node node
-  loop [
-   set path-to-root lput curr-node path-to-root
-   ifelse is-root-node curr-node [
-     report but-first path-to-root
-   ] [
-     set curr-node node-parent curr-node
-   ]
-  ]
-end
-
-to-report first-node-by-name [name]
-  report first filter [node -> node-name node = name] nodes-by-id
-end
-
-to-report node-name [node]
-  report table:get node "name"
-end
-
-to-report node-id [node]
-  report table:get node "id"
-end
-
-to-report node-parent [node]
-  report item node-parent-id node nodes-by-id
-end
-
-to-report node-parent-id [node]
-  report table:get node "parent-id"
-end
-
-to-report node-parameters [node]
-  report table:get node "parameters"
-end
-
-to-report node-parameter [node parameter]
-  report table:get node-parameters node parameter
-end
-
-to-report node-children [node]
-  report table:get node "children"
-end
-
-to-report child-by-name [node name]
-  report one-of filter [child -> node-name child = name] node-children node
-end
-
-to-report child-by-index [node index]
-  report item index node-children node
-end
-
-to validate-node-has-only-children-named [node valid-names]
-  let name node-name node
-  let children node-children node
-  let invalid-children filter [child -> not member? node-name child valid-names] children
-  if not empty? invalid-children [
-    let invalid-children-names map node-name invalid-children
-    let message (word "'" name "' contains invalid block" ifelse-value length invalid-children-names = 1
-      [(word ": '" first invalid-children-names "'")] [(word "s: " invalid-children-names)] )
-    throw-ast-error first invalid-children message
-  ]
-end
-
-to validate-node-has-exactly-n-children [node amount]
-  let name node-name node
-  let children node-children node
-  let amount-of-children length children
-  if amount-of-children != amount [
-    let message (word "'" name "' needs to have exactly " amount
-      " children. Current children count is " amount-of-children ": " children)
-    throw-ast-error node message
-  ]
-end
-
-to validate-only-one-of-children-exists [node names]
-  let name node-name node
-  let children node-children node
-  let children-names map [child -> node-name child] children
-  let name-intersection filter [element -> member? element children-names] (remove-duplicates names)
-  let names-are-invalid length name-intersection > 1
-  if names-are-invalid [
-    let message (word "'" name "' can only have one of these blocks exist: " name-intersection)
-    throw-ast-error node message
-  ]
-end
-
-to validate-no-duplicate-children-named [node names]
-  let name node-name node
-  let children node-children node
-  let children-names map node-name children
-  let name-count table:counts children-names
-  let duplicate-names filter [key -> table:get name-count key > 1] table:keys name-count
-  if not empty? duplicate-names [
-    let message (word "'" name "' can not have duplicate names: " duplicate-names)
-    throw-ast-error node message
-  ]
-end
-
-to validate-has-one-of-ancestors [node ancestors]
-  let name node-name node
-  let has-one-of-ancestors not empty? filter [ancestor -> member? ancestor ancestors] ancestors-names node
-  if not has-one-of-ancestors [
-    let message (word "'" name "' must be a descendent of: " ancestors)
-    throw-ast-error node message
-  ]
-end
-
-to reset-ast
-  set ast-root table:make
-  set current-node false
-  set last-added-node false
-  ;set nodes-by-id []
-  ;set id-counter 0
-end
-
-to print-ast-nodes-parents
-  foreach nodes-by-id [ node ->
-    let name table:get node "name"
-    let parent-name ""
-    ifelse not is-root-node node [
-      let parent-id table:get node "parent-id"
-      let parent-node item parent-id nodes-by-id
-      set parent-name table:get parent-node "name"
-    ] [
-      set parent-name "[root]"
-    ]
-    print (word name " " parent-name)
-  ]
-end
-
-to print-path-to-node [src dest]
-  let x string-builder-path-to-node src dest 0
-  foreach x print
-end
-
-to-report string-path-to-node [src dest]
-  let x string-builder-path-to-node src dest 0
-  report reduce [[result next] -> (word result "\n" next)] x
-end
-
-to-report parameter-descriptor [node]
-  let parameter-values table:values node-parameters node
-  report ifelse-value not empty? parameter-values [
-    reduce [[result next] -> (word result " " next)] parameter-values
-  ] [
-    "" ]
-end
-
-to-report string-builder-path-to-node [src dest indent]
-  let path []
-  let name node-name src
-  let parameters node-parameters src
-  let children node-children src
-  let -parameter-descriptor parameter-descriptor src
-  let src-descriptor ""
-  ifelse src = dest [
-    set src-descriptor (word char-repeat ">" (indent * 2) name " " -parameter-descriptor "\t <--- Error here!") ]
-  [
-    set src-descriptor (word char-repeat "." (indent * 4) name " " -parameter-descriptor) ]
-  set path fput src-descriptor path
-  foreach filter-nodes-above dest children [ child ->
-    let child-descriptor string-builder-path-to-node child dest (indent + 1)
-    foreach child-descriptor [x -> set path lput x path]
-  ]
-  report path
-end
-
-to-report filter-nodes-above [node other-nodes]
-  let nodes-above []
-  foreach other-nodes [ other-node ->
-    set nodes-above lput other-node nodes-above
-    if member? other-node ancestors-of node [report nodes-above]
-  ]
-  report nodes-above
-end
-
-to-report char-repeat [char -length]
-  let string ""
-  if -length > 0 [
-    repeat -length [
-      set string (word string char)
-    ]
-  ]
-  report string
-end
-
-to-report is-root-node [node]
-  report not table:has-key? node "parent-id"
-end
-
-to-report formula-to-atom-count-string [formula]
-  let formula-atom-count count-atoms-in-chemical-formula formula
-  let formula-string ""
-  foreach formula-atom-count [atom-count -> set formula-string (word formula-string first atom-count last atom-count)]
-  report formula-string
-end
-
-to-report is-chemical-equation-balanced [lhs rhs]
-  let lhs-atom-count count-atoms-in-chemical-formula lhs
-  let rhs-atom-count count-atoms-in-chemical-formula rhs
-  report lhs-atom-count = rhs-atom-count
-end
-
-to-report count-atoms-in-chemical-formula [formula]
-  let atom-count table:make
-  foreach formula [compound -> count-atoms-in-compound compound atom-count]
-  report sort-by [[count1 count2] -> first count1 < first count2] table:to-list atom-count
-end
-
-to throw-ast-error [node message]
-  let x (word "Error parsing node '" node-name node "'\n" message "\n")
-    ;"Path to block: " reduce [[result next] -> (word result " -> " next)] path-to-node-from-root node)
-  set x (word x "\n" string-path-to-node table:get ast-by-population 1 node)
-  error x
-end
-
-to count-atoms-in-compound [compound atom-count]
-  let coefficient first compound
-  let elemental-molecules-in-compound but-first compound
-  foreach elemental-molecules-in-compound [elemental-molecule ->
-    let element first elemental-molecule
-    let amount last elemental-molecule
-    let element-count-in-compound coefficient * amount
-    increment-table-value atom-count element element-count-in-compound
-  ]
-end
-
-to increment-table-value [dict key increment]
-  let value table:get-or-default dict key 0
-  table:put dict key value + increment
-end
-
-to-report last-n-elements [-list n]
-  let -length length -list
-  report ifelse-value n < -length [sublist -list (-length - n) -length] [-list]
-end
-
-to-report tables-are-equal [t1 t2]
-  report table-as-list t1 = table-as-list t2
-end
-
-to-report table-as-list [element]
-  (ifelse
-    is-table element [report map [key -> (list key (table-as-list table:get element key))] table:keys element ]
-    is-list? element [report map [list-element -> table-as-list list-element] element]
-    [report element]
-  )
-end
-
-to-report is-table [t]
-  ; this procedure is not correct but we currently assume that an element in a table can only be
-  ; one of 5 values: table, string, number, list or boolean
-  ; need to check if there is a way to get object type
-  report (not is-string? t) and (not is-number? t) and (not is-list? t) and (not is-boolean? t)
-end
-
-to-report is-table2 [t]
-  ; this procedure runs extremely slow
-  let -is-table false
-  carefully [
-    let x table:has-key? t "1"
-    set -is-table true ]
-  [ ]
-  report -is-table
-end
-
-to-report copy-table [orig]
-  let copy table:make
-  foreach (table:keys orig) [key -> table:put copy key (table:get orig key)]
-  report copy
-end
-
-to increase-depth
-  set current-node last-added-node
-end
-
-to decrease-depth
-  set current-node get-parent-node current-node
-end
-
-to-report get-parent-node [node]
-  let parent-id table:get node "parent-id"
-  report item parent-id nodes-by-id
-end
-
-to add-node [name parameters]
-  let node create-node name parameters
-  ifelse is-ast-empty [
-    set-as-root-node-in-ast node
-  ] [
-    add-child-to-currently-selected-node node
-  ]
-  set last-added-node node
-end
-
-to set-as-root-node-in-ast [node]
-  set ast-root node
-  set current-node node
-end
-
-to-report create-node [name parameters]
-  let node table:from-list (list
-    (list "id" id-counter)
-    (list "name" name)
-    (list "parameters" table:from-list parameters)
-    (list "children" [])
-  )
-  set nodes-by-id lput node nodes-by-id
-  set id-counter id-counter + 1
-  report node
-end
-
-to-report is-ast-empty
-  report table:length ast-root = 0
-end
-
-to add-child-to-currently-selected-node [node]
-  table:put node "parent-id" table:get current-node "id"
-  let updated-children lput node table:get current-node "children"
-  table:put current-node "children" updated-children
-end
-
 ; --- NETTANGO BEGIN ---
 
 ; This block of code was added by the NetTango builder.  If you modify this code
@@ -4499,43 +3080,37 @@ end
 
 ; Code for Population 1
 to configure-population-1
-  reset-ast
-  add-node "configure-population" (list (list "population" 1))
-add-node "properties" []
-increase-depth if true [
-] decrease-depth
-add-node "actions" []
-increase-depth if true [
-] decrease-depth
-add-node "interactions" []
-increase-depth if true [
-] decrease-depth
+  #nettango#set-current-population-of-properties-being-set 1
+  set-property-for-population current-population-properties-are-being-set-for-in-nettango "group-name" ""
+if true [
+]
+if true [
+]
+if true [
+]
 end
 
 ; Code for Population 2
 to configure-population-2
-  reset-ast
-  add-node "configure-population" (list (list "population" 2))
-add-node "properties" []
-increase-depth if true [
-] decrease-depth
-add-node "actions" []
-increase-depth if true [
-] decrease-depth
-add-node "interactions" []
-increase-depth if true [
-] decrease-depth
+  #nettango#set-current-population-of-properties-being-set 2
+  set-property-for-population current-population-properties-are-being-set-for-in-nettango "group-name" ""
+if true [
+]
+if true [
+]
+if true [
+]
 end
 ; --- NETTANGO END ---
 @#$#@#$#@
 GRAPHICS-WINDOW
 201
 10
-705
-514
+714
+524
 -1
 -1
-9.51
+9.53
 1
 11
 1
@@ -4553,7 +3128,7 @@ GRAPHICS-WINDOW
 1
 1
 ticks
-30
+30.0
 
 SLIDER
 800
@@ -4564,7 +3139,7 @@ number-of-balls-to-add
 number-of-balls-to-add
 1
 100
-10
+10.0
 1
 1
 NIL
@@ -4575,8 +3150,8 @@ BUTTON
 10
 149
 56
-Reset
-setup\n
+start a new task
+start-new-task\n
 NIL
 1
 T
@@ -4609,7 +3184,7 @@ BUTTON
 61
 181
 121
-Set
+paint-world
 paint-world
 NIL
 1
@@ -4628,7 +3203,7 @@ TEXTBOX
 142
 -------------------------------------
 14
-0
+0.0
 1
 
 BUTTON
@@ -4687,7 +3262,7 @@ SWITCH
 85
 851
 118
-Color-Speed
+color-speed
 color-speed
 1
 1
@@ -4699,7 +3274,7 @@ INPUTBOX
 97
 121
 background-color
-0
+0.0
 1
 0
 Color
@@ -4758,7 +3333,7 @@ brush-size
 brush-size
 1
 10
-1
+1.0
 1
 1
 NIL
@@ -4941,7 +3516,7 @@ TEXTBOX
 177
 Brush
 14
-0
+0.0
 1
 
 TEXTBOX
@@ -4951,7 +3526,7 @@ TEXTBOX
 311
 Brush Pallete
 14
-0
+0.0
 1
 
 TEXTBOX
@@ -4961,7 +3536,7 @@ TEXTBOX
 195
 Ball Pallete
 14
-0
+0.0
 1
 
 BUTTON
@@ -5005,7 +3580,7 @@ TEXTBOX
 462
 Wall Shape
 14
-0
+0.0
 1
 
 INPUTBOX
@@ -5014,7 +3589,7 @@ INPUTBOX
 131
 609
 wall-color
-105
+105.0
 1
 0
 Color
@@ -5022,7 +3597,7 @@ Color
 SWITCH
 726
 46
-892
+886
 79
 flash-wall-collision
 flash-wall-collision
@@ -5036,7 +3611,7 @@ MONITOR
 876
 265
 Population
-ifelse-value pprop population-to-set-properties-for-in-ui \"name\" != \"\" [pprop population-to-set-properties-for-in-ui \"name\"] [population-to-set-properties-for-in-ui]
+population-to-set-properties-for-in-ui
 17
 1
 11
@@ -5065,7 +3640,7 @@ TEXTBOX
 37
 SFX
 14
-0
+0.0
 1
 
 TEXTBOX
@@ -5075,14 +3650,14 @@ TEXTBOX
 220
 Select population to add balls
 11
-0
+0.0
 1
 
 SWITCH
-726
-480
-831
-513
+725
+489
+830
+522
 log-enabled
 log-enabled
 1
@@ -5090,53 +3665,37 @@ log-enabled
 -1000
 
 MONITOR
-722
-374
-794
-419
+728
+375
+800
+420
 Population 1
-table:get-or-default wall-collision-count 1 0
+item 0 wall-collision-count
 17
 1
 11
 
 TEXTBOX
-760
-345
-894
-370
+766
+346
+900
+371
 Wall Collisions
 14
-0
+0.0
 1
 
 MONITOR
-801
-374
-876
-419
+807
+375
+882
+420
 Population 2
-table:get-or-default wall-collision-count 2 0
+item 1 wall-collision-count
 17
 1
 11
 
-BUTTON
-434
-577
-501
-610
-Step
-go
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -5188,12 +3747,6 @@ arrow
 true
 0
 Polygon -7500403 true true 150 0 0 150 105 150 105 293 195 293 195 150 300 150
-
-ball
-true
-0
-Circle -7500403 true true 90 90 120
-Circle -16777216 false false 90 90 120
 
 battery
 false
@@ -5547,7 +4100,7 @@ Rectangle -7500403 true true 0 0 300 360
 Rectangle -7500403 true true 0 0 300 375
 
 face happy
-true
+false
 0
 Circle -7500403 true true 8 8 285
 Circle -16777216 true false 60 75 60
@@ -5639,326 +4192,6 @@ true
 15
 Line -7500403 false 165 135 135 135
 
-molecule-a2
-true
-0
-Circle -7500403 true true 136 66 158
-Circle -16777216 false false 136 66 158
-Circle -7500403 true true 5 67 158
-Circle -16777216 false false 4 67 160
-
-molecule-a2-static
-true
-0
-Circle -13791810 true false 136 66 158
-Circle -16777216 false false 136 66 158
-Circle -13791810 true false 5 67 158
-Circle -16777216 false false 4 67 160
-
-molecule-ab2
-true
-0
-Circle -1 true false 183 63 84
-Circle -16777216 false false 183 63 84
-Circle -7500403 true true 75 75 150
-Circle -16777216 false false 75 75 150
-Circle -1 true false 33 63 84
-Circle -16777216 false false 33 63 84
-
-molecule-ab2-a
-true
-0
-Circle -7500403 true true 75 75 150
-Circle -16777216 false false 75 75 150
-
-molecule-ab2-b2
-true
-0
-Circle -7500403 true true 183 63 84
-Circle -16777216 false false 183 63 84
-Circle -7500403 true true 33 63 84
-Circle -16777216 false false 33 63 84
-
-molecule-alcohol
-true
-6
-Circle -7500403 true false 160 106 88
-Circle -16777216 false false 159 105 90
-Circle -7500403 true false 106 106 88
-Circle -16777216 false false 105 105 90
-Circle -2674135 true false 54 106 88
-Circle -16777216 false false 53 105 90
-Circle -1 true false -1 105 88
-Circle -16777216 false false -2 104 90
-Circle -1 true false 89 192 88
-Circle -16777216 false false 88 191 90
-Circle -1 true false 213 107 88
-Circle -1 true false 86 21 88
-Circle -1 true false 174 20 88
-Circle -1 true false 176 192 88
-Circle -16777216 false false 173 19 90
-Circle -16777216 false false 85 20 90
-Circle -16777216 false false 175 191 90
-Circle -16777216 false false 212 106 90
-
-molecule-alcohol-c2
-true
-0
-Circle -7500403 true true 160 106 88
-Circle -16777216 false false 159 105 90
-Circle -7500403 true true 106 106 88
-Circle -16777216 false false 105 105 90
-
-molecule-alcohol-h5
-true
-0
-Circle -7500403 true true -1 105 88
-Circle -16777216 false false -2 104 90
-Circle -7500403 true true 89 192 88
-Circle -16777216 false false 88 191 90
-Circle -7500403 true true 213 107 88
-Circle -7500403 true true 86 21 88
-Circle -7500403 true true 174 20 88
-Circle -7500403 true true 176 192 88
-Circle -16777216 false false 173 19 90
-Circle -16777216 false false 85 20 90
-Circle -16777216 false false 175 191 90
-Circle -16777216 false false 212 106 90
-
-molecule-alcohol-oh
-true
-0
-Circle -7500403 true true 54 106 88
-Circle -16777216 false false 53 105 90
-
-molecule-ao
-true
-0
-Circle -2674135 true false 136 66 158
-Circle -16777216 false false 136 66 158
-Circle -8630108 true false 5 67 158
-Circle -16777216 false false 4 67 160
-
-molecule-ao-a
-true
-0
-Circle -7500403 true true 5 67 158
-Circle -16777216 false false 4 67 160
-
-molecule-ao-o
-true
-0
-Circle -7500403 true true 136 66 158
-Circle -16777216 false false 136 66 158
-
-molecule-candle
-true
-4
-Circle -7500403 true false 73 103 95
-Circle -16777216 false false 73 103 96
-Circle -7500403 true false 133 103 95
-Circle -16777216 false false 133 103 96
-Circle -1 true false 141 182 95
-Circle -16777216 false false 140 182 96
-Circle -1 true false 136 25 95
-Circle -16777216 false false 136 24 96
-Circle -1 true false -2 103 95
-Circle -1 true false 208 103 95
-Circle -1 true false 69 26 95
-Circle -1 true false 67 182 95
-Circle -16777216 false false 69 25 96
-Circle -16777216 false false 208 102 96
-Circle -16777216 false false -2 103 96
-Circle -16777216 false false 67 182 96
-
-molecule-candle-c
-true
-0
-Circle -955883 true false 73 103 95
-Circle -16777216 false false 73 103 96
-Circle -955883 true false 133 103 95
-Circle -16777216 false false 133 103 96
-
-molecule-candle-h
-true
-0
-Circle -13840069 true false 141 182 95
-Circle -16777216 false false 140 182 96
-Circle -13840069 true false 136 25 95
-Circle -16777216 false false 136 24 96
-Circle -13840069 true false -2 103 95
-Circle -13840069 true false 208 103 95
-Circle -13840069 true false 69 26 95
-Circle -13840069 true false 67 182 95
-Circle -16777216 false false 69 25 96
-Circle -16777216 false false 208 102 96
-Circle -16777216 false false -2 103 96
-Circle -16777216 false false 67 182 96
-
-molecule-ch4
-true
-6
-Circle -13840069 true true 36 20 230
-Circle -16777216 false false 35 19 232
-Circle -1 true false 206 136 92
-Circle -1 true false 1 136 92
-Circle -1 true false 109 207 92
-Circle -16777216 false false 0 135 94
-Circle -16777216 false false 205 135 94
-Circle -16777216 false false 108 207 94
-Circle -1 true false 105 1 92
-Circle -16777216 false false 104 0 94
-
-molecule-ch4-c
-true
-0
-Circle -7500403 true true 36 20 230
-Circle -16777216 false false 35 19 232
-
-molecule-ch4-h4
-true
-0
-Circle -7500403 true true 206 136 92
-Circle -7500403 true true 1 136 92
-Circle -7500403 true true 109 207 92
-Circle -16777216 false false 0 135 94
-Circle -16777216 false false 205 135 94
-Circle -16777216 false false 108 207 94
-Circle -7500403 true true 105 1 92
-Circle -16777216 false false 104 0 94
-
-molecule-co2
-true
-5
-Circle -2674135 true false 162 81 138
-Circle -2674135 true false 0 84 138
-Circle -16777216 false false -1 83 140
-Circle -16777216 false false 161 81 140
-Circle -7500403 true false 82 86 138
-Circle -16777216 false false 81 85 140
-
-molecule-co2-c
-true
-0
-Circle -7500403 true true 82 86 138
-Circle -16777216 false false 81 85 140
-
-molecule-co2-o2
-true
-0
-Circle -7500403 true true 162 81 138
-Circle -7500403 true true 0 84 138
-Circle -16777216 false false -1 83 140
-Circle -16777216 false false 161 81 140
-
-molecule-h2o
-true
-4
-Circle -1 true false 186 162 112
-Circle -1 true false 3 167 112
-Circle -16777216 false false 3 167 113
-Circle -16777216 false false 185 162 113
-Circle -2674135 true false 46 6 210
-Circle -16777216 false false 46 5 211
-
-molecule-h2o-h2
-true
-0
-Circle -7500403 true true 186 162 112
-Circle -7500403 true true 3 167 112
-Circle -16777216 false false 3 167 113
-Circle -16777216 false false 185 162 113
-
-molecule-h2o-o
-true
-0
-Circle -7500403 true true 46 6 210
-Circle -16777216 false false 46 5 211
-
-molecule-ha
-true
-6
-Circle -1184463 true false 40 44 252
-Circle -16777216 false false 39 44 254
-Circle -1 true false 3 2 112
-Circle -16777216 false false 3 2 112
-
-molecule-ha-a
-true
-0
-Circle -7500403 true true 3 2 112
-Circle -16777216 false false 3 2 112
-
-molecule-ha-h
-true
-0
-Circle -7500403 true true 40 44 252
-Circle -16777216 false false 39 44 254
-
-molecule-nh3
-true
-6
-Circle -13840069 true true 36 5 230
-Circle -16777216 false false 35 4 232
-Circle -1 true false 208 129 92
-Circle -1 true false 0 127 92
-Circle -1 true false 109 207 92
-Circle -16777216 false false -1 126 94
-Circle -16777216 false false 208 129 94
-Circle -16777216 false false 108 207 94
-
-molecule-nh3-h3
-true
-0
-Circle -7500403 true true 208 129 92
-Circle -7500403 true true 0 127 92
-Circle -7500403 true true 109 207 92
-Circle -16777216 false false -1 126 94
-Circle -16777216 false false 208 129 94
-Circle -16777216 false false 108 207 94
-
-molecule-nh3-n
-true
-0
-Circle -7500403 true true 36 5 230
-Circle -16777216 false false 35 4 232
-
-molecule-no2
-true
-0
-Circle -2674135 true false 162 111 138
-Circle -2674135 true false 0 114 138
-Circle -16777216 false false -1 113 140
-Circle -16777216 false false 161 111 140
-Circle -8630108 true false 82 26 138
-Circle -16777216 false false 81 25 140
-
-molecule-no2-n
-true
-0
-Circle -7500403 true true 82 26 138
-Circle -16777216 false false 81 25 140
-
-molecule-no2-o2
-true
-0
-Circle -7500403 true true 162 111 138
-Circle -7500403 true true 0 114 138
-Circle -16777216 false false -1 113 140
-Circle -16777216 false false 161 111 140
-
-molecule-sugar
-true
-0
-Polygon -7500403 true true 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-Polygon -16777216 false false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-
-molecule-sugar-static
-true
-0
-Polygon -1184463 true false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-Polygon -16777216 false false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-
 orbit 1
 true
 0
@@ -5980,20 +4213,6 @@ Circle -7500403 true true 26 176 67
 Circle -7500403 true true 206 176 67
 Circle -7500403 false true 45 45 210
 
-outside
-true
-0
-Circle -13840069 true false -166 -121 212
-
-pencil
-false
-0
-Polygon -7500403 true true 255 60 255 90 105 240 90 225
-Polygon -7500403 true true 60 195 75 210 240 45 210 45
-Polygon -7500403 true true 90 195 105 210 255 60 240 45
-Polygon -6459832 true false 90 195 60 195 45 255 105 240 105 210
-Polygon -16777216 true false 45 255 74 248 75 240 60 225 51 225
-
 pentagon
 false
 0
@@ -6011,7 +4230,7 @@ Line -7500403 false 150 0 150 300
 Line -7500403 false 150 0 150 300
 
 square
-true
+false
 0
 Rectangle -7500403 true true 30 30 270 270
 
@@ -6045,7 +4264,7 @@ false
 Rectangle -13840069 false true 0 0 300 300
 
 star
-true
+false
 0
 Polygon -7500403 true true 151 1 185 108 298 108 207 175 242 282 151 216 59 282 94 175 3 108 116 108
 
@@ -6071,22 +4290,22 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
 default
-0
--0.2 0 0 1
-0 1 1 0
-0.2 0 0 1
+0.0
+-0.2 0 0.0 1.0
+0.0 1 1.0 0.0
+0.2 0 0.0 1.0
 link direction
 true
 0
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
 @#$#@#$#@
-
+0
 @#$#@#$#@
