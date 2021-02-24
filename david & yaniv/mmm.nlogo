@@ -13,8 +13,10 @@ globals [
   brush-radio-button-counter
   nettango-what-ball-meets-in-if-ball-meets-block
   wall-collision-count
+  log-enabled
   log-history
   log-picture-count
+  color-speed
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -75,6 +77,7 @@ globals [
 ;======= BRUSH VARIABLES ===========
   brush-shape
   brush-type
+  brush-size
   center-patch-of-drawn-shape
   patches-affected-by-drawn-shape
   gfx-displaying-patches-affected-by-drawn-shape
@@ -240,11 +243,13 @@ to set-global-values
   set brush-activated-after-model-was-advanced false
   set time-when-brush-buttons-were-first-clicked table-make
   ;set time-when-brush-buttons-were-first-clicked table:make
-  set current-background-color background-color
+  ;set current-background-color background-color
+  set current-background-color צבע-רקע
   set brush-radio-button-counter 0
   set log-history ""
   set log-picture-count 0
   set wall-collision-count [0 0]
+  set log-enabled false
 
   set maxballs 2000
   set deltaSpeed 0.5;
@@ -510,7 +515,9 @@ to-report initialized-population-properties2
     "no change"
     "no change"
     0
-    0)
+    0
+    ""
+  )
 end
 
 ;to-report initialized-population-properties
@@ -765,7 +772,6 @@ to set-property-for-population [population property value]
 
   ;set ball-population-properties table-put ball-population-properties  population
   ;      (table-put (get-ball-population-properties population) property value)
-
   set ball-population-properties replace-item (population - 1) ball-population-properties (replace-item (property-index property) (item (population - 1) ball-population-properties) value)
 end
 
@@ -785,6 +791,7 @@ to-report property-index [property]
     property = "if-ball-meets-ball-other-population-speed" [set index 10]
     property = "gravity" [set index 11]
     property = "electric-field" [set index 12]
+    property = "group-name" [set index 13]
   )
   report index
 end
@@ -983,13 +990,13 @@ end
 
 to recolor-patch
   (ifelse
-    has-wall [set pcolor wall-color ]
+    has-wall [set pcolor צבע-מברשת ]
     has-field [set pcolor field-color ]
     [set pcolor current-background-color] )
 end
 
 to paint-world
-    set current-background-color background-color
+    set current-background-color צבע-רקע
     paint-patches
     if (prev-command-name != "paint-world") [
           log-output "paint-world"]
@@ -1306,6 +1313,10 @@ end
 to flash-wall-here
   if has-wall [
     flash-patch pcolor + 2 ]
+end
+
+to-report flash-wall-collision
+  report התנגשויות-בקיר
 end
 
 to flash-wall-at [-xcor -ycor]
@@ -2001,7 +2012,7 @@ to create-wall-in-patch
     try-to-push-aside-balls-from-patch
     if can-create-wall-in-patch [
       set has-wall true
-      set pcolor wall-color
+      set pcolor צבע-מברשת
     ]
   ]
 end
@@ -2010,12 +2021,16 @@ end
 to remove-wall-in-patch
   if patch-has-wall [
     set has-wall false
-    set pcolor background-color
+    set pcolor צבע-רקע
   ]
 end
 
 to erase-all-balls-of-population-selected-in-ui
-  if is-a-population-selected-in-ui [ask balls with [population-num = population-to-set-properties-for-in-ui] [remove-ball]]
+  ask balls with [population-num = population-selected-in-ui] [remove-ball]
+end
+
+to remove-all-balls
+  ask balls [remove-ball]
 end
 
 ;======== BRUSH ===========================
@@ -2032,6 +2047,8 @@ to setup-brush
   set brush-shape "square"
   set brush-type "wall"
   set brush-icon-size 4
+  set brush-size 1
+  set color-speed false
   set shape-drawn-by-brush "rectangle"
   set center-patch-of-drawn-shape nobody
   set patches-affected-by-drawn-shape no-patches
@@ -2040,14 +2057,20 @@ to setup-brush
   set gfx-displaying-patches-affected-by-drawn-shape no-turtles
   create-brush-border-outlines 1 [hide-turtle set -brush-border-outline self]
   create-brush-cursors 1 [hide-turtle set -brush-cursor self]
-  create-gfx-overlay 1 [set brush-type-icon self
+  create-gfx-overlay 1 [
+    set brush-type-icon self
     set color add-transparency red brush-icon-transparency-normalized
     setxy (max-pxcor - brush-icon-size - ((brush-icon-size - 1) * 0.5)) (max-pycor - ((brush-icon-size - 1) * 0.5))
-    set size brush-icon-size]
-  create-gfx-overlay 1 [set brush-draw-erase-mode-icon self
+    set size brush-icon-size
+    hide-turtle
+  ]
+  create-gfx-overlay 1 [
+    set brush-draw-erase-mode-icon self
     set color add-transparency red brush-icon-transparency-normalized
     setxy (max-pxcor - ((brush-icon-size - 1) * 0.5)) (max-pycor - ((brush-icon-size - 1) * 0.5))
-    set size brush-icon-size ]
+    set size brush-icon-size
+    hide-turtle
+  ]
   update-brush-cursor-icon
   update-brush-type-icon
   update-brush-add-erase-mode-icon
@@ -2272,7 +2295,7 @@ to on-brush-type-set
 end
 
 to on-user-set-brush-style-to-shape
-  ;set-brush-cursor-icon-to-draw
+  set-brush-cursor-icon-to-draw
   update-brush-cursor-icon
   update-brush-draw-erase-icon
 end
@@ -2315,8 +2338,8 @@ to display-brush-cursor
 end
 
 to update-brush-type-icon
-  update-brush-type-icon-shape
-  update-brush-type-icon-color
+  ;update-brush-type-icon-shape
+  ;update-brush-type-icon-color
 end
 
 to update-brush-type-icon-shape
@@ -2376,7 +2399,7 @@ end
 to display-brush-gfx
   display-brush-border-outline
   display-brush-cursor
-  diplay-brush-xy-as-label-on-brush-mode-icon
+  ;diplay-brush-xy-as-label-on-brush-mode-icon
   make-sure-brush-gets-updated-in-display-atleast-every 0.04
 end
 
@@ -2505,9 +2528,10 @@ to user-set-brush-to-erase
 end
 
 to on-user-set-brush-to-draw
-  ;set-brush-draw-erase-icon-to-draw
+  set-brush-draw-erase-icon-to-draw
   update-brush-draw-erase-icon
-  set-brush-cursor-icon-to-draw
+  if brush-style = "free-form" [
+    set-brush-cursor-icon-to-draw]
 end
 
 to on-user-set-brush-to-erase
@@ -2879,10 +2903,18 @@ to remove-balls-from-patches-brush-is-drawing-on
   ask balls-in-patches-brush-is-drawing-on [remove-ball]
 end
 
+to-report number-of-balls-to-add
+  report מספר-כדורים-להוספה
+end
+
+to-report population-selected-in-ui
+  report מספר-קבוצה
+end
+
 to create-balls-of-population-selected-in-ui
   if is-a-population-selected-in-ui [
     ;update-interactively-ball-population-property-settings
-    create-balls-if-under-maximum-capacity population-to-set-properties-for-in-ui number-of-balls-to-add mouse-xcor mouse-ycor
+    create-balls-if-under-maximum-capacity population-selected-in-ui number-of-balls-to-add mouse-xcor mouse-ycor
   ]
 end
 
@@ -2895,6 +2927,14 @@ to on-wall-brush-button-clicked
     set-brush-type "wall"
     set-brush-style-as-free-form ]
   if should-release-brush-radio-button? "wall" [stop]
+  activate-brush
+end
+
+to on-erase-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "erase" [
+    set-brush-style-as-free-form ]
+  if should-release-brush-radio-button? "erase" [stop]
+  user-set-brush-to-erase
   activate-brush
 end
 
@@ -3104,9 +3144,9 @@ end
 ; --- NETTANGO END ---
 @#$#@#$#@
 GRAPHICS-WINDOW
-201
+286
 10
-714
+799
 524
 -1
 -1
@@ -3131,12 +3171,12 @@ ticks
 30.0
 
 SLIDER
-800
-273
-939
-306
-number-of-balls-to-add
-number-of-balls-to-add
+115
+370
+269
+403
+מספר-כדורים-להוספה
+מספר-כדורים-להוספה
 1
 100
 10.0
@@ -3146,11 +3186,11 @@ NIL
 HORIZONTAL
 
 BUTTON
-32
+58
 10
-149
+175
 56
-start a new task
+משימה חדשה
 start-new-task\n
 NIL
 1
@@ -3163,11 +3203,11 @@ NIL
 1
 
 BUTTON
-422
-539
-513
-572
-play
+294
+549
+396
+582
+התחלה/עצירה
 go
 T
 1
@@ -3180,11 +3220,11 @@ NIL
 0
 
 BUTTON
-101
-61
-181
-121
-paint-world
+122
+104
+223
+164
+בחירת צבע רקע
 paint-world
 NIL
 1
@@ -3196,22 +3236,12 @@ NIL
 NIL
 0
 
-TEXTBOX
-6
-120
-192
-142
--------------------------------------
-14
-0.0
-1
-
 BUTTON
-942
-273
-1002
-306
-Erase All
+40
+410
+125
+443
+מחיקת כדורים
 erase-all-balls-of-population-selected-in-ui
 NIL
 1
@@ -3224,11 +3254,11 @@ NIL
 0
 
 BUTTON
-267
-539
-364
-572
-save model 
+122
+673
+219
+706
+שמירה
 save-existing-layout
 NIL
 1
@@ -3241,11 +3271,11 @@ NIL
 0
 
 BUTTON
-568
-539
-663
-572
-load model
+19
+672
+114
+705
+טעינה
 load-existing-layout
 NIL
 1
@@ -3257,47 +3287,25 @@ NIL
 NIL
 0
 
-SWITCH
-726
-85
-851
-118
-color-speed
-color-speed
-1
-1
--1000
-
 INPUTBOX
-0
-61
-97
-121
-background-color
+21
+104
+118
+164
+צבע-רקע
 0.0
 1
 0
 Color
 
-MONITOR
-887
-220
-950
-265
-Amount
-count balls with [population-num = population-to-set-properties-for-in-ui]
-17
-1
-11
-
 BUTTON
-26
-167
-91
-200
-Draw
-user-set-brush-to-draw
-NIL
+21
+280
+117
+316
+מחיקה
+on-erase-brush-button-clicked
+T
 1
 T
 OBSERVER
@@ -3308,13 +3316,13 @@ NIL
 0
 
 BUTTON
-98
-167
-168
-200
-Erase
-user-set-brush-to-erase\nset-brush-style-as-free-form
-NIL
+122
+174
+223
+234
+ציור קיר
+user-set-brush-to-draw\non-wall-brush-button-clicked
+T
 1
 T
 OBSERVER
@@ -3323,16 +3331,167 @@ NIL
 NIL
 NIL
 0
+
+BUTTON
+21
+239
+117
+274
+ציור מעגל
+user-set-brush-to-draw\non-wall-circle-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+122
+239
+223
+275
+ציור ריבוע
+user-set-brush-to-draw\non-wall-square-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+16
+579
+94
+612
+מונה כדורים
+user-set-brush-to-draw\non-counter-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+131
+410
+223
+443
+הוספת כדורים
+user-set-brush-to-draw\non-ball-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+148
+538
+229
+571
+הילה
+user-set-brush-to-draw\non-halo-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+16
+538
+138
+571
+מעקב אחרי כדור
+user-set-brush-to-draw\non-trace-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+TEXTBOX
+106
+78
+157
+103
+ציור
+14
+0.0
+1
+
+BUTTON
+122
+280
+223
+316
+ציור קו
+user-set-brush-to-draw\non-wall-line-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+INPUTBOX
+21
+174
+118
+234
+צבע-מברשת
+105.0
+1
+0
+Color
+
+SWITCH
+99
+579
+230
+612
+התנגשויות-בקיר
+התנגשויות-בקיר
+1
+1
+-1000
 
 SLIDER
-26
-208
-168
-241
-brush-size
-brush-size
+8
+369
+107
+402
+מספר-קבוצה
+מספר-קבוצה
 1
-10
+2
 1.0
 1
 1
@@ -3340,166 +3499,13 @@ NIL
 HORIZONTAL
 
 BUTTON
-26
-247
-94
-280
-Circle
-set-brush-shape \"circle\"
+40
+449
+223
+482
+מחיקת כל הכדורים
+remove-all-balls
 NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-102
-247
-170
-280
-Square
-set-brush-shape \"square\"
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-7
-317
-95
-350
-Wall
-on-wall-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-6
-506
-95
-539
-Circle
-on-wall-circle-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-506
-189
-539
-Square
-on-wall-square-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-6
-357
-95
-390
-Counter
-on-counter-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-318
-191
-351
-Field
-on-field-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-722
-273
-796
-306
-Add Balls
-on-ball-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-6
-397
-95
-430
-Halo
-on-halo-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-356
-189
-389
-Trace
-on-trace-brush-button-clicked
-T
 1
 T
 OBSERVER
@@ -3510,187 +3516,111 @@ NIL
 0
 
 TEXTBOX
-75
-143
-126
-177
-Brush
-14
-0.0
-1
-
-TEXTBOX
-53
-293
-151
-311
-Brush Pallete
-14
-0.0
-1
-
-TEXTBOX
-788
-177
-865
-195
-Ball Pallete
-14
-0.0
-1
-
-BUTTON
-6
-468
-95
-501
-Line
-on-wall-line-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
 100
-468
-189
-501
-Rectangle
-on-wall-rectangle-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-TEXTBOX
-56
-444
-135
-462
-Wall Shape
+342
+197
+360
+כדורים
 14
 0.0
 1
 
-INPUTBOX
-53
+TEXTBOX
+98
+508
+198
+526
+סימונים
+14
+0.0
+1
+
+TEXTBOX
+77
+647
+227
+665
+הפעלת מודל
+14
+0.0
+1
+
+BUTTON
+403
 549
-131
-609
-wall-color
-105.0
+466
+582
+צעד
+go
+NIL
 1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 0
-Color
 
-SWITCH
-726
-46
-886
-79
-flash-wall-collision
-flash-wall-collision
-0
+TEXTBOX
+525
+541
+636
+559
+מספר כדורים
+12
+0.0
 1
--1000
+
+TEXTBOX
+690
+540
+796
+558
+פגיעות בקיר
+12
+0.0
+1
 
 MONITOR
-803
-220
-876
-265
-Population
-population-to-set-properties-for-in-ui
+498
+565
+560
+610
+קבוצה 1
+count balls with [population-num = 1]
 17
 1
 11
 
-BUTTON
-723
-220
-790
-265
-Next
-select-next-population-in-properties-ui
-NIL
+MONITOR
+568
+565
+630
+610
+קבוצה 2
+count balls with [population-num = 2]
+17
 1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-TEXTBOX
-795
-19
-822
-37
-SFX
-14
-0.0
-1
-
-TEXTBOX
-750
-201
-897
-220
-Select population to add balls
 11
-0.0
-1
-
-SWITCH
-725
-489
-830
-522
-log-enabled
-log-enabled
-1
-1
--1000
 
 MONITOR
-728
-375
-800
-420
-Population 1
+660
+565
+722
+610
+קבוצה 1
 item 0 wall-collision-count
 17
 1
 11
 
-TEXTBOX
-766
-346
-900
-371
-Wall Collisions
-14
-0.0
-1
-
 MONITOR
-807
-375
-882
-420
-Population 2
+732
+565
+794
+610
+קבוצה 2
 item 1 wall-collision-count
 17
 1
@@ -4290,7 +4220,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
