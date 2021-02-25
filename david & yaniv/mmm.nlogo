@@ -507,7 +507,7 @@ to-report initialized-population-properties2
     "random"
     10
     gray
-    true
+    false
     "no change"
     "no change"
     "no change"
