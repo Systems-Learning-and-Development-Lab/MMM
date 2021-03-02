@@ -1927,10 +1927,12 @@ to make-halo  ;; runner procedure
   ;; characteristics of the parent.  so the halo will
   ;; be the same color as the turtle it encircles (unless
   ;; you add code to change it
-  hatch-halos 1
-  [ set size 5
+  hatch-halos 3
+  [
+    set size ([size] of myself) * 4
     ;; Use an RGB color to make halo three fourths transparent
-    set color lput 64 extract-rgb color
+    ;set color lput 64 extract-rgb color
+    set color add-transparency yellow 0.75
     ;; set thickness of halo to half a patch
     ;__set-line-thickness 0.5 ;refactor nlw doesnt support this
     ;; We create an invisible directed link from the runner
@@ -3179,7 +3181,7 @@ SLIDER
 מספר-כדורים-להוספה
 1
 100
-10.0
+1.0
 1
 1
 NIL
