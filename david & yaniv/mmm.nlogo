@@ -267,7 +267,6 @@ to set-global-values
 ;  set counter-delta-time 0
 ;  set flash-color wall-color + 2
   set flash-time  15
-  set-default-shape flashes "square"
   set repulsion-strength 100
   set attraction-strength 30
   set gravity-acceleration-x 0
@@ -280,7 +279,6 @@ to set-global-values
   set prev-line "None"
   set LJeps 0.5  ; Lennard Jones constants
 ;  set LJsigma balls-Size; Lennard Jones constants
-  set-default-shape halos "thin ring"
   ;set patch-colors-saved-FLAG FALSE
   ;set first-click-FLAG TRUE
   ask patches [
@@ -1137,6 +1135,7 @@ to create-flash-here [-flash-color]
   sprout-flashes 1 [
     set color -flash-color
     set birthday ticks
+    set shape "square"
   ]
 end
 
@@ -1923,27 +1922,20 @@ end
 
 
 to make-halo  ;; runner procedure
-  ;; when you use HATCH, the new turtle inherits the
-  ;; characteristics of the parent.  so the halo will
-  ;; be the same color as the turtle it encircles (unless
-  ;; you add code to change it
   hatch-halos 3
   [
     set size ([size] of myself) * 4
-    ;; Use an RGB color to make halo three fourths transparent
-    ;set color lput 64 extract-rgb color
     set color add-transparency yellow 0.75
-    ;; set thickness of halo to half a patch
-    ;__set-line-thickness 0.5 ;refactor nlw doesnt support this
-    ;; We create an invisible directed link from the runner
-    ;; to the halo.  Using tie means that whenever the
-    ;; runner moves, the halo moves with it.
+    set shape "circle outline"
     create-link-from myself
-    [ tie
-      hide-link ] ]
+    [
+      tie
+      hide-link
+    ]
+  ]
   if (prev-command-name != "make-halo") [
-    log-output "make-halo"]
-
+    log-output "make-halo"
+  ]
 end
 
 to save-existing-layout
@@ -2932,10 +2924,11 @@ to on-wall-brush-button-clicked
   activate-brush
 end
 
-to on-erase-brush-button-clicked
+to on-erase-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "erase" [
     set-brush-style-as-free-form ]
   if should-release-brush-radio-button? "erase" [stop]
+  set-brush-type "wall"
   user-set-brush-to-erase
   activate-brush
 end
@@ -3306,7 +3299,7 @@ BUTTON
 117
 316
 מחיקה
-on-erase-brush-button-clicked
+on-erase-wall-brush-button-clicked
 T
 1
 T
