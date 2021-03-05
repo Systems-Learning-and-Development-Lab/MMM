@@ -2551,10 +2551,39 @@ end
 
 to display-brush-cursor
   ifelse current-mouse-inside? [
+    set-brush-cursor-icon
     show-brush-cursor
     set-brush-cursor-coordinates ]
   [
     hide-brush-cursor ]
+end
+
+to set-brush-cursor-icon
+  ifelse brush-in-draw-mode [
+    (ifelse
+      brush-type = "counter" [
+        ask -brush-cursor [set shape "brush-cursor-draw-counter3" set size 3]
+      ]
+      brush-type = "halo" [
+        ask -brush-cursor [set shape "brush-cursor-draw-halo2" set size 3]
+      ]
+      brush-type = "trace" [
+        ask -brush-cursor [set shape "brush-cursor-draw-trace2" set size 3]
+      ]
+    )
+  ] [
+    (ifelse
+      brush-type = "counter" [
+        ask -brush-cursor [set shape "brush-cursor-erase-counter" set size 3]
+      ]
+      brush-type = "halo" [
+        ask -brush-cursor [set shape "brush-cursor-erase-halo2" set size 3]
+      ]
+      brush-type = "trace" [
+        ask -brush-cursor [set shape "brush-cursor-erase-trace" set size 3]
+      ]
+    )
+  ]
 end
 
 to update-brush-type-icon
@@ -2686,9 +2715,9 @@ end
 
 to set-brush-border-outline-color
   ifelse is-brush-in-draw-mode [
-    ask -brush-border-outline [set color cyan] ]
+    ask -brush-border-outline [set color add-transparency cyan 0.8] ]
   [
-    ask -brush-border-outline [set color red] ]
+    ask -brush-border-outline [set color add-transparency red 0.8] ]
 end
 
 to set-brush-border-outline-size
@@ -3174,15 +3203,9 @@ to on-erase-marker-brush-button-clicked
     set-brush-type "counter" ]
   user-set-brush-to-erase
   (ifelse
-    brush-type = "counter" [
-      set brush-size 1
-    ]
-    brush-type = "halo" [
-      set brush-size 3
-    ]
-    brush-type = "trace" [
-      set brush-size 3
-    ]
+    brush-type = "counter" [set brush-size 1]
+    brush-type = "halo" [set brush-size 3]
+    brush-type = "trace" [set brush-size 3]
   )
   activate-brush
 end
@@ -3982,6 +4005,111 @@ Line -16777216 false 150 285 150 135
 Line -16777216 false 150 135 15 75
 Line -16777216 false 150 135 285 75
 
+brush-cursor-draw-counter
+false
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false 16 -1 121 104
+Line -16777216 false 43 104 43 -1
+Line -16777216 false 97 104 97 -1
+Line -16777216 false 16 24 121 24
+Line -16777216 false 17 77 122 77
+Polygon -13840069 true false 70 39 82 30 83 67 88 66 88 72 73 71 73 66 78 66 78 38 73 43
+Rectangle -13840069 true false 57 48 62 64
+Rectangle -13840069 true false 51 54 68 59
+
+brush-cursor-draw-counter2
+false
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false -14 -31 105 90
+Line -16777216 false 13 89 15 -30
+Line -16777216 false 75 90 75 -30
+Line -16777216 false -15 15 105 15
+Line -16777216 false -15 60 105 60
+
+brush-cursor-draw-counter3
+false
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false 16 -1 121 104
+Line -16777216 false 15 75 120 75
+Line -16777216 false 15 30 120 30
+Line -16777216 false 45 105 45 0
+Line -16777216 false 90 105 90 0
+
+brush-cursor-draw-halo
+false
+7
+Circle -1184463 false false -107 178 212
+Circle -1184463 false false -107 178 212
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+
+brush-cursor-draw-halo2
+false
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Circle -1184463 false false 48 3 85
+
+brush-cursor-draw-trace
+false
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -2674135 true false 75 69 115 10 124 74 179 9 182 14 121 86 112 23 77 74
+Circle -13791810 true false 20 54 72
+
+brush-cursor-draw-trace2
+false
+7
+Polygon -2674135 true false 65 81 147 9 152 15 68 89
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Circle -13791810 true false 3 62 80
+
 brush-cursor-draw6
 false
 7
@@ -4007,6 +4135,76 @@ Line -16777216 false 45 195 135 195
 Line -16777216 false 45 195 30 270
 Line -16777216 false 45 195 135 120
 Line -16777216 false 135 120 225 120
+
+brush-cursor-erase-counter
+false
+6
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Rectangle -7500403 true false -15 15 90 120
+Line -16777216 false 15 120 15 15
+Line -16777216 false 60 120 60 15
+Line -16777216 false 90 45 -15 45
+Line -16777216 false 90 90 -15 90
+
+brush-cursor-erase-halo
+false
+0
+Circle -1184463 false false -105 165 210
+Circle -1184463 false false -105 165 210
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+
+brush-cursor-erase-halo2
+false
+0
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Circle -1184463 false false 18 63 85
+
+brush-cursor-erase-trace
+false
+0
+Polygon -2674135 true false 75 83 148 25 153 31 79 89
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Circle -13791810 true false 5 69 86
 
 brush-cursor-shape
 false
