@@ -1,4 +1,4 @@
-extensions [send-to fetch import-a]
+extensions [send-to fetch import-a table]
 
 globals [
   tick-count ;; count how many turns this model has executed ("go" procedure invoked)
@@ -17,6 +17,7 @@ globals [
   log-history
   log-picture-count
   color-speed
+  animation-run-count
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -105,6 +106,7 @@ globals [
 
 ; order of breeds determines layering of turtles. (Later defined is on top)
 breed [ counter-information-gfx a-counter-information-gfx]
+breed [animations animation]
 breed [ batteries battery ]
 breed [ counters counter]
 breed [ flashes flash ]      ;; a breed which is used to mark the spot where a particle just hit the wall or counter
@@ -148,6 +150,15 @@ counter-information-gfx-own [
 flashes-own [birthday]       ;; flashes only last for a short period and then disappear.
                              ;; their birthday helps us keep track of when they were created and
                              ;; when we need to remove them.
+
+animations-own
+[
+  lifespan
+  birthday                   ; tick count animation was created
+  data                       ; data can be anything the animation needs. table variable
+  -name                      ; used to retrieve animator by name
+]
+
 balls-own
 [
   ;table
@@ -200,6 +211,220 @@ counters-own
   counter-number      ;; holds the counter number
 ;  ball-count          ;; used when patch is a counter
 ]
+
+;===== animations =======
+
+to run-animations
+  every 0.05 [
+    if any? animations [
+      ask animations [animate]
+      set animation-run-count animation-run-count + 1
+    ]
+  ]
+end
+
+to animate
+  (ifelse
+    -name = "flash" [animate-flash]
+    -name = "mark" [remove-animation-if-past-lifespan]
+    -name = "patch-flash" [remove-animation-if-past-lifespan]
+    -name = "rotate" [rotate-animation]
+    -name = "inflate" [increase-animation-size]
+    -name = "draw" [remove-animation-if-past-lifespan]
+  )
+end
+
+to remove-animation-if-past-lifespan
+  ;if tick-count - birthday > lifespan [die]
+  if animation-run-count - birthday > lifespan [die]
+end
+
+to rotate-animation
+  ; Need to find a way to chain animation procedures, such as
+  ; chain-animation (list rotate-animation remove-animation-if-past-lifespan)
+  set heading heading + table:get data "angle"
+  remove-animation-if-past-lifespan
+end
+
+to increase-animation-size
+  let increase table:get data "increase"
+  set size size * ((100 + increase) / 100)
+  remove-animation-if-past-lifespan
+end
+
+to animate-flash
+  let flash-rate table:get data "flash-every-n-ticks"
+  ;let should-flash tick-count mod flash-rate = 0
+  let should-flash animation-run-count mod flash-rate = 0
+  if should-flash [
+    ifelse hidden? [show-turtle] [hide-turtle]
+  ]
+  remove-animation-if-past-lifespan
+end
+
+to hatch-inflating-animation [-shape -size -color -lifespan]
+  ask hatch-animation "inflate" -lifespan [
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list [["increase" 5]]
+  ]
+end
+
+to flash-outline [duration -color]
+  ifelse already-flashing-outline [
+    extend-lifespan-of-flashing-outline ]
+  [
+    hatch-flashing-outline duration -color
+  ]
+end
+
+to extend-lifespan-of-flashing-outline
+  ask one-of link-neighbors with [is-animation? self and -name = "flash"] [reset-animation-lifespan]
+end
+
+to reset-animation-lifespan
+  ;set lifespan lifespan + animation-age
+  set birthday animation-run-count
+end
+
+to-report already-flashing-outline
+  report any? link-neighbors with [is-animation? self and -name = "flash"]
+end
+
+to hatch-flashing-outline [duration -color]
+  let outline-thickness min (list (size * 1.5) (size + 0.5))
+  let -flash hatch-flashing-animation shape outline-thickness -color duration
+  ask -flash [tie-to-myself]
+end
+
+to-report hatch-flashing-animation [-shape -size -color -lifespan]
+  let -animation nobody
+  ask hatch-animation "flash" -lifespan [
+    set -animation self
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list (list
+      (list "flash-every-n-ticks" 1))
+  ]
+  report -animation
+end
+
+to tie-to-myself
+  create-link-from myself [
+    tie
+    hide-link
+  ]
+end
+
+to hatch-rotating-animation [-shape -size -color -lifespan]
+  ask hatch-animation "rotate" -lifespan [
+    set shape -shape
+    set size -size
+    set color -color
+    set data table:from-list [["angle" 10]]
+  ]
+end
+
+to-report sprout-animation [name -lifespan]
+  let sprouted-animation nobody
+  sprout-animations 1 [
+    initialize-animation name -lifespan
+    set sprouted-animation self
+  ]
+  report sprouted-animation
+end
+
+to-report  hatch-animation [name -lifespan]
+  let hatched-animation nobody
+  hatch-animations 1 [
+    initialize-animation name -lifespan
+    set hatched-animation self
+  ]
+  report hatched-animation
+end
+
+to-report create-animation [name -lifespan]
+  let created-animation nobody
+  create-animations 1 [
+    initialize-animation name -lifespan
+    set created-animation self
+  ]
+  report created-animation
+end
+
+to initialize-animation [name -lifespan]
+  set -name name
+  ;set birthday tick-count
+  set birthday animation-run-count
+  set lifespan -lifespan
+  set data table:make
+  set label ""
+  set label-color white
+  set color add-transparency white 0
+  set heading 0
+  set shape "empty"
+  set size 0
+  show-turtle
+end
+
+to-report is-rgb [-color]
+  report (is-list? -color) and (length -color = 3)
+end
+
+to-report is-rgba [-color]
+  report (is-list? -color) and (length -color = 4)
+end
+
+to-report add-transparency-rgb [-color transparency]
+  report lput transparency -color
+end
+
+to-report add-transparency-rgba [-color transparency]
+  report replace-item 3 -color transparency
+end
+
+to-report add-transparency-netlogo-color [-color transparency]
+  report lput transparency extract-rgb -color
+end
+
+to-report rgba-to-hsb [-color]
+  report extract-hsb sublist -color 0 3
+end
+
+to-report set-color-brightness [-color brightness-normalized]
+  let brightness brightness-normalized * 100
+  (ifelse
+    is-rgb -color [report set-rgb-brightness -color brightness]
+    is-rgba -color [report set-rgba-brightness -color brightness]
+  )
+  report set-netlogo-color-brightness -color brightness
+end
+
+to-report set-rgb-brightness [-color brightness]
+  let -hsb extract-hsb -color
+  let hue item 0 -hsb
+  let saturation  item 1 -hsb
+  report hsb hue saturation brightness
+end
+
+to-report set-rgba-brightness [-color brightness]
+  let -hsb extract-hsb sublist -color 0 3
+  let hue item 0 -hsb
+  let saturation  item 1 -hsb
+  let alpha item 3 -color
+  report lput alpha hsb hue saturation brightness
+end
+
+to-report set-netlogo-color-brightness [-color brightness]
+  let -hsb extract-hsb -color
+  let hue item 0 -hsb
+  let saturation  item 1 -hsb
+  report approximate-hsb hue saturation brightness
+end
+
+;========================
 
 to initialize-properties-for-ball-populations [amount]
   foreach (range 1 (amount + 1)) [population -> initialize-properties-for-ball-population-if-they-have-not-been-set population]
@@ -1080,6 +1305,7 @@ to go
       ;update-electricity
       advance-balls-in-world
       remove-flashes-past-their-lifespan
+      run-animations
       advance-ticks
       update-display
     ]
@@ -2473,6 +2699,7 @@ to activate-brush
   set-brush-state
   display-brush-gfx
   draw-with-brush
+  run-animations
   keep-track-of-current-brush-state
 end
 
@@ -2877,7 +3104,13 @@ to set-counter-number-to-be-drawn-with-brush
 end
 
 to on-brush-held-down-with-trace
-  ifelse is-brush-in-draw-mode [trace balls-in-patches-brush-is-drawing-on] [stop-tracing balls-in-patches-brush-is-drawing-on]
+  ifelse is-brush-in-draw-mode [trace-balls-brush-is-drawing-on] [stop-tracing balls-in-patches-brush-is-drawing-on]
+end
+
+to trace-balls-brush-is-drawing-on
+  let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
+  ask balls-to-trace [flash-outline 5 white]
+  trace balls-to-trace
 end
 
 to on-brush-held-down-with-halo
@@ -2930,6 +3163,27 @@ to on-erase-wall-brush-button-clicked
   if should-release-brush-radio-button? "erase" [stop]
   set-brush-type "wall"
   user-set-brush-to-erase
+  activate-brush
+end
+
+to on-erase-marker-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "erase-mark" [
+    set-brush-style-as-free-form ]
+  if should-release-brush-radio-button? "erase-mark" [stop]
+  if (brush-type != "counter") and (brush-type != "halo") and (brush-type != "trace") [
+    set-brush-type "counter" ]
+  user-set-brush-to-erase
+  (ifelse
+    brush-type = "counter" [
+      set brush-size 1
+    ]
+    brush-type = "halo" [
+      set brush-size 3
+    ]
+    brush-type = "trace" [
+      set brush-size 3
+    ]
+  )
   activate-brush
 end
 
@@ -3113,22 +3367,38 @@ end
 ; If you do not plan to re-import the model into the NetTango builder then you
 ; can safely edit this code however you want, just like a normal NetLogo model.
 
-; Code for Population 1
+; Code for קבוצה 1
 to configure-population-1
   #nettango#set-current-population-of-properties-being-set 1
   set-property-for-population current-population-properties-are-being-set-for-in-nettango "group-name" ""
+
 if true [
+  set-initial-color-for-population current-population-properties-are-being-set-for-in-nettango (15)
+  set-initial-size-for-population current-population-properties-are-being-set-for-in-nettango 2
+  set-initial-heading-for-population current-population-properties-are-being-set-for-in-nettango "random"
+  set-initial-speed-for-population current-population-properties-are-being-set-for-in-nettango 10
 ]
 if true [
+  set-ball-forward-property-for-population current-population-properties-are-being-set-for-in-nettango true
 ]
 if true [
+  #nettango#setup-if-ball-meets-block
+  if true [
+    #nettango#set-if-ball-meets-block-what-ball-meets "wall"
+  ]
+  if true [
+    #nettango#set-speed-change "collide"
+    #nettango#set-heading-change "collide"
+  ]
+  #nettango#teardown-if-ball-meets-block
 ]
 end
 
-; Code for Population 2
+; Code for קבוצה 2
 to configure-population-2
   #nettango#set-current-population-of-properties-being-set 2
   set-property-for-population current-population-properties-are-being-set-for-in-nettango "group-name" ""
+
 if true [
 ]
 if true [
@@ -3174,7 +3444,7 @@ SLIDER
 מספר-כדורים-להוספה
 1
 100
-10.0
+1.0
 1
 1
 NIL
@@ -3237,7 +3507,7 @@ BUTTON
 125
 443
 מחיקת כדורים
-erase-all-balls-of-population-selected-in-ui
+clear-drawing\nerase-all-balls-of-population-selected-in-ui
 NIL
 1
 T
@@ -3249,10 +3519,10 @@ NIL
 0
 
 BUTTON
-122
-673
-219
-706
+123
+700
+220
+733
 שמירה
 save-existing-layout
 NIL
@@ -3266,10 +3536,10 @@ NIL
 0
 
 BUTTON
-19
-672
-114
-705
+20
+699
+115
+732
 טעינה
 load-existing-layout
 NIL
@@ -3298,8 +3568,8 @@ BUTTON
 280
 117
 316
-מחיקה
-on-erase-wall-brush-button-clicked
+מחיקת קיר
+set brush-size 1\non-erase-wall-brush-button-clicked
 T
 1
 T
@@ -3316,7 +3586,7 @@ BUTTON
 223
 234
 ציור קיר
-user-set-brush-to-draw\non-wall-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-wall-brush-button-clicked
 T
 1
 T
@@ -3333,7 +3603,7 @@ BUTTON
 117
 274
 ציור מעגל
-user-set-brush-to-draw\non-wall-circle-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-wall-circle-brush-button-clicked
 T
 1
 T
@@ -3350,7 +3620,7 @@ BUTTON
 223
 275
 ציור ריבוע
-user-set-brush-to-draw\non-wall-square-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-wall-square-brush-button-clicked
 T
 1
 T
@@ -3367,7 +3637,7 @@ BUTTON
 94
 612
 מונה כדורים
-user-set-brush-to-draw\non-counter-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-counter-brush-button-clicked
 T
 1
 T
@@ -3384,7 +3654,7 @@ BUTTON
 223
 443
 הוספת כדורים
-user-set-brush-to-draw\non-ball-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-ball-brush-button-clicked
 T
 1
 T
@@ -3401,7 +3671,7 @@ BUTTON
 229
 571
 הילה
-user-set-brush-to-draw\non-halo-brush-button-clicked
+set brush-size 3\nuser-set-brush-to-draw\non-halo-brush-button-clicked
 T
 1
 T
@@ -3418,7 +3688,7 @@ BUTTON
 138
 571
 מעקב אחרי כדור
-user-set-brush-to-draw\non-trace-brush-button-clicked
+set brush-size 3\nuser-set-brush-to-draw\non-trace-brush-button-clicked
 T
 1
 T
@@ -3445,7 +3715,7 @@ BUTTON
 223
 316
 ציור קו
-user-set-brush-to-draw\non-wall-line-brush-button-clicked
+set brush-size 1\nuser-set-brush-to-draw\non-wall-line-brush-button-clicked
 T
 1
 T
@@ -3474,7 +3744,7 @@ SWITCH
 612
 התנגשויות-בקיר
 התנגשויות-בקיר
-1
+0
 1
 -1000
 
@@ -3499,7 +3769,7 @@ BUTTON
 223
 482
 מחיקת כל הכדורים
-remove-all-balls
+clear-drawing\nremove-all-balls
 NIL
 1
 T
@@ -3531,10 +3801,10 @@ TEXTBOX
 1
 
 TEXTBOX
-77
-647
-227
-665
+78
+674
+228
+692
 הפעלת מודל
 14
 0.0
@@ -3620,6 +3890,23 @@ item 1 wall-collision-count
 17
 1
 11
+
+BUTTON
+74
+620
+180
+653
+מחיקת סימון
+on-erase-marker-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
