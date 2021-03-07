@@ -1,24 +1,18 @@
 extensions [send-to fetch import-a table]; profiler]
 
 globals [
-  current-background-color    ; gets updated when user clicks "paint-world" button
-  gravity-acceleration-x    ; acceleration of gravity on x axis
-  time-delta-per-tick    ; the amount by which ticks advance each turn
-  flash-time    ; length of time of flash counter or wall
-  animators    ; table that holds procedures that animate an animation.
+  tick-delta    ; how much the model advances every tick
   global-variables-record
-  global-variables-new-value-handlers    ; which procedure to run incase value has changed.
-  last-tick-display-was-updated
+  animation-ticks  ; animations advance relative to this tick
 
   ;==== balls ====
-  wall-collision-count    ; count wall collisions for each population.
+  wall-collisions    ; count wall collisions for each population.
   max-balls    ; possibly omit later, to prevent balls slowing down too much so that it's visible and confuses the students about speed
-  speed-delta-after-collision    ;  value to increase or decrease speed after wall and ball collision
   max-speed     ; max allowed speed in system (recursive speed increase may blow up the variable)
+  collision-speed-delta    ;  value to increase or decrease speed after wall and ball collision
   collision-depth-threshold    ; how deep the intersection of balls can be to be considered collision
   look-ahead-wall-collision    ; distance to check ahead if near wall
-  balls-by-population    ; for fast access of balls belonging to certain population
-  ball-shape-setters    ; which procedure to run to update shape of ball, depends on shape name
+  population-balls    ; for fast access of balls belonging to certain population
 
   ;==== electric field ====
   electric-field-color
@@ -38,22 +32,19 @@ globals [
 
   ;==== counters ====
   counters-information-gfx ; breed that references 2 gfx-overlay turtles that display information for counter
-  ball-count-in-counters ; table that keeps track of ball count in all counters
+  counter-value ; table that keeps track of ball count in all counters
 
   ;==== population properties ====
-  ball-population-properties ; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
-  prev-ball-population-properties ; previous values of properties. used for checking if value has changed.
-  property-change-procedure-lookup ; which procedure to run incase a specific property has been changed.
+  population-properties ; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
+  prev-population-properties ; previous values of properties. used for checking if value has changed.
   default-colors-for-ball-populations
   population-to-set-properties-for-in-ui ; which population is selected in the ball pallet in ui
-  current-population-properties-are-being-set-for-in-nettango ; keeps track of which population we are setting properties for in nettango
-  nettango-what-ball-meets-in-if-ball-meets-block ; used to keep track for which entity (ball meets) the interaction block is defined for
 
   ;==== log =====
-  log-history ; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
-  log-picture-count ; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
-  log-filename  ; will hold filename
-  log-filename-photo ; will hold photo file name
+  -log ; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
+  logged-pictures ; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
+  log-file-name  ; will hold filename
+  log-picture-prefix ; will hold photo file name
   prev-command-name ; will hold the prev command printedin log file (to avoid double logging)
   prev-line  ; will hold the last line printedin log file
 
@@ -120,15 +111,17 @@ animations-own
 [
   lifespan
   birthday                   ; tick count animation was created
-  animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animator]'
+  ;animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animator]'
   data                       ; data can be anything the animation needs. table variable
   -name                      ; used to retrieve animator by name
 ]
 
 balls-own
 [
-  population-num             ; Which population the ball belongs to
-  speed mass energy          ; particle info
+  population-num
+  speed
+  mass
+  energy
   tick-move-enabled     ; tick count when move was enabled to move if in blocks set to "Move X Steps"
   last-tick-wall-collision-occured    ; keep track last tick wall collision occured to reduce calculation when changing speed if collision occured
   balls-collided-with
@@ -158,11 +151,10 @@ end
 
 to crt-pop
   ; only used in desktop version, since we dont have blocks to define population properties.
-  initialize-properties-for-populations [1 2]
   let pop-properties table:make
   table:put pop-properties 1 table:from-list
     [
-      ["size" 0.5]
+      ["size" 1]
       ["wall-heading" "collide"]
       ["wall-speed" "collide"]
       ["ball-heading" "collide"]
@@ -173,11 +165,11 @@ to crt-pop
       ["electric-field" 40]
       ["move" true]
       ["color" red]
-      ["name" "wow"]
+      ["name" "group-name"]
     ]
   table:put pop-properties 2 table:from-list
     [
-      ["size" 0.5]
+      ["size" 1]
       ["wall-heading" "collide"]
       ["wall-speed" "collide"]
       ["ball-heading" "collide"]
@@ -189,7 +181,22 @@ to crt-pop
       ["move" true]
       ["color" blue]
     ]
+  table:put pop-properties 3 table:from-list
+    [
+      ["size" 1]
+      ["wall-heading" "collide"]
+      ["wall-speed" "collide"]
+      ["ball-heading" "collide"]
+      ["ball-speed" "collide"]
+      ["other-ball-heading" "collide"]
+      ["other-ball-speed" "collide"]
+      ["gravity" 0]
+      ["electric-field" 0]
+      ["move" true]
+      ["color" green]
+    ]
   foreach table:keys pop-properties [population ->
+   initialize-properties-for-populations (list population)
    let properties table:get pop-properties population
    foreach table:keys properties [property ->
       let value table:get properties property
@@ -240,68 +247,46 @@ to initialize-patch
   set accum-y 0
   set accum-w 0
   set field-number 0
-  set has-wall false
 end
 
 to initialize-global-values
-  set ball-population-properties table:make
-  set prev-ball-population-properties ball-population-properties
+  set population-properties table:make
+  set prev-population-properties population-properties
   set population-to-set-properties-for-in-ui "-"
   set default-colors-for-ball-populations [red blue lime orange violet yellow cyan pink brown green sky magenta turquoise gray ]
   set counters-information-gfx table:make
-  set ball-count-in-counters table:make
+  set counter-value table:make
   set patches-brush-drew-electric-field-on []
   set brush-activated-after-model-was-advanced false
   set click-count-when-radio-buttons-were-first-clicked table:make
   set brush-radio-buttons-click-count 0
-  set log-history ""
-  set log-picture-count 0
-  set current-background-color background-color
-  set wall-collision-count table:make
-  set balls-by-population table:make
+  set -log ""
+  set logged-pictures 0
+  set wall-collisions table:make
+  set population-balls table:make
   set max-balls 200
-  set speed-delta-after-collision 0.5;
+  set collision-speed-delta 0.5;
   set max-speed 20
   set look-ahead-wall-collision 0.6
   set electric-field-color 87
   set electric-field-count 0
-  set flash-time  15
   set repulsion-strength 100
   set attraction-strength 30
-  set gravity-acceleration-x 0
   set collision-depth-threshold 0.99
-  set time-delta-per-tick 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
+  set tick-delta 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
   setup-logging  "LOGGING/logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
   set prev-line "None"
   set LJeps 0.5  ; Lennard Jones constants
-  set-default-shape halos "thin ring"
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
   set global-variables-record global-variable-values
   initialize-ast
-  initialize-procedure-to-update-ball-shape-lookup-table
-  initialize-property-change-procedure-lookup
-  initialize-global-variable-changed-lookup
-  initialize-animators
 end
 
 to initialize-all-anonymous-procedures
   set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
   initialize-procedures-to-run-ast-node-lookup-table
   initialize-ast-parse-lookup-table
-  initialize-property-change-procedure-lookup
-  initialize-global-variable-changed-lookup
-  initialize-procedure-to-update-ball-shape-lookup-table
-  initialize-animation-anonymous-procedures
-end
-
-to initialize-animation-anonymous-procedures
-  initialize-animators
-  ask animations [initialize-animator]
-end
-
-to-report get-animator [name]
-  report table:get animators name
 end
 
 to initialize-all-lookup-tables-if-nettango-has-recompiled
@@ -317,54 +302,10 @@ to initialize-all-lookup-tables-if-nettango-has-recompiled
   ]
 end
 
-to initialize-animators
-  set animators table:from-list (list
-    (list "mark" [[] -> remove-animation-if-past-lifespan])
-    (list "flash" [[] -> flash-animation])
-    (list "patch-flash" [[] -> remove-animation-if-past-lifespan])
-    (list "rotate" [[] -> rotate-animation])
-    (list "inflate" [[] -> increase-animation-size])
-    (list "draw" [[] -> remove-animation-if-past-lifespan])
-  )
-end
-
 to-report global-variable-values
   report table:from-list (list
     (list "show-name" show-name)
     (list "color-speed" color-speed)
-  )
-end
-
-to initialize-global-variable-changed-lookup
-  ; What happens when a global variable changes
-  set global-variables-new-value-handlers table:from-list (list
-    (list "show-name" [[new-value] -> ifelse new-value [show-balls-labels] [hide-balls-labels]])
-    (list "color-speed" [[new-value] -> if not new-value [ask balls [update-ball-color]]])
-  )
-end
-
-to initialize-property-change-procedure-lookup
-  ; What happens when a population property changes
-  set property-change-procedure-lookup table:from-list (list
-    (list "shape" [[population] -> update-shapes-of-population population])
-    (list "size" [[population] -> update-size-of-population population])
-    (list "color" [[population] -> update-color-of-population population])
-    (list "secondary-colors" [[population] -> update-color-of-population population])
-  )
-end
-
-to initialize-procedure-to-update-ball-shape-lookup-table
-  ; What happens when a ball shape is updated
-  set ball-shape-setters table:from-list (list
-    (list "molecule-ha" [[] -> update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]])
-    (list "molecule-ao" [[] -> update-compound-shape "molecule-ao" ["a" "o"] ["a" "o"]])
-    (list "molecule-no2" [[] -> update-compound-shape "molecule-no2" ["n" "o2"] ["o2" "n"]])
-    (list "molecule-h2o" [[] -> update-compound-shape "molecule-h2o" ["h2" "o"] ["o" "h2"]])
-    (list "molecule-co2" [[] -> update-compound-shape "molecule-co2" ["c" "o2"] ["o2" "c"]])
-    (list "molecule-nh3" [[] -> update-compound-shape "molecule-nh3" ["n" "h3"] ["n" "h3"]])
-    (list "molecule-ch4" [[] -> update-compound-shape "molecule-ch4" ["c" "h4"] ["c" "h4"]])
-    (list "molecule-candle" [[] -> update-compound-shape "molecule-candle" ["c" "h"] ["c" "h"]])
-    (list "molecule-alcohol" [[] -> update-compound-shape "molecule-alcohol" ["c2" "h5" "oh"] ["c2" "oh" "h5"]])
   )
 end
 
@@ -376,11 +317,6 @@ end
 
 to-report population-colors [population]
   report (sentence pprop population "color" pprop population "secondary-colors")
-end
-
-to-report procedure-to-update-ball-shape
-  ; which procedure to run to update shape of ball
-  report table:get-or-default ball-shape-setters (prop "shape") [[] -> default-shape-update]
 end
 
 to update-compound-shape [base-name part-names view-order]
@@ -570,7 +506,7 @@ to iterate-through-population-number-in-ui-by-ascending-circular-order
 end
 
 to-report population-numbers
-  report table:keys ball-population-properties
+  report table:keys population-properties
 end
 
 to-report any-population-exists
@@ -668,27 +604,27 @@ to deselect-brush-radio-button [button]
 end
 
 to-report population-properties-initialized? [population]
-  report table:has-key? ball-population-properties population
+  report table:has-key? population-properties population
 end
 
 to initialize-properties-for-all-populations
   foreach population-numbers [population ->
-     table:put ball-population-properties population initialized-population-properties
+     table:put population-properties population initialized-population-properties
   ]
 end
 
 to-report population-count
-  report length table:keys ball-population-properties
+  report length table:keys population-properties
 end
 
 to initialize-ball-population-properties-old [population]
   let population-color default-color-for-population population
-  table:put ball-population-properties population initialized-population-properties
+  table:put population-properties population initialized-population-properties
   set-prop population "color" population-color
 end
 
 to initialize-ball-population-properties [population]
-  table:put ball-population-properties population initialized-population-properties
+  table:put population-properties population initialized-population-properties
 end
 
 to-report initialized-population-properties
@@ -732,7 +668,19 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
 end
 
 to update-ball-shape
-  run procedure-to-update-ball-shape
+  let shape-name prop "shape"
+  (ifelse
+    shape-name = "molecule-ha" [update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]]
+    shape-name = "molecule-ao" [update-compound-shape "molecule-ao" ["a" "o"] ["a" "o"]]
+    shape-name = "molecule-no2" [update-compound-shape "molecule-no2" ["n" "o2"] ["o2" "n"]]
+    shape-name = "molecule-h2o" [update-compound-shape "molecule-h2o" ["h2" "o"] ["o" "h2"]]
+    shape-name = "molecule-co2" [update-compound-shape "molecule-co2" ["c" "o2"] ["o2" "c"]]
+    shape-name = "molecule-nh3" [update-compound-shape "molecule-nh3" ["n" "h3"] ["n" "h3"]]
+    shape-name = "molecule-ch4" [update-compound-shape "molecule-ch4" ["c" "h4"] ["c" "h4"]]
+    shape-name = "molecule-candle" [update-compound-shape "molecule-candle" ["c" "h"] ["c" "h"]]
+    shape-name = "molecule-alcohol" [update-compound-shape "molecule-alcohol" ["c2" "h5" "oh"] ["c2" "oh" "h5"]]
+    [default-shape-update]
+  )
 end
 
 to reset-sum-of-forces-acting-on-balls
@@ -742,7 +690,7 @@ end
 
 to update-balls-by-population [-ball]
   let population [population-num] of -ball
-  table:put balls-by-population population (turtle-set balls-of population -ball)
+  table:put population-balls population (turtle-set balls-of population -ball)
 end
 
 to initialize-ball-after-creation [population -xcor -ycor]
@@ -826,11 +774,11 @@ to-report is-affected-by-gravity ; ball procedure
 end
 
 to-report properties-of [population]
-  report table:get ball-population-properties population
+  report table:get population-properties population
 end
 
 to-report prev-properties-of [population]
-  report table:get prev-ball-population-properties population
+  report table:get prev-population-properties population
 end
 
 to set-prop [population property value]
@@ -940,19 +888,19 @@ to-report has-field
   report field-number > 0
 end
 
-to-report field-exists
-  report electric-field-count > 0
-end
+;to-report field-exists
+;  report electric-field-count > 0
+;end
 
 to recolor-patch
   (ifelse
     has-wall [set pcolor wall-color ]
     has-field [set pcolor electric-field-color ]
-    [set pcolor current-background-color] )
+    [set pcolor background-color]
+  )
 end
 
-to paint-world
-  set current-background-color background-color
+to set-background-color-button-clicked
   recolor-all-patches
   log-command "paint-world"
 end
@@ -1010,29 +958,29 @@ to reset-balls-collided-with
 end
 
 to run-animations
-  ask animations [animate]
+  every 0.05 [
+    if any? animations [
+      ask animations [animate]
+      set animation-ticks animation-ticks + 1
+    ]
+  ]
 end
 
 to animate
-  run animator
+  (ifelse
+    -name = "flash" [animate-flash]
+    -name = "mark" [remove-animation-if-past-lifespan]
+    -name = "patch-flash" [remove-animation-if-past-lifespan]
+    -name = "rotate" [rotate-animation]
+    -name = "inflate" [increase-animation-size]
+    -name = "draw" [remove-animation-if-past-lifespan]
+  )
 end
 
 to-report any-moving-balls?
   let any-ball-moving false
   ask balls [if ball-can-move [set any-ball-moving true stop]]
   report any-ball-moving;
-end
-
-to update-display
-  display
-  ; the no-display is not supported by netlogo web. the reasoning for setting no-display
-  ; is so that commands ran while the world was advancing did not update the display and
-  ; make execution slower, such as when a new turtle is created. Need to make sure if
-  ; display really does get updated when new turtles are created, and if so, maybe set them
-  ; to hidden, and and set them to shown on end of turn, so that multiples turtles created one after
-  ; other do not slow down execution by updating display all the time.
-  ;no-display
-  set last-tick-display-was-updated ticks
 end
 
 to advance-ticks
@@ -1300,7 +1248,7 @@ to set-mark-size [mark -size]
 end
 
 to remove-animation-if-past-lifespan
-  if ticks - birthday > lifespan [die]
+  if animation-ticks - birthday > lifespan [die]
 end
 
 to rotate-animation
@@ -1316,14 +1264,11 @@ to increase-animation-size
   remove-animation-if-past-lifespan
 end
 
-to flash-animation
+to animate-flash
   let flash-rate table:get data "flash-every-n-ticks"
-  let should-change-color ticks mod flash-rate = 0
-  if should-change-color [
-    let is-flashing table:get data "is-flashing"
-    let next-color ifelse-value is-flashing [table:get data "original-color"] [table:get data "flash-color"]
-    table:put data "is-flashing" not is-flashing
-    set color next-color
+  let should-flash animation-ticks mod flash-rate = 0
+  if should-flash [
+    ifelse hidden? [show-turtle] [hide-turtle]
   ]
   remove-animation-if-past-lifespan
 end
@@ -1336,10 +1281,39 @@ to run-animate-block [node population objects]
   let -color add-transparency table:get parameters "color" 0.35
   let -lifespan table:get parameters "lifespan"
   (ifelse
-    -effect = "rotate" [create-rotating-animation -shape -size -color -lifespan]
-    -effect = "flash" [create-flashing-animation -shape -size -color -lifespan]
+    -effect = "rotate" [hatch-rotating-animation -shape -size -color -lifespan]
+    -effect = "flash" [let -animation hatch-flashing-animation -shape -size -color -lifespan]
     -effect = "inflate" [create-inflating-animation -shape -size -color -lifespan]
   )
+end
+
+to flash-outline [duration -color]
+  ifelse already-flashing-outline [
+    extend-lifespan-of-flashing-outline ]
+  [
+    hatch-flashing-outline duration -color
+  ]
+end
+
+to extend-lifespan-of-flashing-outline
+  ask one-of link-neighbors with [is-animation? self and -name = "flash"] [reset-animation-lifespan]
+end
+
+to-report already-flashing-outline
+  report any? link-neighbors with [is-animation? self and -name = "flash"]
+end
+
+to hatch-flashing-outline [duration -color]
+  let outline-thickness min (list (size * 1.5) (size + 0.5))
+  let -flash hatch-flashing-animation shape outline-thickness -color duration
+  ask -flash [tie-to-myself]
+end
+
+to tie-to-myself
+  create-link-from myself [
+    tie
+    hide-link
+  ]
 end
 
 to create-inflating-animation [-shape -size -color -lifespan]
@@ -1351,20 +1325,20 @@ to create-inflating-animation [-shape -size -color -lifespan]
   ]
 end
 
-to create-flashing-animation [-shape -size -color -lifespan]
+to-report hatch-flashing-animation [-shape -size -color -lifespan]
+  let -animation nobody
   ask hatch-animation "flash" -lifespan [
+    set -animation self
     set shape -shape
     set size -size
     set color -color
     set data table:from-list (list
-      (list "flash-every-n-ticks" 2)
-      (list "is-flashing" false)
-      (list "original-color" -color)
-      (list "flash-color" set-color-brightness -color 1))
+      (list "flash-every-n-ticks" 1))
   ]
+  report -animation
 end
 
-to create-rotating-animation [-shape -size -color -lifespan]
+to hatch-rotating-animation [-shape -size -color -lifespan]
   ask hatch-animation "rotate" -lifespan [
     set shape -shape
     set size -size
@@ -1400,15 +1374,15 @@ to-report create-animation [name -lifespan]
   report created-animation
 end
 
-to initialize-animator
-  set animator get-animator -name
-end
+;to initialize-animator
+;  set animator get-animator -name
+;end
 
 to initialize-animation [name -lifespan]
   set -name name
-  set birthday ticks
+  set birthday animation-ticks
   set lifespan -lifespan
-  initialize-animator
+  ;initialize-animator
   set data table:make
   set label ""
   set label-color white
@@ -1440,7 +1414,6 @@ to run-draw-block [node population objects]
     set heading 0
     show-turtle
     set birthday ticks
-    set animator [[] -> remove-animation-if-past-lifespan]
   ]
 end
 
@@ -1484,7 +1457,7 @@ to mark-objects [mark objects]
   ask mark [
     set size -size
     setxy -xcor -ycor
-    extend-animation-lifespan
+    reset-animation-lifespan
   ]
 end
 
@@ -1900,30 +1873,43 @@ to-report properties-that-changed-for-population [population]
 end
 
 to notify-property-changed-for-population [population property]
-  (run property-changed-procedure property population)
+  (ifelse
+    property = "shape" [update-shapes-of-population population]
+    property = "size" [update-size-of-population population]
+    property = "color" [update-color-of-population population]
+    property = "secondary-colors" [update-color-of-population population]
+  )
 end
 
-to-report property-changed-procedure [property]
-  report table:get-or-default property-change-procedure-lookup property [[population] -> ]
-end
+;to-report property-changed-procedure [property]
+;  report table:get-or-default property-change-procedure-lookup property [[population] -> ]
+;end
 
-to-report global-variable-changed-procedure [global-variable]
-  report table:get-or-default global-variables-new-value-handlers global-variable [[new-value] -> ]
-end
+;to-report global-variable-changed-procedure [global-variable]
+;  report table:get-or-default global-variables-set-handlers global-variable [[new-value] -> ]
+;end
 
 to-report global-variables-that-changed
   let current global-variable-values
   let prev global-variables-record
-  let changed-values table:from-list map [global-variable -> (list global-variable table:get current global-variable)] (unequal-keys prev current)
+  let -global-variables-that-changed table:from-list map [global-variable -> (list global-variable table:get current global-variable)] (unequal-keys prev current)
   set global-variables-record current
-  report changed-values
+  report -global-variables-that-changed
+end
+
+to handle-global-variable-set [name value]
+  (ifelse
+    name = "show-name" [ifelse value [show-balls-labels] [hide-balls-labels]]
+    name = "color-speed" [if not value [ask balls [update-ball-color]]]
+  )
 end
 
 to notify-of-global-variable-changes
-  let changed-global-variables global-variables-that-changed
-  foreach table:keys changed-global-variables [global-variable ->
-    let new-value table:get changed-global-variables global-variable
-    (run global-variable-changed-procedure global-variable new-value) ]
+  let -global-variables-that-changed global-variables-that-changed
+  foreach table:keys -global-variables-that-changed [global-variable ->
+    let new-value table:get -global-variables-that-changed global-variable
+    handle-global-variable-set global-variable new-value
+  ]
 end
 
 to notify-properties-that-changed-for-population [population]
@@ -1993,7 +1979,7 @@ to on-world-advanced
 end
 
 to advance-state-of-world
-  every (time-delta-per-tick) [
+  every (tick-delta) [
     advance-balls-in-world
     advance-ticks
     on-world-advanced
@@ -2014,7 +2000,7 @@ end
 
 to on-end-of-turn
   set brush-activated-after-model-was-advanced false
-  set prev-ball-population-properties copy-table ball-population-properties
+  set prev-population-properties copy-table population-properties
   notify-of-global-variable-changes
   check-if-should-color-balls-relative-to-population-speed
 end
@@ -2027,9 +2013,9 @@ to on-start-of-turn
     update-ball-population-properties-defined-in-nettango-blocks ]
 end
 
-to-report prev-global-variable [name]
-  report table:get global-variables-record name
-end
+;to-report prev-global-variable [name]
+;  report table:get global-variables-record name
+;end
 
 to check-if-should-color-balls-relative-to-population-speed
   if color-speed [color-balls-relative-to-population-speed]
@@ -2096,7 +2082,7 @@ end
 ; patch procedure
 to create-flash-here [-flash-color]
   let -effect "patch-flash"
-  let -lifespan flash-time
+  let -lifespan 15
   ask sprout-animation -effect -lifespan [
     set color -flash-color
     set shape "square"
@@ -2115,11 +2101,12 @@ end
 
 ; patch procedure
 to extend-lifespan-of-flash-here
-  ask one-of animations with [-name = "patch-flash"] [extend-animation-lifespan]
+  ask one-of animations-here with [-name = "patch-flash"] [reset-animation-lifespan]
 end
 
-to extend-animation-lifespan
-  set lifespan lifespan + animation-age
+to reset-animation-lifespan
+  ;set lifespan lifespan + animation-age
+  set birthday animation-ticks
 end
 
 to-report animation-age
@@ -2147,7 +2134,7 @@ end
 
 ; ball procedure
 to-report move-distance
-  report (speed * time-delta-per-tick)
+  report (speed * tick-delta)
 end
 
 to-report edge-patches-with-electric-field-like-mine
@@ -2357,8 +2344,8 @@ end
 
 to change-speed-after-wall-collision [speed-change]
   if (speed-change = "zero")     [ set speed 0 ]
-  if (speed-change = "increase")[set speed speed + speed-delta-after-collision]
-  if (speed-change = "decrease")[set speed speed - speed-delta-after-collision]
+  if (speed-change = "increase")[set speed speed + collision-speed-delta]
+  if (speed-change = "decrease")[set speed speed - collision-speed-delta]
   if (speed-change = "collide") and (speed-change != "collide")
                      [user-message (word "You cannot pair non-collide heading change with collide speed change.")]
 end
@@ -2379,7 +2366,7 @@ to flash-wall-at [-xcor -ycor]
 end
 
 to increase-wall-collision-count-for-ball-population
-  increment-table-value wall-collision-count population-num 1
+  increment-table-value wall-collisions population-num 1
 end
 
 to collide-with-wall [heading-change wall-direction xpos ypos]
@@ -2465,8 +2452,8 @@ end
 to perform-collision-speed-change [speed-change]
   (ifelse
     (speed-change = "zero")    [set speed 0]
-    (speed-change = "increase")[set speed speed + speed-delta-after-collision]
-    (speed-change = "decrease")[set speed speed - speed-delta-after-collision]
+    (speed-change = "increase")[set speed speed + collision-speed-delta]
+    (speed-change = "decrease")[set speed speed - collision-speed-delta]
   )
 end
 
@@ -2474,8 +2461,8 @@ to perform-collision-speed-change-old [other-ball speed-change]
   ; close duplication of other function
   (ifelse
     (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + speed-delta-after-collision ask other-ball [set speed speed + speed-delta-after-collision]]
-    (speed-change = "decrease")[set speed speed - speed-delta-after-collision ask other-ball [set speed speed - speed-delta-after-collision]]
+    (speed-change = "increase")[set speed speed + collision-speed-delta ask other-ball [set speed speed + collision-speed-delta]]
+    (speed-change = "decrease")[set speed speed - collision-speed-delta ask other-ball [set speed speed - collision-speed-delta]]
   )
 end
 
@@ -2615,8 +2602,8 @@ to perform-collision-speed-change-with [other-ball]
   let heading-change collision-heading-change other-ball
   (ifelse
     (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + speed-delta-after-collision ask other-ball [set speed speed + speed-delta-after-collision]]
-    (speed-change = "decrease")[set speed speed - speed-delta-after-collision ask other-ball [set speed speed - speed-delta-after-collision]]
+    (speed-change = "increase")[set speed speed + collision-speed-delta ask other-ball [set speed speed + collision-speed-delta]]
+    (speed-change = "decrease")[set speed speed - collision-speed-delta ask other-ball [set speed speed - collision-speed-delta]]
     ((speed-change = "collide") and (heading-change != "collide")) or ((speed-change != "collide") and (heading-change = "collide"))
                       [user-message (word "You cannot pair non-collision heading change with collision speed change.")]
     ((speed-change = "attract") and (heading-change != "attract")) or ((speed-change != "attract") and (heading-change = "attract"))
@@ -2798,7 +2785,7 @@ to-report is-ball-affected-by-repel-or-attract-forces
 end
 
 to-report balls-of [population]
-  report table:get-or-default balls-by-population population no-turtles
+  report table:get-or-default population-balls population no-turtles
 end
 
 to apply-force-on [other-balls force]
@@ -2833,8 +2820,8 @@ to apply-force-on [other-balls force]
 end
 
 to apply-forces-acting-on-ball
-  let vx (sin heading * speed) + (force-x-sum * time-delta-per-tick)
-  let vy (cos heading * speed) + (force-y-sum * time-delta-per-tick)
+  let vx (sin heading * speed) + (force-x-sum * tick-delta)
+  let vy (cos heading * speed) + (force-y-sum * tick-delta)
   set speed sqrt ((vy ^ 2) + (vx ^ 2))
   if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
 end
@@ -2871,8 +2858,8 @@ to-report force-vector-acting-on-ball
     ]
   ]
 
-  let vx (sin heading * speed) + (my-field-x * time-delta-per-tick)
-  let vy (cos heading * speed) + (my-field-y * time-delta-per-tick)
+  let vx (sin heading * speed) + (my-field-x * tick-delta)
+  let vy (cos heading * speed) + (my-field-y * tick-delta)
   report (list vx vy)
 end
 
@@ -2890,8 +2877,8 @@ end
 
 to apply-electric-field [field-strength]
   if electric-field-count > 0 [
-    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * time-delta-per-tick)
-    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * time-delta-per-tick)
+    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-delta)
+    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-delta)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
   ]
@@ -2901,10 +2888,13 @@ to factor-electric-field
   apply-electric-field prop "electric-field"
 end
 
-to apply-gravity [strength]  ; turtle procedure
-  ;if speed = 0 [stop]  ; GIGI - why? if speed is 0 then should increase by gravity...
-  let vx (sin heading * speed) + (gravity-acceleration-x * time-delta-per-tick)
-  let vy (cos heading * speed) + (strength * time-delta-per-tick)
+to apply-gravity [y-acceleration]  ; turtle procedure
+  apply-force 0 y-acceleration
+end
+
+to apply-force [x y] ; turtle procedure
+  let vx (sin heading * speed) + (x * tick-delta)
+  let vy (cos heading * speed) + (y * tick-delta)
   set speed sqrt ((vy ^ 2) + (vx ^ 2))
   set heading atan vx vy
 end
@@ -2936,7 +2926,7 @@ to setup   ; called from START NEW TASK button
   select-next-population-in-properties-ui
   setup-brush
   recolor-all-patches
-  update-display
+  display
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2988,7 +2978,7 @@ to-report delimited-population-count
 end
 
 to-report delimited-log-string
-  report (word populations-settings-delimited-string "," amount-of-balls-being-traced "," delimited-population-count "," current-background-color)
+  report (word populations-settings-delimited-string "," amount-of-balls-being-traced "," delimited-population-count "," background-color)
 end
 
 to-report log-header
@@ -3005,25 +2995,25 @@ to set-new-log-filename [fileName]
   let timestamp date-and-time
   let timestamp-no-colon replace-item 2 timestamp "-"
   set timestamp-no-colon replace-item 5 timestamp-no-colon "-"
-  set log-filename (word fileName "_" substring timestamp-no-colon 16 27 "_" substring timestamp-no-colon 0 8 ".csv")
+  set log-file-name (word fileName "_" substring timestamp-no-colon 16 27 "_" substring timestamp-no-colon 0 8 ".csv")
 end
 
 to setup-logging  [fileName]
   set-new-log-filename fileName
   if log-enabled [
-    set log-history log-header
-    send-to:file log-filename log-history
+    set -log log-header
+    send-to:file log-file-name -log
   ]
 end
 
 to set-new-log-photo-filename
-  set log-filename-photo (word substring log-filename 0 (length log-filename - 4) "_" log-picture-count ".png")
+  set log-picture-prefix (word substring log-file-name 0 (length log-file-name - 4) "_" logged-pictures ".png")
 end
 
 to log_picture
   if log-enabled [
     set-new-log-photo-filename
-    export-view log-filename-photo
+    export-view log-picture-prefix
   ]
 end
 
@@ -3034,40 +3024,36 @@ to-report test-if-log-output [command-name]
   ] [report false]
 end
 
-to add-log-history [new-log]
- set log-history word log-history new-log
+to append-to-log [new-log]
+ set -log word -log new-log
 end
 
 to log-command [command-name]
   if (prev-command-name != command-name) [log-output command-name]
 end
 
+to-report time-elapsed
+  report ticks * tick-delta
+end
+
 to log-output [command-name]
   if log-enabled [
-    add-log-history (word timer "," command-name "," ticks ",#," delimited-log-string)
-    send-to:file log-filename log-history
+    append-to-log (word timer "," command-name "," time-elapsed ",#," delimited-log-string)
+    send-to:file log-file-name -log
   set prev-command-name command-name
   set prev-line (word command-name  ",#,"  delimited-log-string)
   ]
 end
 
 to make-halo  ; runner procedure
-  ; when you use HATCH, the new turtle inherits the
-  ; characteristics of the parent.  so the halo will
-  ; be the same color as the turtle it encircles (unless
-  ; you add code to change it
-  hatch-halos 1
-  [ set size 5
-    ; Use an RGB color to make halo three fourths transparent
-    set color lput 64 extract-rgb color
-    ; set thickness of halo to half a patch
-    ; __set-line-thickness 0.5 ;refactor nlw doesnt support this
-    ; We create an invisible directed link from the runner
-    ; to the halo.  Using tie means that whenever the
-    ; runner moves, the halo moves with it.
-    create-link-from myself
-    [ tie
-      hide-link ]
+  hatch-halos 3 [
+    set size ([size] of myself) * 3.5
+    set shape "circle outline"
+    set color add-transparency yellow 0.75
+    create-link-from myself [
+      tie
+      hide-link
+    ]
   ]
   log-command "make-halo"
 end
@@ -3692,7 +3678,7 @@ to display-brush-gfx
 end
 
 to make-sure-brush-gets-updated-in-display-atleast-every [seconds]
-  if brush-activated-after-model-was-advanced [ every seconds [update-display] ]
+  if brush-activated-after-model-was-advanced [ every seconds [display] ]
   ;update-display-every-given-time-interval-if-ticks-have-not-advanced-since-brush-was-last-activated seconds
 end
 
@@ -3747,6 +3733,7 @@ to activate-brush
   set-brush-state
   display-brush-gfx
   draw-with-brush
+  run-animations
   keep-track-of-current-brush-state
 end
 
@@ -4049,7 +4036,7 @@ to-report create-initialized-counter-information-gfx-overlay [-counter-number]
 end
 
 to-report ball-count-in-counter [-counter-number]
-  report table:get-or-default ball-count-in-counters -counter-number 0
+  report table:get-or-default counter-value -counter-number 0
 end
 
 to-report ball-count-gfx [-counter-number]
@@ -4072,18 +4059,18 @@ to-report sprout-initialized-gfx-overlay
 end
 
 to increase-counter [-counter-number]
-  increment-table-value ball-count-in-counters -counter-number 1
+  increment-table-value counter-value -counter-number 1
   update-ball-count-in-counter -counter-number
 end
 
 to-report has-counter-been-initialized [-counter-number]
-  report table:has-key? ball-count-in-counters -counter-number
+  report table:has-key? counter-value -counter-number
 end
 
 to initialize-counter-information-if-not-initialized-yet [-counter-number]
   if not has-counter-been-initialized -counter-number [
     table:put counters-information-gfx -counter-number create-initialized-counter-information-gfx-overlay -counter-number
-    table:put ball-count-in-counters -counter-number 0
+    table:put counter-value -counter-number 0
     update-ball-count-in-counter -counter-number
   ]
 end
@@ -4149,11 +4136,11 @@ to-report highest-counter-number-in-use
 end
 
 to-report highest-counter-number
-  report max table:keys ball-count-in-counters
+  report max table:keys counter-value
 end
 
 to-report any-counters-created-so-far
-  report table:length ball-count-in-counters > 0
+  report table:length counter-value > 0
 end
 
 to-report new-highest-counter-number
@@ -4177,7 +4164,13 @@ to set-counter-number-to-be-drawn-with-brush
 end
 
 to on-brush-held-down-with-trace
-  ifelse is-brush-in-draw-mode [trace balls-in-patches-brush-is-drawing-on] [stop-tracing balls-in-patches-brush-is-drawing-on]
+  ifelse is-brush-in-draw-mode [trace-balls-brush-is-drawing-on] [stop-tracing balls-in-patches-brush-is-drawing-on]
+end
+
+to trace-balls-brush-is-drawing-on
+  let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
+  ask balls-to-trace [flash-outline 5 white]
+  trace balls-to-trace
 end
 
 to on-brush-held-down-with-halo
@@ -4595,41 +4588,11 @@ to-report is-root-node [node]
   report not table:has-key? node "parent-id"
 end
 
-to-report formula-to-atom-count-string [formula]
-  let formula-atom-count count-atoms-in-chemical-formula formula
-  let formula-string ""
-  foreach formula-atom-count [atom-count -> set formula-string (word formula-string first atom-count last atom-count)]
-  report formula-string
-end
-
-to-report is-chemical-equation-balanced [lhs rhs]
-  let lhs-atom-count count-atoms-in-chemical-formula lhs
-  let rhs-atom-count count-atoms-in-chemical-formula rhs
-  report lhs-atom-count = rhs-atom-count
-end
-
-to-report count-atoms-in-chemical-formula [formula]
-  let atom-count table:make
-  foreach formula [compound -> count-atoms-in-compound compound atom-count]
-  report sort-by [[count1 count2] -> first count1 < first count2] table:to-list atom-count
-end
-
 to throw-ast-error [node message]
   let x (word "Error parsing node '" node-name node "'\n" message "\n")
     ;"Path to block: " reduce [[result next] -> (word result " -> " next)] path-to-node-from-root node)
   set x (word x "\n" string-path-to-node table:get ast-by-population 1 node)
   error x
-end
-
-to count-atoms-in-compound [compound atom-count]
-  let coefficient first compound
-  let elemental-molecules-in-compound but-first compound
-  foreach elemental-molecules-in-compound [elemental-molecule ->
-    let element first elemental-molecule
-    let amount last elemental-molecule
-    let element-count-in-compound coefficient * amount
-    increment-table-value atom-count element element-count-in-compound
-  ]
 end
 
 to increment-table-value [dict key increment]
@@ -4854,7 +4817,7 @@ BUTTON
 181
 121
 Set
-paint-world
+set-background-color-button-clicked
 NIL
 1
 T
@@ -5002,7 +4965,7 @@ brush-size
 brush-size
 1
 10
-3.0
+8.0
 1
 1
 NIL
@@ -5270,7 +5233,7 @@ SWITCH
 79
 flash-wall-collision
 flash-wall-collision
-1
+0
 1
 -1000
 
@@ -5339,7 +5302,7 @@ MONITOR
 796
 596
 Population 1
-table:get-or-default wall-collision-count 1 0
+table:get-or-default wall-collisions 1 0
 17
 1
 11
@@ -5360,7 +5323,7 @@ MONITOR
 878
 596
 Population 2
-table:get-or-default wall-collision-count 1 0
+table:get-or-default wall-collisions 1 0
 17
 1
 11
@@ -5399,7 +5362,7 @@ BUTTON
 501
 610
 Step
-go\nupdate-display
+go\ndisplay
 NIL
 1
 T
