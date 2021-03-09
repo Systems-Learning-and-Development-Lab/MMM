@@ -3178,20 +3178,35 @@ to on-brush-used-with-wall
   ifelse is-brush-in-draw-mode [create-wall-in-patches patches-brush-is-drawing-on] [remove-wall-from-patches patches-brush-is-drawing-on]
 end
 
-to on-wall-brush-button-clicked
-  if is-first-time-radio-button-is-pressed-down "wall" [
-    set-brush-type "wall"
-    set-brush-style-as-free-form ]
-  if should-release-brush-radio-button? "wall" [stop]
-  activate-brush
-end
+;to on-wall-brush-button-clicked
+;  if is-first-time-radio-button-is-pressed-down "wall" [
+;    set-brush-type "wall"
+;    set-brush-style-as-free-form ]
+;  if should-release-brush-radio-button? "wall" [stop]
+;  activate-brush
+;end
 
 to on-erase-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "erase" [
-    set-brush-style-as-free-form ]
+    set-brush-style-as-free-form
+    set-brush-type "wall"
+    user-set-brush-to-erase
+  ]
   if should-release-brush-radio-button? "erase" [stop]
-  set-brush-type "wall"
-  user-set-brush-to-erase
+  activate-brush
+end
+
+to on-draw-wall-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "wall" [
+    set-brush-type "wall"
+  ]
+  if should-release-brush-radio-button? "wall" [stop]
+  ifelse קיר = "צורה" [
+    set-brush-style-as-free-form
+  ] [
+    set-shape-drawn-by-brush wall-shape-hebrew-to-english קיר
+    set-brush-style-as-shape
+  ]
   activate-brush
 end
 
@@ -3199,13 +3214,42 @@ to on-erase-marker-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "erase-mark" [
     set-brush-style-as-free-form ]
   if should-release-brush-radio-button? "erase-mark" [stop]
-  if (brush-type != "counter") and (brush-type != "halo") and (brush-type != "trace") [
-    set-brush-type "counter" ]
+  set-brush-type marker-hebrew-to-english סמן
   user-set-brush-to-erase
   (ifelse
     brush-type = "counter" [set brush-size 1]
-    brush-type = "halo" [set brush-size 3]
-    brush-type = "trace" [set brush-size 3]
+    brush-type = "halo" [set brush-size 1]
+    brush-type = "trace" [set brush-size 1]
+  )
+  activate-brush
+end
+
+to-report marker-hebrew-to-english [hebrew]
+  (ifelse
+    hebrew = "הילה" [report "halo"]
+    hebrew = "מעקב אחרי כדור" [report "trace"]
+    hebrew = "מונה כדורים" [report "counter"]
+  )
+end
+
+to-report wall-shape-hebrew-to-english [hebrew]
+  (ifelse
+    hebrew = "ריבוע" [report "square"]
+    hebrew = "מעגל" [report "circle"]
+    hebrew = "קו" [report "line"]
+  )
+end
+
+to on-draw-marker-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "draw-mark" [
+    set-brush-style-as-free-form ]
+  if should-release-brush-radio-button? "draw-mark" [stop]
+  set-brush-type marker-hebrew-to-english סמן
+  user-set-brush-to-draw
+  (ifelse
+    brush-type = "counter" [set brush-size 1]
+    brush-type = "halo" [set brush-size 1]
+    brush-type = "trace" [set brush-size 1]
   )
   activate-brush
 end
@@ -3460,9 +3504,9 @@ ticks
 
 SLIDER
 115
-370
+331
 269
-403
+364
 מספר-כדורים-להוספה
 מספר-כדורים-להוספה
 1
@@ -3526,9 +3570,9 @@ NIL
 
 BUTTON
 40
-410
+371
 125
-443
+404
 מחיקת כדורים
 clear-drawing\nerase-all-balls-of-population-selected-in-ui
 NIL
@@ -3542,10 +3586,10 @@ NIL
 0
 
 BUTTON
-123
-700
-220
-733
+129
+668
+226
+701
 שמירה
 save-existing-layout
 NIL
@@ -3559,10 +3603,10 @@ NIL
 0
 
 BUTTON
-20
-699
-115
-732
+26
+667
+121
+700
 טעינה
 load-existing-layout
 NIL
@@ -3587,10 +3631,10 @@ INPUTBOX
 Color
 
 BUTTON
-21
-280
-117
-316
+22
+240
+118
+276
 מחיקת קיר
 set brush-size 1\non-erase-wall-brush-button-clicked
 T
@@ -3604,114 +3648,12 @@ NIL
 0
 
 BUTTON
-122
-174
-223
-234
-ציור קיר
-set brush-size 1\nuser-set-brush-to-draw\non-wall-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-21
-239
-117
-274
-ציור מעגל
-set brush-size 1\nuser-set-brush-to-draw\non-wall-circle-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-122
-239
-223
-275
-ציור ריבוע
-set brush-size 1\nuser-set-brush-to-draw\non-wall-square-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-16
-579
-94
-612
-מונה כדורים
-set brush-size 1\nuser-set-brush-to-draw\non-counter-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
 131
-410
+371
 223
-443
+404
 הוספת כדורים
 set brush-size 1\nuser-set-brush-to-draw\non-ball-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-148
-538
-229
-571
-הילה
-set brush-size 3\nuser-set-brush-to-draw\non-halo-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-16
-538
-138
-571
-מעקב אחרי כדור
-set brush-size 3\nuser-set-brush-to-draw\non-trace-brush-button-clicked
 T
 1
 T
@@ -3732,23 +3674,6 @@ TEXTBOX
 0.0
 1
 
-BUTTON
-122
-280
-223
-316
-ציור קו
-set brush-size 1\nuser-set-brush-to-draw\non-wall-line-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
 INPUTBOX
 21
 174
@@ -3761,10 +3686,10 @@ INPUTBOX
 Color
 
 SWITCH
-99
-579
-230
-612
+59
+584
+190
+617
 התנגשויות-בקיר
 התנגשויות-בקיר
 0
@@ -3773,9 +3698,9 @@ SWITCH
 
 SLIDER
 8
-369
+330
 107
-402
+363
 מספר-קבוצה
 מספר-קבוצה
 1
@@ -3788,9 +3713,9 @@ HORIZONTAL
 
 BUTTON
 40
-449
+410
 223
-482
+443
 מחיקת כל הכדורים
 clear-drawing\nremove-all-balls
 NIL
@@ -3805,29 +3730,29 @@ NIL
 
 TEXTBOX
 100
-342
+303
 197
-360
+321
 כדורים
 14
 0.0
 1
 
 TEXTBOX
-98
-508
-198
-526
+99
+469
+199
+487
 סימונים
 14
 0.0
 1
 
 TEXTBOX
-78
-674
-228
-692
+84
+642
+234
+660
 הפעלת מודל
 14
 0.0
@@ -3915,10 +3840,10 @@ item 1 wall-collision-count
 11
 
 BUTTON
-74
-620
-180
-653
+32
+545
+121
+578
 מחיקת סימון
 on-erase-marker-brush-button-clicked
 T
@@ -3929,6 +3854,60 @@ NIL
 NIL
 NIL
 NIL
+0
+
+CHOOSER
+64
+495
+186
+540
+סמן
+סמן
+"הילה" "מעקב אחרי כדור" "מונה כדורים"
+1
+
+BUTTON
+127
+545
+216
+578
+ציור סימון
+on-draw-marker-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+123
+240
+219
+276
+ציור קיר
+set brush-size 1\non-draw-wall-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+CHOOSER
+127
+181
+219
+226
+קיר
+קיר
+"צורה" "מעגל" "ריבוע" "קו"
 0
 
 @#$#@#$#@
