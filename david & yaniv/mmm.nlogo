@@ -3686,10 +3686,10 @@ INPUTBOX
 Color
 
 SWITCH
-59
-584
-190
-617
+134
+501
+265
+534
 התנגשויות-בקיר
 התנגשויות-בקיר
 0
@@ -3840,9 +3840,9 @@ item 1 wall-collision-count
 11
 
 BUTTON
-32
+42
 545
-121
+131
 578
 מחיקת סימון
 on-erase-marker-brush-button-clicked
@@ -3857,19 +3857,19 @@ NIL
 0
 
 CHOOSER
-64
-495
-186
-540
+9
+496
+131
+541
 סמן
 סמן
 "הילה" "מעקב אחרי כדור" "מונה כדורים"
 1
 
 BUTTON
-127
+135
 545
-216
+224
 578
 ציור סימון
 on-draw-marker-brush-button-clicked
