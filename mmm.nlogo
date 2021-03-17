@@ -16,7 +16,6 @@ globals [
 
   ;==== electric field ====
   electric-field-color
-  electric-field-count
   patches-brush-drew-electric-field-on
 
   ;==== nettango ====
@@ -24,7 +23,7 @@ globals [
   run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
 
   ;==== ast ==== abstract syntax tree, nested structure of nettango blocks.
-  ast-by-population
+  blocks
   curr-ast-by-population    ; used for comparison of prev ast to check for changes
   prev-ast-by-population    ; used for comparison to check for changes
   node-runners    ; hashes node name to procedure that runs block
@@ -111,9 +110,8 @@ animations-own
 [
   lifespan
   birthday                   ; tick count animation was created
-  ;animator                    ; anonymous procedure to animate animation, use 'ask -animation [run animator]'
   data                       ; data can be anything the animation needs. table variable
-  -name                      ; used to retrieve animator by name
+  -name                      ; name of animation
 ]
 
 balls-own
@@ -150,7 +148,6 @@ to initialize-properties-for-populations [populations]
 end
 
 to crt-pop
-  ; only used in desktop version, since we dont have blocks to define population properties.
   let pop-properties table:make
   table:put pop-properties 1 table:from-list
     [
@@ -269,7 +266,6 @@ to initialize-global-values
   set max-speed 20
   set look-ahead-wall-collision 0.6
   set electric-field-color 87
-  set electric-field-count 0
   set repulsion-strength 100
   set attraction-strength 30
   set collision-depth-threshold 0.99
@@ -369,7 +365,7 @@ to initialize-ast
   set nodes-by-id []
   set last-used-nodes-by-id []
   set id-counter 0
-  set ast-by-population table:make
+  set blocks table:make
   set curr-ast-by-population table:make
   set prev-ast-by-population table:make
   initialize-procedures-to-run-ast-node-lookup-table
@@ -807,7 +803,8 @@ end
 to create-electric-field-in-direction-configured-by-brush
   let current-patch []  ; will hold a patch that is being processed
 
-  let list-patches  sort patches with [field-number = electric-field-count  ]   ; list of patches that were marked
+  let electric-field-count [field-number] of one-of patches-brush-drew-electric-field-on
+  let list-patches patches-brush-drew-electric-field-on
   ask (patch-set list-patches) [recolor-patch]
   ask arrows [set color electric-field-color - 4]
   ; fill patches in connected componnent with field-color
@@ -870,10 +867,6 @@ to remove-electric-field-from-patch
   set accum-w  0
 end
 
-to update-field-count
-  set electric-field-count max [field-number] of patches
-end
-
 to erase-field [-field-number]
   let patches-occupied-by-field patches with [field-number = -field-number]
   ask patches-occupied-by-field
@@ -881,16 +874,11 @@ to erase-field [-field-number]
     remove-electric-field-from-patch
     recolor-patch
   ]
-  update-field-count
 end
 
 to-report has-field
   report field-number > 0
 end
-
-;to-report field-exists
-;  report electric-field-count > 0
-;end
 
 to recolor-patch
   (ifelse
@@ -910,7 +898,7 @@ to recolor-all-patches
 end
 
 to-report interaction-clause-of-population [population]
-  report child-by-name table:get ast-by-population population "interactions"
+  report child-by-name table:get blocks population "interactions"
 end
 
 to netlogo-web-advance-balls-in-world
@@ -1941,10 +1929,10 @@ to update-ball-population-properties-defined-in-nettango-blocks
   ;todo parsing is redundant if ast has not changed
   ;need to run actions here
   foreach (range 1 (amount-of-populations + 1)) [ population ->
-    parse-actions-and-properties-of-configure-population-block table:get ast-by-population population
+    parse-actions-and-properties-of-configure-population-block table:get blocks population
   ]
   foreach (range 1 (amount-of-populations + 1)) [ population ->
-    run-actions-and-properties-of-configure-population-block table:get ast-by-population population
+    run-actions-and-properties-of-configure-population-block table:get blocks population
   ]
   foreach (range 1 (amount-of-populations + 1)) [ population ->
     parse-interactions-clause interaction-clause-of-population population population
@@ -1954,7 +1942,7 @@ end
 
 to keep-prev-ast-if-new-ast-did-not-change
   if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
-    set ast-by-population copy-table curr-ast-by-population
+    set blocks copy-table curr-ast-by-population
     set last-used-nodes-by-id nodes-by-id
   ]
   set prev-ast-by-population table-as-list curr-ast-by-population
@@ -2876,7 +2864,7 @@ to factor-repel-and-attract-forces  ; turtle procedure consider repel and attrac
 end
 
 to apply-electric-field [field-strength]
-  if electric-field-count > 0 [
+  if field-number > 0 [
     let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-delta)
     let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-delta)
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
@@ -3895,17 +3883,20 @@ end
 
 to-report is-brush-currently-configuring-a-field
   report length patches-brush-drew-electric-field-on > 0
-  ;report last-patch-brush-configured-field-on != nobody
 end
 
 to-report has-electric-field
   report field-number != 0
 end
 
+to-report new-electric-field-number
+  report (max [field-number] of patches) + 1
+end
+
 to configure-new-field-with-brush
   if not [has-wall] of patch-under-brush and not [has-electric-field] of patch-under-brush[
-    set electric-field-count electric-field-count + 1
     set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on
+    ask patch-under-brush [set field-number new-electric-field-number]
     configure-current-field-with-brush
   ]
 end
@@ -3924,6 +3915,7 @@ to configure-current-field-with-brush
   let field-y-value 0
   let prev-mouse-xcor item 0 mousexy-when-brush-was-last-activated
   let prev-mouse-ycor item 1 mousexy-when-brush-was-last-activated
+  let electric-field-count [field-number] of one-of patches-brush-drew-electric-field-on
   if patch-under-brush != last patches-brush-drew-electric-field-on [
     set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on]
 
@@ -4591,7 +4583,7 @@ end
 to throw-ast-error [node message]
   let x (word "Error parsing node '" node-name node "'\n" message "\n")
     ;"Path to block: " reduce [[result next] -> (word result " -> " next)] path-to-node-from-root node)
-  set x (word x "\n" string-path-to-node table:get ast-by-population 1 node)
+  set x (word x "\n" string-path-to-node table:get blocks 1 node)
   error x
 end
 
@@ -4965,7 +4957,7 @@ brush-size
 brush-size
 1
 10
-8.0
+3.0
 1
 1
 NIL
