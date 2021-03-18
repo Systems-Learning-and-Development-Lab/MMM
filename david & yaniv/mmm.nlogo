@@ -3198,13 +3198,17 @@ end
 
 to on-draw-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "wall" [
-    set-brush-type "wall"
   ]
   if should-release-brush-radio-button? "wall" [stop]
-  ifelse קיר = "צורה" [
+  ifelse סוג-מברשת = "שדה חשמלי" [
+    set-brush-type "field" ]
+  [
+    set-brush-type "wall"
+  ]
+  ifelse סוג-מברשת = "קיר" or סוג-מברשת = "שדה חשמלי" [
     set-brush-style-as-free-form
   ] [
-    set-shape-drawn-by-brush wall-shape-hebrew-to-english קיר
+    set-shape-drawn-by-brush wall-shape-hebrew-to-english סוג-מברשת
     set-brush-style-as-shape
   ]
   activate-brush
@@ -3237,6 +3241,7 @@ to-report wall-shape-hebrew-to-english [hebrew]
     hebrew = "ריבוע" [report "square"]
     hebrew = "מעגל" [report "circle"]
     hebrew = "קו" [report "line"]
+    hebrew = "שדה חשמלי" [report "field"]
   )
 end
 
@@ -3905,9 +3910,9 @@ CHOOSER
 181
 219
 226
-קיר
-קיר
-"צורה" "מעגל" "ריבוע" "קו"
+סוג-מברשת
+סוג-מברשת
+"קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
 0
 
 @#$#@#$#@
