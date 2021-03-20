@@ -3160,7 +3160,7 @@ to remove-balls-from-patches-brush-is-drawing-on
 end
 
 to-report number-of-balls-to-add
-  report מספר-כדורים-להוספה
+  report כדורים-להוספה
 end
 
 to-report population-selected-in-ui
@@ -3189,10 +3189,14 @@ end
 to on-erase-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "erase" [
     set-brush-style-as-free-form
-    set-brush-type "wall"
     user-set-brush-to-erase
   ]
   if should-release-brush-radio-button? "erase" [stop]
+  ifelse סוג-מברשת = "שדה חשמלי" [
+    set-brush-type "field" ]
+  [
+    set-brush-type "wall"
+  ]
   activate-brush
 end
 
@@ -3508,12 +3512,12 @@ ticks
 30.0
 
 SLIDER
-115
+118
 331
-269
+240
 364
-מספר-כדורים-להוספה
-מספר-כדורים-להוספה
+כדורים-להוספה
+כדורים-להוספה
 1
 100
 10.0
@@ -3574,10 +3578,10 @@ NIL
 0
 
 BUTTON
-40
-371
-125
-404
+34
+372
+119
+405
 מחיקת כדורים
 clear-drawing\nerase-all-balls-of-population-selected-in-ui
 NIL
@@ -3592,10 +3596,10 @@ NIL
 
 BUTTON
 129
+635
+230
 668
-226
-701
-שמירה
+שמירת מודל
 save-existing-layout
 NIL
 1
@@ -3608,11 +3612,11 @@ NIL
 0
 
 BUTTON
-26
-667
-121
-700
-טעינה
+23
+635
+124
+668
+טעינת מודל
 load-existing-layout
 NIL
 1
@@ -3640,7 +3644,7 @@ BUTTON
 240
 118
 276
-מחיקת קיר
+מחיקה
 set brush-size 1\non-erase-wall-brush-button-clicked
 T
 1
@@ -3653,10 +3657,10 @@ NIL
 0
 
 BUTTON
-131
-371
-223
-404
+125
+372
+217
+405
 הוספת כדורים
 set brush-size 1\nuser-set-brush-to-draw\non-ball-brush-button-clicked
 T
@@ -3675,8 +3679,8 @@ TEXTBOX
 157
 103
 ציור
-14
-0.0
+18
+105.0
 1
 
 INPUTBOX
@@ -3702,10 +3706,10 @@ SWITCH
 -1000
 
 SLIDER
-8
-330
-107
-363
+11
+331
+110
+364
 מספר-קבוצה
 מספר-קבוצה
 1
@@ -3717,10 +3721,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-40
-410
-223
-443
+34
+411
+217
+444
 מחיקת כל הכדורים
 clear-drawing\nremove-all-balls
 NIL
@@ -3735,32 +3739,32 @@ NIL
 
 TEXTBOX
 100
-303
+302
 197
-321
+324
 כדורים
-14
-0.0
+18
+105.0
 1
 
 TEXTBOX
 99
 469
 199
-487
-סימונים
-14
-0.0
+491
+סמנים
+18
+105.0
 1
 
 TEXTBOX
-84
-642
-234
-660
+81
+607
+231
+629
 הפעלת מודל
-14
-0.0
+18
+105.0
 1
 
 BUTTON
@@ -3781,23 +3785,23 @@ NIL
 0
 
 TEXTBOX
-525
-541
-636
-559
+514
+539
+625
+561
 מספר כדורים
-12
-0.0
+18
+105.0
 1
 
 TEXTBOX
-690
-540
-796
-558
+673
+539
+779
+561
 פגיעות בקיר
-12
-0.0
+18
+105.0
 1
 
 MONITOR
@@ -3893,7 +3897,7 @@ BUTTON
 240
 219
 276
-ציור קיר
+ציור
 set brush-size 1\non-draw-wall-brush-button-clicked
 T
 1
@@ -3913,7 +3917,7 @@ CHOOSER
 סוג-מברשת
 סוג-מברשת
 "קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
-0
+4
 
 @#$#@#$#@
 ## WHAT IS IT?
