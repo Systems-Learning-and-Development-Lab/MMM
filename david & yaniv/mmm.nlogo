@@ -3849,11 +3849,11 @@ item 1 wall-collision-count
 11
 
 BUTTON
-42
+48
 545
 131
 578
-מחיקת סימון
+מחיקת סמן
 on-erase-marker-brush-button-clicked
 T
 1
@@ -3873,14 +3873,14 @@ CHOOSER
 סמן
 סמן
 "הילה" "מעקב אחרי כדור" "מונה כדורים"
-1
+0
 
 BUTTON
 135
 545
 224
 578
-ציור סימון
+ציור סמן
 on-draw-marker-brush-button-clicked
 T
 1
@@ -3890,7 +3890,7 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 BUTTON
 123
@@ -3917,7 +3917,7 @@ CHOOSER
 סוג-מברשת
 סוג-מברשת
 "קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
-4
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
