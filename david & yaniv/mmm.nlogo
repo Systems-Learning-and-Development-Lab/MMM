@@ -480,7 +480,7 @@ to set-global-values
 
   set maxballs 2000
   set deltaSpeed 0.5;
-  set max-speed 50
+  set max-speed 15
   set lookAhead 0.6
   ;set world-color black
   ;set wall-color blue
@@ -1513,6 +1513,7 @@ if (headingM >= 270) and (headingM < 360)   ; Quadrant IV check only left and up
       if ([has-wall] of new-patch-up)     [perform-hit-wall "up" [pxcor] of new-patch-up [pycor] of new-patch-up stop]
       if ([has-wall] of new-patch)        [perform-hit-wall "corner" [pxcor] of new-patch [pycor] of new-patch stop]
 ]
+
 end
 
 ;ball procedure
@@ -2003,7 +2004,7 @@ to factor-field  ;; turtle procedure consider the electric field
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
     ;set-ball-speed-to-maximum-if-above-max-speed
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
-    if speed > 300 [set speed 300]
+    if speed > 50 [set speed 50]
   ]
 end
 
@@ -2245,7 +2246,7 @@ end
 to remove-wall-in-patch
   if patch-has-wall [
     set has-wall false
-    set pcolor צבע-רקע
+    recolor-patch
   ]
 end
 
@@ -3629,6 +3630,15 @@ if true [
   set-ball-forward-property-for-population current-population-properties-are-being-set-for-in-nettango true
 ]
 if true [
+  #nettango#setup-if-ball-meets-block
+  if true [
+    #nettango#set-if-ball-meets-block-what-ball-meets "wall"
+  ]
+  if true [
+    #nettango#set-heading-change "collide"
+    #nettango#set-speed-change "collide"
+  ]
+  #nettango#teardown-if-ball-meets-block
   #nettango#setup-if-ball-meets-block
   if true [
     #nettango#set-if-ball-meets-block-what-ball-meets "electric-field"
