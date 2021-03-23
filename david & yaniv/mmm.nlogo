@@ -18,6 +18,8 @@ globals [
   log-picture-count
   color-speed
   animation-run-count
+  patches-brush-drew-electric-field-on
+  electric-field-color
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -189,8 +191,6 @@ erasers-own [ pressure? ]    ;; new
 
 patches-own
 [
-  population-field-x  ;;  list of vectors field_x and field_y define the distinct direction and strength of the electric field for each population
-  population-field-y  ;;  list of vectors field_x and field_y define the distinct direction and strength of the electric field for each population
   field-x             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
   field-y             ;;  vector  field_x and field_y define the direction and strength of the electric field within the patch
   accum-x             ;;  accumulates vector  field_x for gobal field computation
@@ -458,6 +458,7 @@ end
 
 to set-global-values
   set tick-count 0
+  set electric-field-color 87
   ;set ball-population-properties table-make
   set ball-population-properties []
   set population-to-set-properties-for-in-ui "-"
@@ -475,10 +476,11 @@ to set-global-values
   set log-picture-count 0
   set wall-collision-count [0 0]
   set log-enabled false
+  set patches-brush-drew-electric-field-on []
 
   set maxballs 2000
   set deltaSpeed 0.5;
-  set max-speed 10
+  set max-speed 50
   set lookAhead 0.6
   ;set world-color black
   ;set wall-color blue
@@ -508,12 +510,6 @@ to set-global-values
   ;set first-click-FLAG TRUE
   ask patches [
     set has-wall false
-    set population-field-x []
-    set population-field-y []
-    ;set population-field-x table:make
-    ;set population-field-y table:make
-    ;set population-field-x table-make
-    ;set population-field-y table-make
   ]
   ;initialize-global-properties
 end                            ;; when we need to remove them.
@@ -712,8 +708,8 @@ to initialize-ball-population-properties [population]
     foreach (range length ball-population-properties population 1) [
       index -> set ball-population-properties insert-item index ball-population-properties []
         ask patches [
-          set population-field-x insert-item index population-field-x 0
-          set population-field-y insert-item index population-field-y 0
+          ;set population-field-x insert-item index population-field-x 0
+          ;set population-field-y insert-item index population-field-y 0
         ]
     ]
   ]
@@ -1070,7 +1066,7 @@ end
 to set-electric-field-property-for-population [population strength]
   if strength != get-ball-population-property population "electric-field" [
     set-property-for-population population "electric-field" strength
-    recalculate-field-values-for-population population
+    ;recalculate-field-values-for-population population
   ]
 end
 
@@ -1102,89 +1098,89 @@ to #nettango#if-ball-meets-gravity [is-population-affected-by-gravity]
   set-gravity-property-for-population population is-population-affected-by-gravity
 end
 
-to paint-arrow [this-patch]
-  if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
-    sprout-arrows 1
-    [
-      set shape "arrow"
-      set color field-color - 4
-      set size 1.0
-      set heading atan field-x field-y
-     ]
-  ]
-end
+;to paint-arrow [this-patch]
+;  if ((((round pxcor) mod 2) = 0) and (((round pycor) mod 2) = 0)) [
+;    sprout-arrows 1
+;    [
+;      set shape "arrow"
+;      set color field-color - 4
+;      set size 1.0
+;      set heading atan field-x field-y
+;     ]
+;  ]
+;end
 
-to fill-field
-  let current-patch []  ; will hold a patch that is being processed
+;to fill-field
+;  let current-patch []  ; will hold a patch that is being processed
+;
+;  let list-patches  sort patches with [field-number = field-count  ]   ; list of patches that were marked
+;  ; fill patches in connected componnent with field-color
+;  while [not empty? list-patches]
+;  [ set current-patch first list-patches
+;    set list-patches but-first list-patches
+;    ask current-patch
+;    ;refactor changed "in-radius-nowrap" to "in-radius"
+;    ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
+;    [    ask patches in-radius 1 with [(not has-wall) and (not has-field)]
+;         [  set pcolor field-color
+;            set field-number field-count
+;            set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
+;         ] ; end ask neighbors
+;    ] ; end ask current-patch
+;  ] ; end field while
+;
+;  ; now spread the field vectors in all the painted field cells WITHIN connected comp ONLY
+;  let list-field-patches []
+;  let marked-patch []  ;first list-field-marked-patches
+;  let dist 0
+;
+;  let list-field-marked-patches  patches with [isPainted = TRUE]  ; list of patches that were marked as field by user
+;  ask  list-field-marked-patches
+;  [   set marked-patch self
+;      set list-field-patches  patches with [ field-number = field-count] ; all patches that were colored within same connected comp
+;      ask list-field-patches
+;      [
+;        set dist sqrt ((pxcor - [pxcor] of  marked-patch) ^ 2 + (pycor - [pycor] of  marked-patch) ^ 2 )
+;;        if dist < max-field-spread  ; spread the field only within a radius
+;        if (dist = 0) [ set dist (1 / (max-pxcor * 2))]   ; weight is 1/dist and so dist should not be 0
+;        set accum-w accum-w + (1 / dist)
+;        set accum-x  accum-x +  ((1 / dist) * [field-x] of marked-patch)
+;        set accum-y  accum-y +  ((1 / dist) * [field-y] of marked-patch)
+;;       ] ; end if dist < max-field-spread
+;    ]
+;  ]
+;
+;  ; now compute the final field values of all field patches
+;  ask list-field-patches
+;  [  if (accum-w != 0)
+;     [   set field-x  (accum-x / accum-w)
+;         set field-y  (accum-y / accum-w)
+;         ; normalize and set to field strength
+;         ;set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
+;         ;set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
+;         set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
+;         set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
+;      ]
+;  ]
+;
+;  foreach population-numbers [population -> recalculate-field-values-for-population population]
+;
+;if (prev-command-name != "fill-field") [
+;         log-output "fill-field"
+;    ]
+;end
 
-  let list-patches  sort patches with [field-number = field-count  ]   ; list of patches that were marked
-  ; fill patches in connected componnent with field-color
-  while [not empty? list-patches]
-  [ set current-patch first list-patches
-    set list-patches but-first list-patches
-    ask current-patch
-    ;refactor changed "in-radius-nowrap" to "in-radius"
-    ;[    ask patches in-radius-nowrap 1 with [ pcolor != wall-color  and pcolor != field-color ]
-    [    ask patches in-radius 1 with [(not has-wall) and (not has-field)]
-         [  set pcolor field-color
-            set field-number field-count
-            set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
-         ] ; end ask neighbors
-    ] ; end ask current-patch
-  ] ; end field while
-
-  ; now spread the field vectors in all the painted field cells WITHIN connected comp ONLY
-  let list-field-patches []
-  let marked-patch []  ;first list-field-marked-patches
-  let dist 0
-
-  let list-field-marked-patches  patches with [isPainted = TRUE]  ; list of patches that were marked as field by user
-  ask  list-field-marked-patches
-  [   set marked-patch self
-      set list-field-patches  patches with [ field-number = field-count] ; all patches that were colored within same connected comp
-      ask list-field-patches
-      [
-        set dist sqrt ((pxcor - [pxcor] of  marked-patch) ^ 2 + (pycor - [pycor] of  marked-patch) ^ 2 )
-;        if dist < max-field-spread  ; spread the field only within a radius
-        if (dist = 0) [ set dist (1 / (max-pxcor * 2))]   ; weight is 1/dist and so dist should not be 0
-        set accum-w accum-w + (1 / dist)
-        set accum-x  accum-x +  ((1 / dist) * [field-x] of marked-patch)
-        set accum-y  accum-y +  ((1 / dist) * [field-y] of marked-patch)
-;       ] ; end if dist < max-field-spread
-    ]
-  ]
-
-  ; now compute the final field values of all field patches
-  ask list-field-patches
-  [  if (accum-w != 0)
-     [   set field-x  (accum-x / accum-w)
-         set field-y  (accum-y / accum-w)
-         ; normalize and set to field strength
-         ;set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
-         ;set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2)))) * Electric-Field-Strength
-         set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
-         set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
-      ]
-  ]
-
-  foreach population-numbers [population -> recalculate-field-values-for-population population]
-
-if (prev-command-name != "fill-field") [
-         log-output "fill-field"
-    ]
-end
-
-to recalculate-field-values-for-population [population]
-  ask patches
-  [
-    set population-field-x replace-item (population - 1) population-field-x (field-x * get-ball-population-property population "electric-field")
-    set population-field-y replace-item (population - 1) population-field-y (field-y * get-ball-population-property population "electric-field")
-    ;table:put population-field-x population (field-x * get-ball-population-property population "electric-field")
-    ;table:put population-field-y population (field-y * get-ball-population-property population "electric-field")
-    ;set population-field-x table-put population-field-x population (field-x * get-ball-population-property population "electric-field")
-    ;set population-field-y table-put population-field-y population (field-y * get-ball-population-property population "electric-field")
-  ]
-end
+;to recalculate-field-values-for-population [population]
+;  ask patches
+;  [
+;    set population-field-x replace-item (population - 1) population-field-x (field-x * get-ball-population-property population "electric-field")
+;    set population-field-y replace-item (population - 1) population-field-y (field-y * get-ball-population-property population "electric-field")
+;    ;table:put population-field-x population (field-x * get-ball-population-property population "electric-field")
+;    ;table:put population-field-y population (field-y * get-ball-population-property population "electric-field")
+;    ;set population-field-x table-put population-field-x population (field-x * get-ball-population-property population "electric-field")
+;    ;set population-field-y table-put population-field-y population (field-y * get-ball-population-property population "electric-field")
+;  ]
+;end
 
 ;;if population > length ball-population-properties [foreach (range length ball-population-properties population 1) [index -> set ball-population-properties insert-item index ball-population-properties [] ]]
 to erase-field [-field-number]
@@ -1198,8 +1194,8 @@ to erase-field [-field-number]
     set accum-x  0
     set accum-y  0
     set accum-w  0
-    set population-field-x n-values length population-numbers [0]
-    set population-field-y n-values length population-numbers [0]
+    ;set population-field-x n-values length population-numbers [0]
+    ;set population-field-y n-values length population-numbers [0]
     ;foreach population-numbers [population -> table:put population-field-x population 0 table:put population-field-y population 0]
     ;foreach population-numbers [population -> set population-field-x table-put population-field-x population 0 set population-field-y table-put population-field-y population 0]
     recolor-patch
@@ -1280,14 +1276,14 @@ to re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
 end
 
 to update-ball-populaiton-properties-defined-in-nettango-blocks
-  let pop1-electric-field get-ball-population-property 1 "electric-field"
-  let pop2-electric-field get-ball-population-property 2 "electric-field"
+  ;let pop1-electric-field get-ball-population-property 1 "electric-field"
+  ;let pop2-electric-field get-ball-population-property 2 "electric-field"
   initialize-ball-population-properties 1
   initialize-ball-population-properties 2
   configure-population-1
   configure-population-2
-  if pop1-electric-field != get-ball-population-property 1 "electric-field" [recalculate-field-values-for-population 1]
-  if pop2-electric-field != get-ball-population-property 2 "electric-field" [recalculate-field-values-for-population 2]
+  ;if pop1-electric-field != get-ball-population-property 1 "electric-field" [recalculate-field-values-for-population 1]
+  ;if pop2-electric-field != get-ball-population-property 2 "electric-field" [recalculate-field-values-for-population 2]
 end
 
 ;to time-run
@@ -1380,8 +1376,11 @@ to renew-lifespan-of-flash-here
 end
 
 to set-ball-xy-to-return-cyclically-around-world
-  set xcor (((xcor + max-pxcor) mod (2 * max-pxcor)) - max-pxcor)
-  set ycor (((ycor + max-pycor) mod (2 * max-pycor)) - max-pycor)
+  let move-distance (speed * tick-advance-amount)
+  let -dx dx * move-distance
+  let -dy dy * move-distance
+  set xcor (((xcor + -dx + max-pxcor) mod (2 * max-pxcor)) - max-pxcor)
+  set ycor (((ycor + -dy + max-pycor) mod (2 * max-pycor)) - max-pycor)
 end
 
 to-report is-ball-being-traced
@@ -1422,10 +1421,12 @@ to move ;; particle procedure
         ; if it is inside a efield then choose random location on an edge patch of that field and move ball to that new location.
         ; ensure that ball returns to same field-number
         ; if it is not inside an efield then it returns cyclically.
-        ifelse field-count > 0  ; there is a field in the world
-        [   let patches-on-edge patches with [(field-number = [field-number] of myself) and (pxcor = max-pxcor  or pxcor = min-pxcor  or pycor = max-pycor  or pycor = min-pycor) ]
+        ifelse field-number > 0  ; there is a field in the world
+        [
+            let patches-on-edge patches with [(field-number = [field-number] of myself) and (pxcor = max-pxcor  or pxcor = min-pxcor  or pycor = max-pycor  or pycor = min-pycor) ]
             ifelse  (any? patches-on-edge)  ; there is atleast 1 patch marked at edge of world
-            [ let  new-patch one-of patches-on-edge   ;
+            [
+              let  new-patch one-of patches-on-edge   ;
               set xcor  [pxcor] of new-patch
               set ycor  [pycor] of new-patch
               if (([field-x] of new-patch != 0) or ([field-y] of new-patch != 0))
@@ -1442,7 +1443,8 @@ to move ;; particle procedure
          ]
       ]
       ; ball did not leave the world - move it and deal with collision with other ball:
-      [   if pahead != patch-here
+      [
+          if pahead != patch-here
                  [ set last-collision nobody ]
           jump (speed * tick-advance-amount)
       ]
@@ -1989,10 +1991,11 @@ to factor-field  ;; turtle procedure consider the electric field
                  ;output-print "inside FACTOR FIELD"
                  ;output-print (word "field of patch " [field-x] of patch-here " " [field-y] of patch-here)
                  ;output-print (word " patch xy : " [pxcor] of patch-here  [pycor] of patch-here)
-  if field-count > 0 [
+  if field-number > 0 [
     let ball-population-number population-num
-    let vx ((sin heading) * speed) + ([item (ball-population-number - 1) population-field-x] of patch-here  * tick-advance-amount)
-    let vy ((cos heading) * speed) + ([item (ball-population-number - 1) population-field-y] of patch-here  * tick-advance-amount)
+    let field-strength item 12 (item (population-num - 1) ball-population-properties)
+    let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-advance-amount)
+    let vy ((cos heading) * speed) + ([field-y] of patch-here * field-strength * tick-advance-amount)
     ;let vx ((sin heading) * speed) + ([table:get population-field-x ball-population-number] of patch-here  * tick-advance-amount)
     ;let vy ((cos heading) * speed) + ([table:get population-field-y ball-population-number] of patch-here  * tick-advance-amount)
     ;let vx ((sin heading) * speed) + ([table-get population-field-x ball-population-number] of patch-here  * tick-advance-amount)
@@ -2000,6 +2003,7 @@ to factor-field  ;; turtle procedure consider the electric field
     set speed sqrt ((vy ^ 2) + (vx ^ 2))
     ;set-ball-speed-to-maximum-if-above-max-speed
     if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
+    if speed > 300 [set speed 300]
   ]
 end
 
@@ -2886,6 +2890,100 @@ to on-brush-held-down-with-field
   if is-brush-in-draw-mode [create-field-with-brush]
 end
 
+to finalize-field-configuration-with-brush
+  if is-brush-currently-configuring-a-field [
+    create-electric-field-in-direction-configured-by-brush
+    set patches-brush-drew-electric-field-on []
+    log-command "paint-field"
+  ]
+end
+
+to log-command [command-name]
+  if (prev-command-name != command-name) [log-output command-name]
+end
+
+to create-electric-field-in-direction-configured-by-brush
+  let current-patch []  ; will hold a patch that is being processed
+
+  let electric-field-count [field-number] of one-of patches-brush-drew-electric-field-on
+  let list-patches patches-brush-drew-electric-field-on
+  ask (patch-set list-patches) [recolor-patch]
+  ask arrows [set color electric-field-color - 4]
+  ; fill patches in connected componnent with field-color
+  while [not empty? list-patches]
+  [ set current-patch first list-patches
+    set list-patches but-first list-patches
+    ask current-patch
+    [
+      ask neighbors4-no-wrap with [(not has-wall) and (not has-field)]
+         [
+            set field-number electric-field-count
+            set list-patches lput self list-patches  ;add to list-patches  ; Another way set frontier2 (patch-set frontier2 patch-here)
+            recolor-patch
+         ] ; end ask neighbors
+    ] ; end ask current-patch
+  ] ; end field while
+
+  ; now spread the field vectors in all the painted field cells WITHIN connected comp ONLY
+  let list-field-patches []
+  let marked-patch []  ;first list-field-marked-patches
+  let dist 0
+
+  let list-field-marked-patches  patch-set patches-brush-drew-electric-field-on ; list of patches that were marked as field by user
+  ask  list-field-marked-patches
+  [   set marked-patch self
+      set list-field-patches  patches with [ field-number = electric-field-count] ; all patches that were colored within same connected comp
+      ask list-field-patches
+      [
+        set dist sqrt ((pxcor - [pxcor] of  marked-patch) ^ 2 + (pycor - [pycor] of  marked-patch) ^ 2 )
+;        if dist < max-field-spread  ; spread the field only within a radius
+        if (dist = 0) [ set dist (1 / (max-pxcor * 2))]   ; weight is 1/dist and so dist should not be 0
+        set accum-w accum-w + (1 / dist)
+        set accum-x  accum-x +  ((1 / dist) * [field-x] of marked-patch)
+        set accum-y  accum-y +  ((1 / dist) * [field-y] of marked-patch)
+;       ] ; end if dist < max-field-spread
+    ]
+  ]
+
+  ; now compute the final field values of all field patches
+  ask list-field-patches
+  [  if (accum-w != 0)
+     [   set field-x  (accum-x / accum-w)
+         set field-y  (accum-y / accum-w)
+         set field-x    (field-x / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
+         set field-y    (field-y / (sqrt ((field-x ^ 2) + (field-y ^ 2))))
+      ]
+  ]
+
+  log-command "fill-field"
+end
+
+to-report neighbors-no-wrap
+  report neighbors with [is-neighbor-no-wrap myself]
+end
+
+to-report neighbors4-no-wrap
+  report neighbors4 with [is-neighbor-no-wrap myself]
+end
+
+to-report is-neighbor-no-wrap [-patch]
+  let abs-xcor-delta abs (pxcor - [pxcor] of -patch)
+  let abs-ycor-delta abs (pycor - [pycor] of -patch)
+  report (abs-xcor-delta <= 1) and (abs-ycor-delta <= 1) and (self != -patch)
+end
+
+to-report is-brush-currently-configuring-a-field
+  report length patches-brush-drew-electric-field-on > 0
+end
+
+to-report has-electric-field
+  report field-number != 0
+end
+
+to-report new-electric-field-number
+  report (max [field-number] of patches) + 1
+end
+
 to create-field-with-brush
   ifelse is-brush-currently-configuring-a-field [
     configure-current-field-with-brush ]
@@ -2894,35 +2992,29 @@ to create-field-with-brush
   ]
 end
 
-to-report is-brush-currently-configuring-a-field
-  report first-patch-brush-configured-field-on != nobody
-end
-
-to configure-new-field-with-brush
-  if not [has-wall] of patch-under-brush [
-    set field-count field-count + 1
-    set first-patch-brush-configured-field-on patch-under-brush
-  ]
-end
-
 to configure-current-field-with-brush
   let field-x-value 0
   let field-y-value 0
   let prev-mouse-xcor item 0 mousexy-when-brush-was-last-activated
   let prev-mouse-ycor item 1 mousexy-when-brush-was-last-activated
+  let electric-field-count [field-number] of one-of patches-brush-drew-electric-field-on
+  if patch-under-brush != last patches-brush-drew-electric-field-on [
+    set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on]
 
   if not [has-wall] of patch-under-brush [
-    set field-x-value (mouse-xcor - prev-mouse-xcor)
-    set field-y-value (mouse-ycor - prev-mouse-ycor)
+    ifelse is-first-patch-electric-field-drawn-on [
+      set field-x-value (mouse-xcor - [pxcor] of patch-under-brush)
+      set field-y-value (mouse-ycor - [pycor] of patch-under-brush)
+    ] [
+      set field-x-value (mouse-xcor - [pxcor] of before-last patches-brush-drew-electric-field-on)
+      set field-y-value (mouse-ycor - [pycor] of before-last patches-brush-drew-electric-field-on)
+    ]
     if (field-x-value != 0 or field-y-value != 0 ) [ ; mouse moved from prev location
       ask patch-under-brush [
-        ;output-print (word   field-x-value " " field-y-value " " patch-under-brush)
-        set pcolor field-color
-        set field-number field-count
-        set isPainted  TRUE
+        set field-number electric-field-count
         set field-x field-x-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
         set field-y field-y-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
-        paint-arrow patch-under-brush
+        draw-arrow-in-direction-of-electric-field
       ]
       ;paint-arrow this-patch
       set prev-mouse-xcor mouse-xcor
@@ -2931,13 +3023,92 @@ to configure-current-field-with-brush
   ]
 end
 
-to finalize-field-configuration-with-brush
-  if is-brush-currently-configuring-a-field [
-    set first-patch-brush-configured-field-on nobody
-    fill-field
-    if (prev-command-name != "paint-field") [log-output "paint-field"]
+to-report has-neighbors-with-arrows
+  report any? neighbors with [any? arrows-here]
+end
+
+to draw-arrow-in-direction-of-electric-field
+  if not has-neighbors-with-arrows [
+    ask arrows-here [die]
+    sprout-arrows 1
+    [
+      set shape "arrow"
+      set color electric-field-color
+      set size 1.0
+      set heading atan field-x field-y
+     ]
   ]
 end
+
+to-report is-first-patch-electric-field-drawn-on
+  report length patches-brush-drew-electric-field-on = 1
+end
+
+to-report before-last [-list]
+  let -length length -list
+  report item (-length - 2) -list
+end
+
+to configure-new-field-with-brush
+  if not [has-wall] of patch-under-brush and not [has-electric-field] of patch-under-brush[
+    set patches-brush-drew-electric-field-on lput patch-under-brush patches-brush-drew-electric-field-on
+    ask patch-under-brush [set field-number new-electric-field-number]
+    configure-current-field-with-brush
+  ]
+end
+
+;to create-field-with-brush
+;  ifelse is-brush-currently-configuring-a-field [
+;    configure-current-field-with-brush ]
+;  [
+;    configure-new-field-with-brush
+;  ]
+;end
+
+;to-report is-brush-currently-configuring-a-field
+;  report first-patch-brush-configured-field-on != nobody
+;end
+
+;to configure-new-field-with-brush
+;  if not [has-wall] of patch-under-brush [
+;    set field-count field-count + 1
+;    set first-patch-brush-configured-field-on patch-under-brush
+;  ]
+;end
+
+;to configure-current-field-with-brush
+;  let field-x-value 0
+;  let field-y-value 0
+;  let prev-mouse-xcor item 0 mousexy-when-brush-was-last-activated
+;  let prev-mouse-ycor item 1 mousexy-when-brush-was-last-activated
+;
+;  if not [has-wall] of patch-under-brush [
+;    set field-x-value (mouse-xcor - prev-mouse-xcor)
+;    set field-y-value (mouse-ycor - prev-mouse-ycor)
+;    if (field-x-value != 0 or field-y-value != 0 ) [ ; mouse moved from prev location
+;      ask patch-under-brush [
+;        ;output-print (word   field-x-value " " field-y-value " " patch-under-brush)
+;        set pcolor field-color
+;        set field-number field-count
+;        set isPainted  TRUE
+;        set field-x field-x-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
+;        set field-y field-y-value  / (sqrt ((field-x-value ^ 2) + (field-y-value ^ 2)))
+;        paint-arrow patch-under-brush
+;      ]
+;      ;paint-arrow this-patch
+;      set prev-mouse-xcor mouse-xcor
+;      set prev-mouse-ycor mouse-ycor
+;    ]
+;  ]
+;end
+
+;to finalize-field-configuration-with-brush
+;  if is-brush-currently-configuring-a-field [
+;    set first-patch-brush-configured-field-on nobody
+;    fill-field
+;    if (prev-command-name != "paint-field") [log-output "paint-field"]
+;  ]
+;end
 
 to-report balls-in-patches [-patches]
   report (turtle-set [balls-here] of patches-brush-is-drawing-on)
@@ -3450,7 +3621,7 @@ to configure-population-1
 
 if true [
   set-initial-color-for-population current-population-properties-are-being-set-for-in-nettango (15)
-  set-initial-size-for-population current-population-properties-are-being-set-for-in-nettango 2
+  set-initial-size-for-population current-population-properties-are-being-set-for-in-nettango 0.5
   set-initial-heading-for-population current-population-properties-are-being-set-for-in-nettango "random"
   set-initial-speed-for-population current-population-properties-are-being-set-for-in-nettango 10
 ]
@@ -3460,11 +3631,10 @@ if true [
 if true [
   #nettango#setup-if-ball-meets-block
   if true [
-    #nettango#set-if-ball-meets-block-what-ball-meets "wall"
+    #nettango#set-if-ball-meets-block-what-ball-meets "electric-field"
   ]
   if true [
-    #nettango#set-speed-change "collide"
-    #nettango#set-heading-change "collide"
+    #nettango#set-field 100
   ]
   #nettango#teardown-if-ball-meets-block
 ]
