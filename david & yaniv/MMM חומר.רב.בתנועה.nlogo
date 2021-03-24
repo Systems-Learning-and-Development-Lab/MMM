@@ -1241,7 +1241,7 @@ to advance-balls-in-world
   ]  ; end of askballs
   ask balls [
     move
-    recolor
+    ;recolor
   ]
 end
 
@@ -1306,8 +1306,8 @@ to go
       update-display
     ]
   ][
-    stop  ;; unselect "play" button
     re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
+    stop  ;; unselect "play" button
   ]
   set brush-activated-after-model-was-advanced false
 end
@@ -2171,7 +2171,7 @@ end
 
 to save-existing-layout
   let file-name user-input "איזה שם לתת לקובץ?"
-  export-world (word file-name)
+  export-world (word file-name ".nlogo")
   if (prev-command-name != "save-existing-layout") [log-output "save-existing-layout"]
 end
 
