@@ -1241,7 +1241,7 @@ to advance-balls-in-world
   ]  ; end of askballs
   ask balls [
     move
-    ;recolor
+    recolor
   ]
 end
 
@@ -1301,6 +1301,7 @@ to go
       ;update-electricity
       advance-balls-in-world
       remove-flashes-past-their-lifespan
+      update-speed-in-halos
       run-animations
       advance-ticks
       update-display
@@ -1310,6 +1311,16 @@ to go
     stop  ;; unselect "play" button
   ]
   set brush-activated-after-model-was-advanced false
+end
+
+to-report halo-is-displaying-speed
+  report label != ""
+end
+
+to update-speed-in-halos
+  ask halos with [halo-is-displaying-speed] [
+    update-halo-speed
+  ]
 end
 
 to color-population-by-speed [population]
@@ -2153,7 +2164,7 @@ end
 
 
 to make-halo  ;; runner procedure
-  hatch-halos 3
+  hatch-halos 1
   [
     set size ([size] of myself) * 4
     set color add-transparency yellow 0.75
@@ -2850,8 +2861,10 @@ to on-brush-is-held-down
   (ifelse
     brush-type = "ball" [on-brush-held-down-with-ball ]
     brush-type = "halo" [on-brush-held-down-with-halo ]
+    brush-type = "halo-speed" [on-brush-held-down-with-halo-speed ]
     brush-type = "trace" [on-brush-held-down-with-trace ]
-    brush-type = "field" [on-brush-held-down-with-field] )
+    brush-type = "field" [on-brush-held-down-with-field]
+  )
 end
 
 to on-brush-drawing-only-once-per-patch
@@ -3318,6 +3331,10 @@ to on-brush-held-down-with-halo
   ifelse is-brush-in-draw-mode [add-halo-to-balls balls-in-patches-brush-is-drawing-on] [remove-halo-from-balls balls-in-patches-brush-is-drawing-on]
 end
 
+to on-brush-held-down-with-halo-speed
+  ifelse is-brush-in-draw-mode [add-halo-speed-to-balls balls-in-patches-brush-is-drawing-on] [remove-halo-speed-from-balls balls-in-patches-brush-is-drawing-on]
+end
+
 to on-brush-clicked-with-ball
   update-ball-populaiton-properties-defined-in-nettango-blocks
   if is-brush-in-draw-mode [create-balls-of-population-selected-in-ui]
@@ -3362,13 +3379,14 @@ to on-erase-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "erase" [
     set-brush-style-as-free-form
     user-set-brush-to-erase
-  ]
-  if should-release-brush-radio-button? "erase" [stop]
-  ifelse סוג-מברשת = "שדה חשמלי" [
-    set-brush-type "field" ]
-  [
     set-brush-type "wall"
   ]
+  if should-release-brush-radio-button? "erase" [stop]
+  ;ifelse סוג-מברשת = "שדה חשמלי" [
+  ;  set-brush-type "field" ]
+  ;[
+  ;  set-brush-type "wall"
+  ;]
   activate-brush
 end
 
@@ -3407,8 +3425,10 @@ end
 to-report marker-hebrew-to-english [hebrew]
   (ifelse
     hebrew = "הילה" [report "halo"]
-    hebrew = "מעקב אחרי כדור" [report "trace"]
+    hebrew = "עקבות של כדור" [report "trace"]
     hebrew = "מונה כדורים" [report "counter"]
+    hebrew = "שדה חשמלי" [report "field"]
+    hebrew = "הילה עם מהירות" [report "halo-speed"]
   )
 end
 
@@ -3423,7 +3443,8 @@ end
 
 to on-draw-marker-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "draw-mark" [
-    set-brush-style-as-free-form ]
+    set-brush-style-as-free-form
+  ]
   if should-release-brush-radio-button? "draw-mark" [stop]
   set-brush-type marker-hebrew-to-english סמן
   user-set-brush-to-draw
@@ -3551,9 +3572,13 @@ to-report get-halo
   report retreived-halo
 end
 
+to-report my-halos
+  report turtle-set [other-end] of my-links with [is-halo? other-end]
+end
+
 ;ball procedure
 to remove-halo
-  ask turtle-set ([other-end] of my-links with [is-halo? other-end]) [die]
+  ask my-halos [die]
 end
 
 ;ball procedure
@@ -3566,8 +3591,35 @@ to remove-halo-from-balls [-balls]
   ask -balls with [has-halo] [remove-halo]
 end
 
+to remove-halo-speed
+  ask get-halo [
+    set label ""
+  ]
+end
+
+to remove-halo-speed-from-balls [-balls]
+  ask -balls with [has-halo] [remove-halo]
+end
+
 to add-halo-to-balls [-balls]
   ask -balls with [not has-halo] [make-halo]
+end
+
+to add-halo-speed-to-balls [-balls]
+  ask -balls with [not has-halo] [make-halo]
+  ask -balls [add-halo-speed]
+end
+
+to add-halo-speed
+  ask get-halo [update-halo-speed]
+end
+
+to-report ball-tied-to-halo
+  report [other-end] of one-of my-links
+end
+
+to update-halo-speed
+  set label precision [speed] of ball-tied-to-halo 2
 end
 
 ;turtle procedure
@@ -3577,6 +3629,7 @@ end
 
 ;turtle procedure
 to stop-tracing [-turtles]
+  ask -turtles [flash-outline 5 (red + 2)]
   ask -turtles [pen-up]
 end
 
@@ -4052,7 +4105,7 @@ CHOOSER
 541
 סמן
 סמן
-"הילה" "מעקב אחרי כדור" "מונה כדורים"
+"הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים" "שדה חשמלי"
 0
 
 BUTTON
@@ -4096,7 +4149,7 @@ CHOOSER
 226
 סוג-מברשת
 סוג-מברשת
-"קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
+"קיר" "מעגל" "ריבוע" "קו"
 0
 
 @#$#@#$#@
