@@ -3382,16 +3382,17 @@ to on-erase-wall-brush-button-clicked
     set-brush-type "wall"
   ]
   if should-release-brush-radio-button? "erase" [stop]
-  ;ifelse סוג-מברשת = "שדה חשמלי" [
-  ;  set-brush-type "field" ]
-  ;[
-  ;  set-brush-type "wall"
-  ;]
+  ifelse סוג-מברשת = "שדה חשמלי" [
+    set-brush-type "field" ]
+  [
+    set-brush-type "wall"
+  ]
   activate-brush
 end
 
 to on-draw-wall-brush-button-clicked
   if is-first-time-radio-button-is-pressed-down "wall" [
+    user-set-brush-to-draw
   ]
   if should-release-brush-radio-button? "wall" [stop]
   ifelse סוג-מברשת = "שדה חשמלי" [
@@ -4105,7 +4106,7 @@ CHOOSER
 541
 סמן
 סמן
-"הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים" "שדה חשמלי"
+"הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
 0
 
 BUTTON
@@ -4149,7 +4150,7 @@ CHOOSER
 226
 סוג-מברשת
 סוג-מברשת
-"קיר" "מעגל" "ריבוע" "קו"
+"קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
 0
 
 @#$#@#$#@
