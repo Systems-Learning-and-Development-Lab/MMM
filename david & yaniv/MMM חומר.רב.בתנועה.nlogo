@@ -379,6 +379,56 @@ to-report is-rgba [-color]
   report (is-list? -color) and (length -color = 4)
 end
 
+to-report is-netlogo-color [-color]
+  report is-number? -color and -color >= 0 and -color < 140
+end
+
+to-report convert-to-target-color-model [target to-convert]
+  (ifelse
+    is-rgb target [report to-rgb to-convert]
+    is-rgba target [report to-rgba to-convert]
+    is-netlogo-color target [report to-netlogo-color to-convert]
+    [report false]
+  )
+end
+
+to-report to-rgb [-color]
+  (ifelse
+    is-rgb -color [report -color]
+    is-rgba -color [report sublist -color 0 3]
+    is-netlogo-color -color [report extract-rgb -color]
+    [report false]
+  )
+end
+
+to-report to-rgba [-color]
+  (ifelse
+    is-rgb -color [report lput 255 -color]
+    is-rgba -color [report -color]
+    is-netlogo-color -color [report lput 255 extract-rgb -color]
+    [report false]
+  )
+end
+
+to-report to-netlogo-color [-color]
+  (ifelse
+    is-rgb -color [report approximate-rgb item 0 -color item 1 -color item 2 -color]
+    is-rgba -color [report approximate-rgb item 0 -color item 1 -color item 2 -color]
+    is-netlogo-color -color [report -color]
+    [report false]
+  )
+end
+
+to-report complementary-color [-color]
+  let -rgba to-rgba -color
+  let complementary-red 255 - (item 0 -rgba)
+  let complementary-green 255 - (item 1 -rgba)
+  let complementary-blue 255 - (item 2 -rgba)
+  let alpha item 3 -rgba
+  let compementary-rgba (list complementary-red complementary-green complementary-blue alpha)
+  report convert-to-target-color-model -color compementary-rgba
+end
+
 to-report add-transparency-rgb [-color transparency]
   report lput transparency -color
 end
@@ -529,7 +579,6 @@ to check-if-nettango-has-recompiled
     run run-me-if-i-throw-error-then-nettango-has-recompiled ]
   [
     set nettango-has-recompiled true
-    print "nettango has recompiled"
     initialize-all-anonymous-procedures
   ]
 end
@@ -1053,7 +1102,6 @@ end
 
 to set-initial-color-for-population [population -color]
   if nettango-has-recompiled [
-    print "setting color"
     set-property-for-population population "initial-color" -color
   ]
 end
@@ -1248,10 +1296,19 @@ to recolor-patch
 end
 
 to paint-world
-    set current-background-color צבע-רקע
-    paint-patches
-    if (prev-command-name != "paint-world") [
-          log-output "paint-world"]
+  set current-background-color צבע-רקע
+  paint-patches
+  if (prev-command-name != "paint-world") [
+    log-output "paint-world"]
+  ask halos [
+    contrast-halo-color-to-background
+  ]
+end
+
+to contrast-halo-color-to-background
+  let -complementary-background-color complementary-color current-background-color
+  set color -complementary-background-color
+  set label-color -complementary-background-color
 end
 
 to paint-patches
@@ -1326,7 +1383,6 @@ end
 ;  if tick-count = 0 [profiler:reset profiler:start]
 ;  if tick-count = 500 [print profiler:report profiler:reset]
 ;end
-
 
 to go
   ;time-run
@@ -2210,6 +2266,7 @@ to make-halo  ;; runner procedure
       tie
       hide-link
     ]
+    contrast-halo-color-to-background
   ]
   if (prev-command-name != "make-halo") [
     log-output "make-halo"
@@ -3763,7 +3820,7 @@ GRAPHICS-WINDOW
 -1
 9.53
 1
-14
+16
 1
 1
 1
