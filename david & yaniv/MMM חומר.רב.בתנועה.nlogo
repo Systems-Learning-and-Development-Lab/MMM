@@ -20,6 +20,8 @@ globals [
   animation-run-count
   patches-brush-drew-electric-field-on
   electric-field-color
+  run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
+  nettango-has-recompiled
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -512,7 +514,29 @@ to set-global-values
     set has-wall false
   ]
   ;initialize-global-properties
-end                            ;; when we need to remove them.
+  ;; when we need to remove them.
+  initialize-all-anonymous-procedures
+end
+
+to check-if-nettango-has-recompiled
+  ; temporary fix to solve a nettango bug, after nettango is recompiled
+  ; then error "Importing and then running lambdas is not supported!" is thrown.
+  ; It happens if an anonymous procedure that was stored in a variable before nettango
+  ; was recompiled is ran, so all anonymous procedures need to be initialized.
+  ; Update: this is a known issue - https://github.com/NetLogo/NetLogo/issues/22
+  set nettango-has-recompiled false
+  carefully [
+    run run-me-if-i-throw-error-then-nettango-has-recompiled ]
+  [
+    set nettango-has-recompiled true
+    print "nettango has recompiled"
+    initialize-all-anonymous-procedures
+  ]
+end
+
+to initialize-all-anonymous-procedures
+  set run-me-if-i-throw-error-then-nettango-has-recompiled [[] ->]
+end
 
 to update-display-every [seconds]
   every seconds [display]
@@ -1016,19 +1040,28 @@ to-report property-index [property]
 end
 
 to set-initial-speed-for-population [population -speed]
-  set-property-for-population population "initial-speed" -speed
+  if nettango-has-recompiled [
+    set-property-for-population population "initial-speed" -speed
+  ]
 end
 
 to set-initial-size-for-population [population -size]
-  set-property-for-population population "initial-size" -size
+  if nettango-has-recompiled [
+    set-property-for-population population "initial-size" -size
+  ]
 end
 
 to set-initial-color-for-population [population -color]
-  set-property-for-population population "initial-color" -color
+  if nettango-has-recompiled [
+    print "setting color"
+    set-property-for-population population "initial-color" -color
+  ]
 end
 
 to set-initial-heading-for-population [population -heading]
-  set-property-for-population population "initial-heading" -heading
+  if nettango-has-recompiled [
+    set-property-for-population population "initial-heading" -heading
+  ]
 end
 
 to set-if-ball-meets-wall-heading-for-population [population -heading]
@@ -1278,8 +1311,11 @@ end
 to update-ball-populaiton-properties-defined-in-nettango-blocks
   ;let pop1-electric-field get-ball-population-property 1 "electric-field"
   ;let pop2-electric-field get-ball-population-property 2 "electric-field"
-  initialize-ball-population-properties 1
-  initialize-ball-population-properties 2
+  check-if-nettango-has-recompiled
+  if nettango-has-recompiled [
+    initialize-ball-population-properties 1
+    initialize-ball-population-properties 2
+  ]
   configure-population-1
   configure-population-2
   ;if pop1-electric-field != get-ball-population-property 1 "electric-field" [recalculate-field-values-for-population 1]
@@ -3727,7 +3763,7 @@ GRAPHICS-WINDOW
 -1
 9.53
 1
-11
+14
 1
 1
 1
