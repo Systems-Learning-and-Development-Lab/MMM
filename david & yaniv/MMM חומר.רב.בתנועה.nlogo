@@ -1089,27 +1089,19 @@ to-report property-index [property]
 end
 
 to set-initial-speed-for-population [population -speed]
-  if nettango-has-recompiled [
-    set-property-for-population population "initial-speed" -speed
-  ]
+  set-property-for-population population "initial-speed" -speed
 end
 
 to set-initial-size-for-population [population -size]
-  if nettango-has-recompiled [
-    set-property-for-population population "initial-size" -size
-  ]
+  set-property-for-population population "initial-size" -size
 end
 
 to set-initial-color-for-population [population -color]
-  if nettango-has-recompiled [
-    set-property-for-population population "initial-color" -color
-  ]
+  set-property-for-population population "initial-color" -color
 end
 
 to set-initial-heading-for-population [population -heading]
-  if nettango-has-recompiled [
-    set-property-for-population population "initial-heading" -heading
-  ]
+  set-property-for-population population "initial-heading" -heading
 end
 
 to set-if-ball-meets-wall-heading-for-population [population -heading]
@@ -1366,17 +1358,15 @@ to re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
 end
 
 to update-ball-populaiton-properties-defined-in-nettango-blocks
-  ;let pop1-electric-field get-ball-population-property 1 "electric-field"
-  ;let pop2-electric-field get-ball-population-property 2 "electric-field"
-  check-if-nettango-has-recompiled
-  if nettango-has-recompiled [
-    initialize-ball-population-properties 1
-    initialize-ball-population-properties 2
-  ]
+  ;check-if-nettango-has-recompiled
+  ;if nettango-has-recompiled [
+  ;  initialize-ball-population-properties 1
+  ;  initialize-ball-population-properties 2
+  ;]
+  initialize-ball-population-properties 1
+  initialize-ball-population-properties 2
   configure-population-1
   configure-population-2
-  ;if pop1-electric-field != get-ball-population-property 1 "electric-field" [recalculate-field-values-for-population 1]
-  ;if pop2-electric-field != get-ball-population-property 2 "electric-field" [recalculate-field-values-for-population 2]
 end
 
 ;to time-run
@@ -3430,6 +3420,7 @@ end
 
 to on-brush-clicked-with-ball
   update-ball-populaiton-properties-defined-in-nettango-blocks
+  ask balls [recolor]
   if is-brush-in-draw-mode [create-balls-of-population-selected-in-ui]
 end
 
