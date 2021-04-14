@@ -3549,8 +3549,8 @@ to on-erase-marker-brush-button-clicked
   user-set-brush-to-erase
   (ifelse
     brush-type = "counter" [set brush-size 1]
-    brush-type = "halo" [set brush-size 1]
-    brush-type = "trace" [set brush-size 1]
+    brush-type = "halo" [set brush-size 2]
+    brush-type = "trace" [set brush-size 2]
   )
   activate-brush
 end
@@ -3586,8 +3586,8 @@ to on-draw-marker-brush-button-clicked
   user-set-brush-to-draw
   (ifelse
     brush-type = "counter" [set brush-size 1]
-    brush-type = "halo" [set brush-size 1]
-    brush-type = "trace" [set brush-size 1]
+    brush-type = "halo" [set brush-size 2]
+    brush-type = "trace" [set brush-size 2]
   )
   activate-brush
 end
@@ -4243,7 +4243,7 @@ CHOOSER
 סמן
 סמן
 "ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
-0
+3
 
 BUTTON
 135
