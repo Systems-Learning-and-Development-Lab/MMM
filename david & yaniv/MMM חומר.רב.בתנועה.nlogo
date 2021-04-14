@@ -22,6 +22,8 @@ globals [
   electric-field-color
   run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
   nettango-has-recompiled
+  prev-marker
+  balls-with-paused-trace
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -217,6 +219,7 @@ counters-own
 ;===== animations =======
 
 to run-animations
+  ask animations [pen-up]
   every 0.05 [
     if any? animations [
       ask animations [animate]
@@ -282,7 +285,10 @@ to flash-outline [duration -color]
 end
 
 to extend-lifespan-of-flashing-outline
-  ask one-of link-neighbors with [is-animation? self and -name = "flash"] [reset-animation-lifespan]
+  ask one-of link-neighbors with [is-animation? self and -name = "flash"]
+  [
+    reset-animation-lifespan
+  ]
 end
 
 to reset-animation-lifespan
@@ -529,6 +535,7 @@ to set-global-values
   set wall-collision-count [0 0]
   set log-enabled false
   set patches-brush-drew-electric-field-on []
+  set balls-with-paused-trace no-turtles
 
   set maxballs 2000
   set deltaSpeed 0.5;
@@ -1384,6 +1391,7 @@ to go
       advance-balls-in-world
       remove-flashes-past-their-lifespan
       update-speed-in-halos
+      update-marker
       run-animations
       advance-ticks
       update-display
@@ -1393,6 +1401,37 @@ to go
     stop  ;; unselect "play" button
   ]
   set brush-activated-after-model-was-advanced false
+end
+
+to update-marker
+  ifelse markers-set-to-hidden
+  [
+    hide-all-markers
+  ]
+  [
+    if markers-set-to-shown
+    [
+      show-all-markers
+    ]
+  ]
+  set prev-marker סמן
+end
+
+to-report markers-set-to-hidden
+  report prev-marker != סמן and סמן = "ללא סמן"
+end
+
+to-report markers-set-to-shown
+  report prev-marker != סמן and prev-marker = "ללא סמן"
+end
+
+to hide-all-markers
+  set balls-with-paused-trace balls with [pen-mode = "down"]
+  ask balls-with-paused-trace [pen-up]
+end
+
+to show-all-markers
+  ask balls-with-paused-trace [pen-down]
 end
 
 to-report halo-is-displaying-speed
@@ -2959,7 +2998,9 @@ end
 to on-brush-has-been-clicked
   (ifelse
     brush-type = "ball" [on-brush-clicked-with-ball ]
-    brush-type = "field" [on-brush-clicked-with-field ] )
+    brush-type = "field" [on-brush-clicked-with-field ]
+    brush-type = "trace" [on-brush-clicked-with-trace ]
+  )
   log-free-form-brush-used
 end
 
@@ -2977,6 +3018,10 @@ end
 
 to on-brush-clicked-with-field
   ifelse is-brush-in-draw-mode [finalize-field-configuration-with-brush] [erase-field-number-under-brush]
+end
+
+to on-brush-clicked-with-trace
+  if not is-brush-in-draw-mode [clear-drawing]
 end
 
 to erase-field-number-under-brush
@@ -3494,6 +3539,9 @@ to on-draw-wall-brush-button-clicked
 end
 
 to on-erase-marker-brush-button-clicked
+  if סמן = "ללא סמן" [
+    stop
+  ]
   if is-first-time-radio-button-is-pressed-down "erase-mark" [
     set-brush-style-as-free-form ]
   if should-release-brush-radio-button? "erase-mark" [stop]
@@ -3527,6 +3575,9 @@ to-report wall-shape-hebrew-to-english [hebrew]
 end
 
 to on-draw-marker-brush-button-clicked
+  if סמן = "ללא סמן" [
+    stop
+  ]
   if is-first-time-radio-button-is-pressed-down "draw-mark" [
     set-brush-style-as-free-form
   ]
@@ -3716,6 +3767,7 @@ end
 to stop-tracing [-turtles]
   ask -turtles [flash-outline 5 (red + 2)]
   ask -turtles [pen-up]
+  set balls-with-paused-trace balls-with-paused-trace with [not member? self -turtles]
 end
 
 to-report patch-at-point [point]
@@ -3838,7 +3890,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-10.0
+1.0
 1
 1
 NIL
@@ -4190,7 +4242,7 @@ CHOOSER
 541
 סמן
 סמן
-"הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
+"ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
 0
 
 BUTTON
