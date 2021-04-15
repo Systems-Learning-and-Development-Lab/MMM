@@ -118,6 +118,7 @@ breed [ counters counter]
 breed [ flashes flash ]      ;; a breed which is used to mark the spot where a particle just hit the wall or counter
 breed [ arrows arrow]
 breed [ halos halo]
+breed [ halo-speeds halo-speed]
 breed [ balls ball]
 breed [ erasers eraser ]
 breed [gfx-overlay a-gfx-overlay]
@@ -1300,11 +1301,14 @@ to paint-world
   if (prev-command-name != "paint-world") [
     log-output "paint-world"]
   ask halos [
-    contrast-halo-color-to-background
+    contrast-color-to-background
+  ]
+  ask halo-speeds [
+    contrast-color-to-background
   ]
 end
 
-to contrast-halo-color-to-background
+to contrast-color-to-background
   let -complementary-background-color complementary-color current-background-color
   set color -complementary-background-color
   set label-color -complementary-background-color
@@ -1439,7 +1443,7 @@ to-report halo-is-displaying-speed
 end
 
 to update-speed-in-halos
-  ask halos with [halo-is-displaying-speed] [
+  ask halo-speeds [
     update-halo-speed
   ]
 end
@@ -2295,7 +2299,18 @@ to make-halo  ;; runner procedure
       tie
       hide-link
     ]
-    contrast-halo-color-to-background
+    contrast-color-to-background
+  ]
+  hatch-halo-speeds 1 [
+    setxy (xcor + size + 0.125) (ycor - (size * 4))
+    set color add-transparency yellow 0.75
+    set shape "halo-speed"
+    create-link-from myself
+    [
+      tie
+      hide-link
+    ]
+    contrast-color-to-background
   ]
   if (prev-command-name != "make-halo") [
     log-output "make-halo"
@@ -3550,6 +3565,7 @@ to on-erase-marker-brush-button-clicked
   (ifelse
     brush-type = "counter" [set brush-size 1]
     brush-type = "halo" [set brush-size 2]
+    brush-type = "halo-speed" [set brush-size 2]
     brush-type = "trace" [set brush-size 2]
   )
   activate-brush
@@ -3587,6 +3603,7 @@ to on-draw-marker-brush-button-clicked
   (ifelse
     brush-type = "counter" [set brush-size 1]
     brush-type = "halo" [set brush-size 2]
+    brush-type = "halo-speed" [set brush-size 2]
     brush-type = "trace" [set brush-size 2]
   )
   activate-brush
@@ -3708,13 +3725,29 @@ to-report get-halo
   report retreived-halo
 end
 
+;ball procedure
+to-report get-halo-speed
+  let retreived-halo-speed nobody
+  let links-to-halo-speeds my-links with [is-halo-speed? other-end]
+  if any? links-to-halo-speeds
+  [
+    set retreived-halo-speed [other-end] of one-of links-to-halo-speeds
+  ]
+  report retreived-halo-speed
+end
+
 to-report my-halos
   report turtle-set [other-end] of my-links with [is-halo? other-end]
+end
+
+to-report my-halo-speeds
+  report turtle-set [other-end] of my-links with [is-halo-speed? other-end]
 end
 
 ;ball procedure
 to remove-halo
   ask my-halos [die]
+  ask my-halo-speeds [die]
 end
 
 ;ball procedure
@@ -3728,7 +3761,8 @@ to remove-halo-from-balls [-balls]
 end
 
 to remove-halo-speed
-  ask get-halo [
+  ;ask get-halo [
+  ask get-halo-speed [
     set label ""
   ]
 end
@@ -3747,7 +3781,8 @@ to add-halo-speed-to-balls [-balls]
 end
 
 to add-halo-speed
-  ask get-halo [update-halo-speed]
+  ;ask get-halo [update-halo-speed]
+  ask get-halo-speed [update-halo-speed]
 end
 
 to-report ball-tied-to-halo
@@ -3890,7 +3925,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-1.0
+10.0
 1
 1
 NIL
@@ -4243,7 +4278,7 @@ CHOOSER
 סמן
 סמן
 "ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
-3
+0
 
 BUTTON
 135
@@ -4929,6 +4964,10 @@ full-square
 false
 0
 Rectangle -7500403 true true 0 0 300 300
+
+halo-speed
+false
+0
 
 house
 false
