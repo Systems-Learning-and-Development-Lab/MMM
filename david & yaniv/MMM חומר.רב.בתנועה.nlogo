@@ -23,7 +23,8 @@ globals [
   run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
   nettango-has-recompiled
   prev-marker
-  balls-with-paused-trace
+  curr-marker
+  marked-balls
 
   gravity-acceleration-x   ;; acceleration of field (gravity, electric)
   gravity-acceleration-y   ;; acceleration of field (gravity, electric)
@@ -118,7 +119,7 @@ breed [ counters counter]
 breed [ flashes flash ]      ;; a breed which is used to mark the spot where a particle just hit the wall or counter
 breed [ arrows arrow]
 breed [ halos halo]
-breed [ halo-speeds halo-speed]
+;breed [ halo-speeds halo-speed]
 breed [ balls ball]
 breed [ erasers eraser ]
 breed [gfx-overlay a-gfx-overlay]
@@ -220,7 +221,6 @@ counters-own
 ;===== animations =======
 
 to run-animations
-  ask animations [pen-up]
   every 0.05 [
     if any? animations [
       ask animations [animate]
@@ -274,6 +274,7 @@ to hatch-inflating-animation [-shape -size -color -lifespan]
     set size -size
     set color -color
     set data table:from-list [["increase" 5]]
+    pen-up
   ]
 end
 
@@ -316,6 +317,7 @@ to-report hatch-flashing-animation [-shape -size -color -lifespan]
     set color -color
     set data table:from-list (list
       (list "flash-every-n-ticks" 1))
+    pen-up
   ]
   report -animation
 end
@@ -333,6 +335,7 @@ to hatch-rotating-animation [-shape -size -color -lifespan]
     set size -size
     set color -color
     set data table:from-list [["angle" 10]]
+    pen-up
   ]
 end
 
@@ -536,7 +539,8 @@ to set-global-values
   set wall-collision-count [0 0]
   set log-enabled false
   set patches-brush-drew-electric-field-on []
-  set balls-with-paused-trace no-turtles
+  set marked-balls no-turtles
+  set curr-marker סמן
 
   set maxballs 2000
   set deltaSpeed 0.5;
@@ -1303,9 +1307,9 @@ to paint-world
   ask halos [
     contrast-color-to-background
   ]
-  ask halo-speeds [
-    contrast-color-to-background
-  ]
+  ;ask halo-speeds [
+  ;  contrast-color-to-background
+  ;]
 end
 
 to contrast-color-to-background
@@ -1408,43 +1412,93 @@ to go
 end
 
 to update-marker
-  ifelse markers-set-to-hidden
-  [
-    hide-all-markers
+  set curr-marker סמן
+  if curr-marker != prev-marker [
+    marker-changed-from prev-marker
+    marker-changed-to curr-marker
   ]
-  [
-    if markers-set-to-shown
-    [
-      show-all-markers
-    ]
-  ]
-  set prev-marker סמן
+  set prev-marker curr-marker
+  ;ifelse markers-set-to-hidden
+  ;[
+  ;  hide-all-markers
+  ;]
+  ;[
+  ;  if markers-set-to-shown
+  ;  [
+  ;    show-all-markers
+  ;  ]
+  ;]
 end
 
-to-report markers-set-to-hidden
-  report prev-marker != סמן and סמן = "ללא סמן"
+to marker-added-to-ball [-balls]
+  add-halo-to-balls -balls
+  update-speed-in-halos
+  ask -balls [ask get-halo [hide-turtle]]
 end
 
-to-report markers-set-to-shown
-  report prev-marker != סמן and prev-marker = "ללא סמן"
+to marker-changed-from [prev]
+  (ifelse
+    prev = "הילה" [ask halos [hide-turtle]]
+    prev = "הילה עם מהירות" [ask halos [hide-turtle] update-speed-in-halos]
+    prev = "עקבות של כדור" [pause-ball-tracing]
+  )
 end
 
-to hide-all-markers
-  set balls-with-paused-trace balls with [pen-mode = "down"]
-  ask balls-with-paused-trace [pen-up]
+to marker-changed-to [new]
+  (ifelse
+    new = "הילה" [ask halos [show-turtle]]
+    new = "הילה עם מהירות" [ask halos [show-turtle] update-speed-in-halos]
+    new = "עקבות של כדור" [resume-ball-tracing]
+  )
 end
 
-to show-all-markers
-  ask balls-with-paused-trace [pen-down]
+;to-report markers-set-to-hidden
+;  report prev-marker != curr-marker and curr-marker = "ללא סמן"
+;end
+
+;to-report markers-set-to-shown
+;  report prev-marker != curr-marker and prev-marker = "ללא סמן"
+;end
+
+;to hide-all-markers
+;  set marked-balls balls with [pen-mode = "down"]
+;  ask marked-balls [pen-up]
+;  ask halos [hide-turtle]
+;end
+
+to pause-ball-tracing
+  clear-drawing
+  set marked-balls balls with [pen-mode = "down"]
+  ask marked-balls [pen-up]
 end
+
+to resume-ball-tracing
+  ask marked-balls [pen-down]
+end
+
+;to show-all-markers
+;  ask marked-balls [pen-down]
+;  ask halos [show-turtle]
+;end
 
 to-report halo-is-displaying-speed
   report label != ""
 end
 
+to-report halo-with-speed-marker-selected
+  report סמן = "הילה עם מהירות"
+end
+
 to update-speed-in-halos
-  ask halo-speeds [
-    update-halo-speed
+  ;ask halo-speeds [
+  ifelse halo-with-speed-marker-selected [
+    ask halos [
+      update-halo-speed
+    ]
+  ][
+     ask halos [
+       set label ""
+    ]
   ]
 end
 
@@ -2291,9 +2345,10 @@ end
 to make-halo  ;; runner procedure
   hatch-halos 1
   [
-    set size ([size] of myself) * 4
+    set size size * 11
     set color add-transparency yellow 0.75
-    set shape "circle outline"
+    set shape "halo"
+    pen-up
     create-link-from myself
     [
       tie
@@ -2301,17 +2356,17 @@ to make-halo  ;; runner procedure
     ]
     contrast-color-to-background
   ]
-  hatch-halo-speeds 1 [
-    setxy (xcor + size + 0.125) (ycor - (size * 4))
-    set color add-transparency yellow 0.75
-    set shape "halo-speed"
-    create-link-from myself
-    [
-      tie
-      hide-link
-    ]
-    contrast-color-to-background
-  ]
+  ;hatch-halo-speeds 1 [
+  ;  setxy (xcor + size + 0.125) (ycor - (size * 4))
+  ;  set color add-transparency yellow 0.75
+  ;  set shape "halo-speed"
+  ;  create-link-from myself
+  ;  [
+  ;    tie
+  ;    hide-link
+  ;  ]
+  ;  contrast-color-to-background
+  ;]
   if (prev-command-name != "make-halo") [
     log-output "make-halo"
   ]
@@ -3465,6 +3520,8 @@ to on-brush-held-down-with-trace
 end
 
 to trace-balls-brush-is-drawing-on
+  set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
+  marker-added-to-ball balls-in-patches-brush-is-drawing-on
   let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
   ask balls-to-trace [flash-outline 5 white]
   trace balls-to-trace
@@ -3554,6 +3611,7 @@ to on-draw-wall-brush-button-clicked
 end
 
 to on-erase-marker-brush-button-clicked
+  update-marker
   if סמן = "ללא סמן" [
     stop
   ]
@@ -3591,6 +3649,7 @@ to-report wall-shape-hebrew-to-english [hebrew]
 end
 
 to on-draw-marker-brush-button-clicked
+  update-marker
   if סמן = "ללא סמן" [
     stop
   ]
@@ -3726,28 +3785,28 @@ to-report get-halo
 end
 
 ;ball procedure
-to-report get-halo-speed
-  let retreived-halo-speed nobody
-  let links-to-halo-speeds my-links with [is-halo-speed? other-end]
-  if any? links-to-halo-speeds
-  [
-    set retreived-halo-speed [other-end] of one-of links-to-halo-speeds
-  ]
-  report retreived-halo-speed
-end
+;to-report get-halo-speed
+;  let retreived-halo-speed nobody
+;  let links-to-halo-speeds my-links with [is-halo-speed? other-end]
+;  if any? links-to-halo-speeds
+;  [
+;    set retreived-halo-speed [other-end] of one-of links-to-halo-speeds
+;  ]
+;  report retreived-halo-speed
+;end
 
 to-report my-halos
   report turtle-set [other-end] of my-links with [is-halo? other-end]
 end
 
-to-report my-halo-speeds
-  report turtle-set [other-end] of my-links with [is-halo-speed? other-end]
-end
+;to-report my-halo-speeds
+;  report turtle-set [other-end] of my-links with [is-halo-speed? other-end]
+;end
 
 ;ball procedure
 to remove-halo
   ask my-halos [die]
-  ask my-halo-speeds [die]
+  ;ask my-halo-speeds [die]
 end
 
 ;ball procedure
@@ -3758,31 +3817,35 @@ end
 
 to remove-halo-from-balls [-balls]
   ask -balls with [has-halo] [remove-halo]
+  set marked-balls marked-balls with [not member? self -balls]
 end
 
 to remove-halo-speed
-  ;ask get-halo [
-  ask get-halo-speed [
+  ask get-halo [
+  ;ask get-halo-speed [
     set label ""
   ]
 end
 
 to remove-halo-speed-from-balls [-balls]
   ask -balls with [has-halo] [remove-halo]
+  set marked-balls marked-balls with [not member? self -balls]
 end
 
 to add-halo-to-balls [-balls]
   ask -balls with [not has-halo] [make-halo]
+  set marked-balls (turtle-set marked-balls -balls)
 end
 
 to add-halo-speed-to-balls [-balls]
   ask -balls with [not has-halo] [make-halo]
   ask -balls [add-halo-speed]
+  set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
 end
 
 to add-halo-speed
-  ;ask get-halo [update-halo-speed]
-  ask get-halo-speed [update-halo-speed]
+  ask get-halo [update-halo-speed]
+  ;ask get-halo-speed [update-halo-speed]
 end
 
 to-report ball-tied-to-halo
@@ -3790,7 +3853,7 @@ to-report ball-tied-to-halo
 end
 
 to update-halo-speed
-  set label precision [speed] of ball-tied-to-halo 2
+  set label (word precision [speed] of ball-tied-to-halo 2 "     ")
 end
 
 ;turtle procedure
@@ -3802,7 +3865,7 @@ end
 to stop-tracing [-turtles]
   ask -turtles [flash-outline 5 (red + 2)]
   ask -turtles [pen-up]
-  set balls-with-paused-trace balls-with-paused-trace with [not member? self -turtles]
+  set marked-balls marked-balls with [not member? self -turtles]
 end
 
 to-report patch-at-point [point]
@@ -4964,6 +5027,11 @@ full-square
 false
 0
 Rectangle -7500403 true true 0 0 300 300
+
+halo
+false
+0
+Circle -7500403 false true 75 75 150
 
 halo-speed
 false
