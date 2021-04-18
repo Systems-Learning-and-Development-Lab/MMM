@@ -3621,7 +3621,7 @@ to on-erase-marker-brush-button-clicked
   set-brush-type marker-hebrew-to-english סמן
   user-set-brush-to-erase
   (ifelse
-    brush-type = "counter" [set brush-size 1]
+    brush-type = "counter" [set brush-size 2]
     brush-type = "halo" [set brush-size 2]
     brush-type = "halo-speed" [set brush-size 2]
     brush-type = "trace" [set brush-size 2]
@@ -3660,7 +3660,7 @@ to on-draw-marker-brush-button-clicked
   set-brush-type marker-hebrew-to-english סמן
   user-set-brush-to-draw
   (ifelse
-    brush-type = "counter" [set brush-size 1]
+    brush-type = "counter" [set brush-size 2]
     brush-type = "halo" [set brush-size 2]
     brush-type = "halo-speed" [set brush-size 2]
     brush-type = "trace" [set brush-size 2]
