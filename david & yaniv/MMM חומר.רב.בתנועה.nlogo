@@ -127,6 +127,10 @@ breed [brush-border-outlines brush-border-outline]
 breed [brush-cursors brush-cursor]
 breed [quadtrees quadtree]
 
+halos-own [
+  show-speed
+]
+
 quadtrees-own [
   parent
   north-west
@@ -1412,35 +1416,40 @@ to go
 end
 
 to update-marker
+  ;set curr-marker סמן
+  ;if curr-marker != prev-marker [
+  ;  marker-changed-from prev-marker
+  ;  marker-changed-to curr-marker
+  ;]
+  ;set prev-marker curr-marker
+  update-speed-in-halos
   set curr-marker סמן
-  if curr-marker != prev-marker [
-    marker-changed-from prev-marker
-    marker-changed-to curr-marker
+  ifelse markers-set-to-hidden
+  [
+    hide-all-markers
+  ]
+  [
+    if markers-set-to-shown
+    [
+      show-all-markers
+    ]
   ]
   set prev-marker curr-marker
-  ;ifelse markers-set-to-hidden
-  ;[
-  ;  hide-all-markers
-  ;]
-  ;[
-  ;  if markers-set-to-shown
-  ;  [
-  ;    show-all-markers
-  ;  ]
-  ;]
 end
 
-to marker-added-to-ball [-balls]
-  add-halo-to-balls -balls
-  update-speed-in-halos
-  ask -balls [ask get-halo [hide-turtle]]
-end
+;to marker-added-to-ball [-balls]
+;  add-halo-to-balls -balls
+;  update-speed-in-halos
+;  ask -balls [ask get-halo [hide-turtle]]
+;end
 
 to marker-changed-from [prev]
   (ifelse
-    prev = "הילה" [ask halos [hide-turtle]]
-    prev = "הילה עם מהירות" [ask halos [hide-turtle] update-speed-in-halos]
-    prev = "עקבות של כדור" [pause-ball-tracing]
+    ;prev = "הילה" [ask halos [hide-turtle]]
+    ;prev = "הילה עם מהירות" [ask halos [hide-turtle] update-speed-in-halos]
+    ;prev = "עקבות של כדור" [pause-ball-tracing]
+    ;prev = "מונה כדורים" [hide-counters]
+    prev = "ללא סמן" [show-all-markers]
   )
 end
 
@@ -1449,37 +1458,55 @@ to marker-changed-to [new]
     new = "הילה" [ask halos [show-turtle]]
     new = "הילה עם מהירות" [ask halos [show-turtle] update-speed-in-halos]
     new = "עקבות של כדור" [resume-ball-tracing]
+    new = "מונה כדורים" [show-counters]
+    new = "ללא סמן" [hide-all-markers]
   )
 end
 
-;to-report markers-set-to-hidden
-;  report prev-marker != curr-marker and curr-marker = "ללא סמן"
-;end
+to hide-counters
+  ask counters [hide-turtle]
+  ask counter-information-gfx [
+    ask counter-number-gfx-overlay [hide-turtle]
+    ask ball-count-gfx-overlay [hide-turtle]
+  ]
+end
 
-;to-report markers-set-to-shown
-;  report prev-marker != curr-marker and prev-marker = "ללא סמן"
-;end
+to show-counters
+  ask counters [show-turtle]
+  ask counter-information-gfx [
+    ask counter-number-gfx-overlay [show-turtle]
+    ask ball-count-gfx-overlay [show-turtle]
+  ]
+end
 
-;to hide-all-markers
-;  set marked-balls balls with [pen-mode = "down"]
-;  ask marked-balls [pen-up]
-;  ask halos [hide-turtle]
-;end
+to-report markers-set-to-hidden
+  report prev-marker != curr-marker and curr-marker = "ללא סמן"
+end
+
+to-report markers-set-to-shown
+  report prev-marker != curr-marker and prev-marker = "ללא סמן"
+end
+
+to hide-all-markers
+  clear-drawing
+  pause-ball-tracing
+  ask halos [hide-turtle]
+end
 
 to pause-ball-tracing
-  clear-drawing
   set marked-balls balls with [pen-mode = "down"]
   ask marked-balls [pen-up]
 end
 
 to resume-ball-tracing
   ask marked-balls [pen-down]
+  resume-ball-tracing
 end
 
-;to show-all-markers
-;  ask marked-balls [pen-down]
-;  ask halos [show-turtle]
-;end
+to show-all-markers
+  ask marked-balls [pen-down]
+  ask halos [show-turtle]
+end
 
 to-report halo-is-displaying-speed
   report label != ""
@@ -1490,15 +1517,8 @@ to-report halo-with-speed-marker-selected
 end
 
 to update-speed-in-halos
-  ;ask halo-speeds [
-  ifelse halo-with-speed-marker-selected [
-    ask halos [
-      update-halo-speed
-    ]
-  ][
-     ask halos [
-       set label ""
-    ]
+  ask halos [
+    update-halo-speed
   ]
 end
 
@@ -1594,7 +1614,7 @@ to move ;; particle procedure
     ; if ball on counter  - create a flash
     ;  counters-report   ; changed to count flashes and not balls on counters bcs too many ticks balls are on counter
     if (counter-count > 0)
-    [  ifelse (any? counters-here) and (on-counter = False) [  ; if there is a counter at the pos of the ball (we are inside ask balls in go) and ball was not counted yet
+    [  ifelse (any? counters-here) and (on-counter = False) and (סמן = "מונה כדורים") [ ; if there is a counter at the pos of the ball (we are inside ask balls in go) and ball was not counted yet
         set on-counter True
         increase-counter counter-number-here
         flash-counter-here
@@ -2343,32 +2363,35 @@ end
 
 
 to make-halo  ;; runner procedure
-  hatch-halos 1
-  [
-    set size size * 11
-    set color add-transparency yellow 0.75
-    set shape "halo"
-    pen-up
-    create-link-from myself
+  if not has-halo [
+    hatch-halos 1
     [
-      tie
-      hide-link
+      set size size * 11
+      set color add-transparency yellow 0.75
+      set shape "halo"
+      set show-speed false
+      pen-up
+      create-link-from myself
+      [
+        tie
+        hide-link
+      ]
+      contrast-color-to-background
     ]
-    contrast-color-to-background
-  ]
-  ;hatch-halo-speeds 1 [
-  ;  setxy (xcor + size + 0.125) (ycor - (size * 4))
-  ;  set color add-transparency yellow 0.75
-  ;  set shape "halo-speed"
-  ;  create-link-from myself
-  ;  [
-  ;    tie
-  ;    hide-link
-  ;  ]
-  ;  contrast-color-to-background
-  ;]
-  if (prev-command-name != "make-halo") [
-    log-output "make-halo"
+    ;hatch-halo-speeds 1 [
+    ;  setxy (xcor + size + 0.125) (ycor - (size * 4))
+    ;  set color add-transparency yellow 0.75
+    ;  set shape "halo-speed"
+    ;  create-link-from myself
+    ;  [
+    ;    tie
+    ;    hide-link
+    ;  ]
+    ;  contrast-color-to-background
+    ;]
+    if (prev-command-name != "make-halo") [
+      log-output "make-halo"
+    ]
   ]
 end
 
@@ -3521,7 +3544,7 @@ end
 
 to trace-balls-brush-is-drawing-on
   set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
-  marker-added-to-ball balls-in-patches-brush-is-drawing-on
+  ;marker-added-to-ball balls-in-patches-brush-is-drawing-on
   let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
   ask balls-to-trace [flash-outline 5 white]
   trace balls-to-trace
@@ -3816,8 +3839,8 @@ to remove-ball
 end
 
 to remove-halo-from-balls [-balls]
-  ask -balls with [has-halo] [remove-halo]
-  set marked-balls marked-balls with [not member? self -balls]
+  ask -balls with [has-halo and [show-speed] of get-halo = false] [remove-halo]
+  ;set marked-balls marked-balls with [not member? self -balls]
 end
 
 to remove-halo-speed
@@ -3828,19 +3851,24 @@ to remove-halo-speed
 end
 
 to remove-halo-speed-from-balls [-balls]
-  ask -balls with [has-halo] [remove-halo]
-  set marked-balls marked-balls with [not member? self -balls]
+  ask -balls with [has-halo and [show-speed] of get-halo = true] [remove-halo]
+  ;set marked-balls marked-balls with [not member? self -balls]
 end
 
 to add-halo-to-balls [-balls]
-  ask -balls with [not has-halo] [make-halo]
-  set marked-balls (turtle-set marked-balls -balls)
+  ;let balls-without-halo -balls with [not has-halo]
+  ask -balls [make-halo]
+  let -halos (turtle-set [get-halo] of -balls)
+  ask -halos [set show-speed false]
+  ;set marked-balls (turtle-set marked-balls -balls)
 end
 
 to add-halo-speed-to-balls [-balls]
   ask -balls with [not has-halo] [make-halo]
+  let -halos (turtle-set [get-halo] of -balls)
+  ask -halos [set show-speed true]
   ask -balls [add-halo-speed]
-  set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
+  ;set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
 end
 
 to add-halo-speed
@@ -3853,7 +3881,11 @@ to-report ball-tied-to-halo
 end
 
 to update-halo-speed
-  set label (word precision [speed] of ball-tied-to-halo 2 "     ")
+  ifelse show-speed [
+    set label (word precision [speed] of ball-tied-to-halo 2 "     ")
+  ] [
+    set label ""
+  ]
 end
 
 ;turtle procedure
