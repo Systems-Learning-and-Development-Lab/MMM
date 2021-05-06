@@ -108,12 +108,8 @@ breed [balls ball]
 breed [gfx-overlay a-gfx-overlay] ; turtles used to diplay gfx
 breed [brush-border-outlines brush-border-outline] ; gfx for brush outline
 breed [brush-cursors brush-cursor] ; gfx for brush cursor
-
-undirected-link-breed
-[
-  compound-shapes
-  compound-shape
-]
+undirected-link-breed [compound-shapes compound-shape]
+undirected-link-breed [halo-links halo-link]
 
 animations-own
 [
@@ -3251,12 +3247,12 @@ to make-halo  ; runner procedurepaint-world
   if not has-halo [
     hatch-halos 1
     [
-      set size size * 11
+      set size size * 2 + 4
       set color add-transparency yellow 0.75
       set shape "halo"
       set show-speed false
       pen-up
-      create-link-from myself
+      create-halo-link-with myself
       [
         tie
         hide-link
@@ -4525,7 +4521,7 @@ end
 to create-balls-of-population-selected-in-ui
   if is-a-population-selected-in-ui [
     ;update-interactively-ball-population-property-settings
-    create-balls-if-under-maximum-capacity population-to-set-properties-for-in-ui number-of-balls-to-add mouse-xcor mouse-ycor
+    create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
   ]
 end
 
@@ -5155,7 +5151,7 @@ add-node "properties" []
 increase-depth if true [
   add-node "name" (list (list "name" "H2"))
   add-node "color" (list (list "color" (15)))
-  add-node "shape" (list (list "shape" "molecule-a2"))
+  add-node "shape" (list (list "shape" "circle"))
   add-node "size" (list (list "size" 0.5))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 15))
@@ -5190,8 +5186,8 @@ add-node "properties" []
 increase-depth if true [
   add-node "name" (list (list "name" "O2"))
   add-node "color" (list (list "color" (105)))
-  add-node "shape" (list (list "shape" "circle"))
-  add-node "size" (list (list "size" 0.5))
+  add-node "shape" (list (list "shape" "molecule-n2h4"))
+  add-node "size" (list (list "size" 3))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 15))
 ] decrease-depth
