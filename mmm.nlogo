@@ -4766,12 +4766,7 @@ end
 to remove-ball
   remove-halo
   kill-existing-compound-shapes
-  ; ask a patch to kill ball so code can be executed after ball dies
-  ask patch-here [
-    ask myself [die]
-    ; put any code here that needs to be executed after balls death
-    ;update-ball-population-plot
-  ]
+  die
 end
 
 to remove-all-balls
