@@ -1974,38 +1974,29 @@ to update-ball-population-properties-defined-in-nettango-blocks
   ; these functions are defined in nettango, so to reduce the amount of lines
   ; needed to be changed between desktop and web use, the primitive "run"
   ; is used because the compiler can not check if these procedures exist until runtime
-  lp "update-1"
   initialize-all-lookup-tables-if-nettango-has-recompiled
   set nodes-by-id []
   set id-counter 0
 
   let amount-of-populations 2
-  lp "update-2"
   ;foreach (range 1 (amount-of-populations + 1)) [ population ->
   ;  run (word "configure-population-" population)
   ;]
   configure-population-1
-  lp "update-2.5"
   configure-population-2
-  lp "update-3"
   if keep-prev-ast-if-new-ast-did-not-change [
     ;todo parsing is redundant if ast has not changed
     ;need to run actions here
-    lp "update-4"
     foreach (range 1 (amount-of-populations + 1)) [ population ->
       parse-actions-and-properties-of-configure-population-block table:get blocks population
     ]
-    lp "update-5"
     foreach (range 1 (amount-of-populations + 1)) [ population ->
       run-actions-and-properties-of-configure-population-block table:get blocks population
     ]
-    lp "update-6"
     foreach (range 1 (amount-of-populations + 1)) [ population ->
       parse-interactions-clause interaction-clause-of-population population population
     ]
-    lp "update-7"
     notify-properties-that-changed-for-each-population
-    lp "update-8"
   ]
 end
 
@@ -2051,24 +2042,15 @@ to lp [string]
 end
 
 to go
-  lp "go-1"
   on-start-of-turn
-  lp "go-2"
   ifelse any-moving-balls? [
-    lp "go-3"
     advance-state-of-world
-    lp "go-4"
   ][
-    lp "go-5"
     re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
-    lp "go-6"
     on-end-of-turn
-    lp "go-7"
     stop  ; unselect "play" button
   ]
-  lp "go-8"
   on-end-of-turn
-  lp "go-9"
 end
 
 to update-marker
@@ -2189,15 +2171,10 @@ to-report ball-tied-to-halo
 end
 
 to on-end-of-turn
-  lp "on-end-of-turn-1"
   set brush-activated-after-model-was-advanced false
-  lp "on-end-of-turn-2"
   set prev-population-properties copy-table population-properties
-  lp "on-end-of-turn-3"
   notify-of-global-variable-changes
-  lp "on-end-of-turn-4"
   check-if-should-color-balls-relative-to-population-speed
-  lp "on-end-of-turn-5"
   run-animations
   update-marker
   update-speed-in-halos
@@ -2205,11 +2182,8 @@ end
 
 to on-start-of-turn
   ;time-run
-  lp "on-start-of-turn-1"
   log-go-procedure
-  lp "on-start-of-turn-2"
   update-ball-population-properties-defined-in-nettango-blocks
-  lp "on-start-of-turn-3"
 end
 
 ;to-report prev-global-variable [name]
@@ -3146,25 +3120,15 @@ end
 to setup   ; called from START NEW TASK button
   ; counting block spaces is slow so keep result between resets
   ;let tmp-amount-of-block-spaces amount-of-block-spaces
-  reset-timer
-  lp "setup 0"
   clear-all
-  lp "setup 0.5"
   reset-ticks
-  lp "setup 1"
   ;set amount-of-block-spaces tmp-amount-of-block-spaces
   initialize-world
-  lp "setup 2"
   update-ball-population-properties-defined-in-nettango-blocks
-  lp "setup 3"
   select-next-population-in-properties-ui
-  lp "setup 4"
   setup-brush
-  lp "setup 5"
   recolor-all-patches
-  lp "setup 6"
   display
-  lp "setup 7"
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -5191,7 +5155,7 @@ add-node "properties" []
 increase-depth if true [
   add-node "name" (list (list "name" "H2"))
   add-node "color" (list (list "color" (15)))
-  add-node "shape" (list (list "shape" "circle"))
+  add-node "shape" (list (list "shape" "molecule-a2"))
   add-node "size" (list (list "size" 0.5))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 15))
@@ -6683,28 +6647,26 @@ Circle -8630108 true false 136 66 158
 Circle -16777216 false false 136 66 158
 Circle -8630108 true false 5 67 158
 Circle -16777216 false false 3 66 162
-Circle -7500403 true false 11 41 67
-Circle -7500403 true false 11 191 67
-Circle -7500403 true false 221 191 67
-Circle -7500403 true false 221 41 67
-Circle -7500403 false false 11 41 67
-Circle -16777216 false false 11 41 67
-Circle -16777216 false false 221 191 67
-Circle -16777216 false false 221 41 67
-Circle -16777216 false false 11 191 67
+Circle -7500403 true false -2 28 92
+Circle -16777216 false false -2 28 92
+Circle -7500403 true false 208 178 92
+Circle -7500403 true false 208 28 92
+Circle -7500403 true false -2 178 92
+Circle -16777216 false false 208 28 92
+Circle -16777216 false false 208 178 92
+Circle -16777216 false false -2 178 92
 
 molecule-n2h4-h4
 true
 0
-Circle -7500403 true true 11 41 67
-Circle -7500403 true true 11 191 67
-Circle -7500403 true true 221 191 67
-Circle -7500403 true true 221 41 67
-Circle -7500403 false true 11 41 67
-Circle -16777216 false false 11 41 67
-Circle -16777216 false false 221 191 67
-Circle -16777216 false false 221 41 67
-Circle -16777216 false false 11 191 67
+Circle -7500403 true true -2 28 92
+Circle -16777216 false false -2 28 92
+Circle -7500403 true true 208 178 92
+Circle -7500403 true true 208 28 92
+Circle -7500403 true true -2 178 92
+Circle -16777216 false false 208 28 92
+Circle -16777216 false false 208 178 92
+Circle -16777216 false false -2 178 92
 
 molecule-n2h4-n2
 true
