@@ -4,6 +4,8 @@ globals [
   tick-delta    ; how much the model advances every tick
   global-variables-record
   animation-ticks  ; animations advance relative to this tick
+  chosen-background-color
+  verbal
 
   ;==== balls ====
   wall-collisions    ; count wall collisions for each population.
@@ -13,6 +15,8 @@ globals [
   collision-depth-threshold    ; how deep the intersection of balls can be to be considered collision
   look-ahead-wall-collision    ; distance to check ahead if near wall
   population-balls    ; for fast access of balls belonging to certain population
+  -show-ball-label
+  color-ball-by-speed
 
   ;==== electric field ====
   electric-field-color
@@ -40,6 +44,7 @@ globals [
   population-to-set-properties-for-in-ui ; which population is selected in the ball pallet in ui
 
   ;==== log =====
+  log-enabled
   -log ; keeps track of all log history. need this because netlogo web can not append to a file, so need to write whole log every time
   logged-pictures ; keeps track how many pictures logged so far so the file can be named with picture number in ascending order
   log-file-name  ; will hold filename
@@ -56,12 +61,14 @@ globals [
   ;======= brush ===========
   brush-shape                           ; square or circle
   brush-type                            ; what is brush drawing?
+  brush-size
+  marked-balls
   center-patch-of-drawn-shape           ; keeps track of patch brush first clicked on when shape was first drawn.
   patches-affected-by-drawn-shape       ; patches that would be drawn on if user were to draw shape right now
   gfx-displaying-patches-affected-by-drawn-shape    ; turtles that only serve to display boundaries of shape currently being configured
   mouse-xy-when-brush-was-pressed-down  ; x,y coordinates when brush was first clicked
   shape-drawn-by-brush                  ; circle,rectangle,line,square
-  -brush-border-outline                 ; gfx turtle displaying which patches will get drawn onby brush
+  -brush-border-outline                 ; gfx turtle dsetuisplaying which patches will get drawn onby brush
   -brush-cursor                         ; gfx turtle displaying brush cursor
   brush-style                           ; is brush drawing free-form or a shape
   brush-type-icon                       ; icon top right of model displaying what brush is drawing
@@ -79,6 +86,8 @@ globals [
   brush-activated-after-model-was-advanced      ; to know if display should be updated because model isnt running which means display isn't updated in "go" procedure
   click-count-when-radio-buttons-were-first-clicked ; used for radio buttons for brush. keeps track of what order brush buttons were clicked so the right button is unpressed
   brush-radio-buttons-click-count ; increased when one of the brush buttons is clicked, used to keep track of which button was pressed last
+  curr-marker
+  prev-marker
 
   ;======= AST VARIABLES =========
   ast-root
@@ -141,6 +150,11 @@ patches-own
 counters-own
 [
   number
+]
+
+halos-own
+[
+  show-speed
 ]
 
 to initialize-properties-for-populations [populations]
@@ -247,6 +261,14 @@ to initialize-patch
 end
 
 to initialize-global-values
+  set verbal true
+
+  set chosen-background-color צבע-רקע
+  set marked-balls no-turtles
+  set curr-marker סמן
+  set log-enabled false
+  set -show-ball-label false
+  set color-ball-by-speed false
   set population-properties table:make
   set prev-population-properties population-properties
   set population-to-set-properties-for-in-ui "-"
@@ -261,7 +283,7 @@ to initialize-global-values
   set logged-pictures 0
   set wall-collisions table:make
   set population-balls table:make
-  set max-balls 200
+  set max-balls 2000
   set collision-speed-delta 0.5;
   set max-speed 20
   set look-ahead-wall-collision 0.6
@@ -300,12 +322,12 @@ end
 
 to-report global-variable-values
   report table:from-list (list
-    (list "show-name" show-name)
-    (list "color-speed" color-speed)
+    ;(list "show-name" show-name)
+    ;(list "color-speed" color-speed)
   )
 end
 
-to default-shape-update
+to update-ball-shape-by-default
   ; if ball was formerly a compound shape then need to remove them
   kill-existing-compound-shapes
   set shape prop "shape"
@@ -348,6 +370,7 @@ to create-compound-shape [base-name part-name -color]
     set color -color
     set label ""
     set label-color white
+    pen-up
     create-compound-shape-with myself [
       tie
     ]
@@ -367,7 +390,7 @@ to initialize-ast
   set id-counter 0
   set blocks table:make
   set curr-ast-by-population table:make
-  set prev-ast-by-population table:make
+  set prev-ast-by-population (word curr-ast-by-population)
   initialize-procedures-to-run-ast-node-lookup-table
   initialize-ast-parse-lookup-table
 end
@@ -461,34 +484,34 @@ to initialize-ast-parse-lookup-table
   )
 end
 
-to update-all-plots
-  update-ball-population-plot
-  update-ball-collisions-plot
-end
+;to update-all-plots
+  ;update-ball-population-plot
+  ;update-ball-collisions-plot
+;end
 
-to update-ball-population-plot
-  set-current-plot "Ball Population"
-  foreach population-numbers [population -> update-ball-population-in-plot population]
-end
+;to update-ball-population-plot
+;  set-current-plot "Ball Population"
+;  foreach population-numbers [population -> update-ball-population-in-plot population]
+;end
 
-to update-ball-population-in-plot [population]
-  set-ball-population-plot-pen population
-  plotxy ticks ball-count-in-population population
-end
+;to update-ball-population-in-plot [population]
+;  set-ball-population-plot-pen population
+;  plotxy ticks ball-count-in-population population
+;end
 
-to set-ball-population-plot-pen [population]
-  let pen (word population)
-  ifelse plot-pen-exists? pen [
-    set-current-plot-pen pen ]
-  [
-    create-temporary-plot-pen pen
-    set-plot-pen-color pprop population "color"
-  ]
-end
+;to set-ball-population-plot-pen [population]
+;  let pen (word population)
+;  ifelse plot-pen-exists? pen [
+;    set-current-plot-pen pen ]
+;  [
+;    create-temporary-plot-pen pen
+;    set-plot-pen-color pprop population "color"
+;  ]
+;end
 
-to update-ball-collisions-plot
+;to update-ball-collisions-plot
 
-end
+;end
 
 to iterate-through-population-number-in-ui-by-ascending-circular-order
   let -population-numbers population-numbers
@@ -574,6 +597,11 @@ to update-record-of-when-brush-radio-button-was-first-clicked [button]
   [
     remove-record-of-buttons-clicked-previous-to button
   ]
+end
+
+to-report is-first-time-radio-button-is-pressed-down [button]
+  ;report not table-has-key? time-when-brush-buttons-were-first-clicked button
+  report not table:has-key? click-count-when-radio-buttons-were-first-clicked button
 end
 
 to-report should-release-brush-radio-button? [button]
@@ -673,9 +701,12 @@ to update-ball-shape
     shape-name = "molecule-co2" [update-compound-shape "molecule-co2" ["c" "o2"] ["o2" "c"]]
     shape-name = "molecule-nh3" [update-compound-shape "molecule-nh3" ["n" "h3"] ["n" "h3"]]
     shape-name = "molecule-ch4" [update-compound-shape "molecule-ch4" ["c" "h4"] ["c" "h4"]]
+    shape-name = "molecule-ch3oh" [update-compound-shape "molecule-ch3oh" ["c" "h4" "o"] ["h4" "o" "c"]]
+    shape-name = "molecule-n2h4" [update-compound-shape "molecule-n2h4" ["n2" "h4"] ["h4" "n2"]]
+    shape-name = "molecule-n2o4" [update-compound-shape "molecule-n2o4" ["n2" "o4"] ["o4" "n2"]]
     shape-name = "molecule-candle" [update-compound-shape "molecule-candle" ["c" "h"] ["c" "h"]]
     shape-name = "molecule-alcohol" [update-compound-shape "molecule-alcohol" ["c2" "h5" "oh"] ["c2" "oh" "h5"]]
-    [default-shape-update]
+    [update-ball-shape-by-default]
   )
 end
 
@@ -698,6 +729,7 @@ to initialize-ball-after-creation [population -xcor -ycor]
   set speed prop "speed"
   set mass prop "size"
   setxy -xcor -ycor
+  pen-up
   update-ball-label
   initialize-ball-heading
   reset-sum-of-forces-acting-on-balls
@@ -706,7 +738,7 @@ to initialize-ball-after-creation [population -xcor -ycor]
 end
 
 to update-ball-label
-  ifelse show-name [show-ball-label] [hide-ball-label]
+  ifelse -show-ball-label [show-ball-label] [hide-ball-label]
 end
 
 to hatch-balls-at [population amount -xcor -ycor]
@@ -729,7 +761,7 @@ to randomly-move-ball-inside-radius [radius]
 end
 
 to on-ball-created
-  update-ball-population-plot
+  ;update-ball-population-plot
   log-command "place-balls"
 end
 
@@ -888,9 +920,21 @@ to recolor-patch
   )
 end
 
+to-report wall-color
+  report צבע-מברשת
+end
+
+to-report background-color
+  report chosen-background-color
+end
+
 to set-background-color-button-clicked
+  set chosen-background-color צבע-רקע
   recolor-all-patches
   log-command "paint-world"
+  ask halos [
+    contrast-color-to-background
+  ]
 end
 
 to recolor-all-patches
@@ -1252,11 +1296,18 @@ to increase-animation-size
   remove-animation-if-past-lifespan
 end
 
-to animate-flash
+to-report should-flash
   let flash-rate table:get data "flash-every-n-ticks"
-  let should-flash animation-ticks mod flash-rate = 0
+  report animation-ticks mod flash-rate = 0
+end
+
+to toggle-hidden-shown
+  ifelse hidden? [show-turtle] [hide-turtle]
+end
+
+to animate-flash
   if should-flash [
-    ifelse hidden? [show-turtle] [hide-turtle]
+    toggle-hidden-shown
   ]
   remove-animation-if-past-lifespan
 end
@@ -1310,6 +1361,7 @@ to create-inflating-animation [-shape -size -color -lifespan]
     set size -size
     set color -color
     set data table:from-list [["increase" 5]]
+    pen-up
   ]
 end
 
@@ -1320,6 +1372,7 @@ to-report hatch-flashing-animation [-shape -size -color -lifespan]
     set shape -shape
     set size -size
     set color -color
+    pen-up
     set data table:from-list (list
       (list "flash-every-n-ticks" 1))
   ]
@@ -1331,6 +1384,7 @@ to hatch-rotating-animation [-shape -size -color -lifespan]
     set shape -shape
     set size -size
     set color -color
+    pen-up
     set data table:from-list [["angle" 10]]
   ]
 end
@@ -1378,6 +1432,7 @@ to initialize-animation [name -lifespan]
   set heading 0
   set shape "empty"
   set size 0
+  pen-up
   show-turtle
 end
 
@@ -1402,6 +1457,7 @@ to run-draw-block [node population objects]
     set heading 0
     show-turtle
     set birthday ticks
+    pen-up
   ]
 end
 
@@ -1422,6 +1478,7 @@ to-report create-mark [-color -shape -lifespan]
   ask mark [
     set color -color
     set shape -shape
+    pen-up
   ]
   report mark
 end
@@ -1917,35 +1974,52 @@ to update-ball-population-properties-defined-in-nettango-blocks
   ; these functions are defined in nettango, so to reduce the amount of lines
   ; needed to be changed between desktop and web use, the primitive "run"
   ; is used because the compiler can not check if these procedures exist until runtime
+  lp "update-1"
   initialize-all-lookup-tables-if-nettango-has-recompiled
   set nodes-by-id []
   set id-counter 0
 
-  let amount-of-populations 3
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    run (word "configure-population-" population)
+  let amount-of-populations 2
+  lp "update-2"
+  ;foreach (range 1 (amount-of-populations + 1)) [ population ->
+  ;  run (word "configure-population-" population)
+  ;]
+  configure-population-1
+  lp "update-2.5"
+  configure-population-2
+  lp "update-3"
+  if keep-prev-ast-if-new-ast-did-not-change [
+    ;todo parsing is redundant if ast has not changed
+    ;need to run actions here
+    lp "update-4"
+    foreach (range 1 (amount-of-populations + 1)) [ population ->
+      parse-actions-and-properties-of-configure-population-block table:get blocks population
+    ]
+    lp "update-5"
+    foreach (range 1 (amount-of-populations + 1)) [ population ->
+      run-actions-and-properties-of-configure-population-block table:get blocks population
+    ]
+    lp "update-6"
+    foreach (range 1 (amount-of-populations + 1)) [ population ->
+      parse-interactions-clause interaction-clause-of-population population population
+    ]
+    lp "update-7"
+    notify-properties-that-changed-for-each-population
+    lp "update-8"
   ]
-  keep-prev-ast-if-new-ast-did-not-change
-  ;todo parsing is redundant if ast has not changed
-  ;need to run actions here
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    parse-actions-and-properties-of-configure-population-block table:get blocks population
-  ]
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    run-actions-and-properties-of-configure-population-block table:get blocks population
-  ]
-  foreach (range 1 (amount-of-populations + 1)) [ population ->
-    parse-interactions-clause interaction-clause-of-population population population
-  ]
-  notify-properties-that-changed-for-each-population
 end
 
-to keep-prev-ast-if-new-ast-did-not-change
-  if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
+to-report keep-prev-ast-if-new-ast-did-not-change
+  ;if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
+  let ast-changed (word curr-ast-by-population) != prev-ast-by-population
+  if ast-changed [
+    ;print "changed"
     set blocks copy-table curr-ast-by-population
     set last-used-nodes-by-id nodes-by-id
+    ;print blocks
   ]
-  set prev-ast-by-population table-as-list curr-ast-by-population
+  ;set prev-ast-by-population table-as-list curr-ast-by-population
+  set prev-ast-by-population (word curr-ast-by-population)
   set curr-ast-by-population table:make
   ; this line of code is important, since every tick a new ast is formed, and
   ; nodes-by-id gets updated with the new nodes, however it needs to get set to
@@ -1954,51 +2028,188 @@ to keep-prev-ast-if-new-ast-did-not-change
   ; refer to each other by id.
   ; TODO: find a more elegant solution.
   set nodes-by-id last-used-nodes-by-id
+  report ast-changed
 end
 
 to time-run
-  ;if tick-count = 0 [profiler:reset profiler:start]
-  ;if tick-count = 500 [print profiler:report profiler:reset]
-end
-
-to on-world-advanced
-  run-animations
-  update-all-plots
+  ;if ticks = 0 [profiler:reset profiler:start]
+  ;if ticks = 300 [print profiler:report profiler:reset]
 end
 
 to advance-state-of-world
   every (tick-delta) [
-    advance-balls-in-world
+    advance-balls-in-world2
     advance-ticks
-    on-world-advanced
   ]
+end
+
+to lp [string]
+  ;if verbal = true [
+  ;  print (word string " " timer)
+  ;  reset-timer
+  ;]
 end
 
 to go
+  lp "go-1"
   on-start-of-turn
+  lp "go-2"
   ifelse any-moving-balls? [
+    lp "go-3"
     advance-state-of-world
+    lp "go-4"
   ][
+    lp "go-5"
     re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
+    lp "go-6"
     on-end-of-turn
+    lp "go-7"
     stop  ; unselect "play" button
   ]
+  lp "go-8"
   on-end-of-turn
+  lp "go-9"
+end
+
+to update-marker
+  update-speed-in-halos
+  set curr-marker סמן
+  ifelse markers-set-to-hidden
+  [
+    hide-all-markers
+  ]
+  [
+    if markers-set-to-shown
+    [
+      show-all-markers
+    ]
+  ]
+  set prev-marker curr-marker
+end
+
+to marker-changed-from [prev]
+  (ifelse
+    ;prev = "הילה" [ask halos [hide-turtle]]
+    ;prev = "הילה עם מהירות" [ask halos [hide-turtle] update-speed-in-halos]
+    ;prev = "עקבות של כדור" [pause-ball-tracing]
+    ;prev = "מונה כדורים" [hide-counters]
+    prev = "ללא סמן" [show-all-markers]
+  )
+end
+
+to marker-changed-to [new]
+  (ifelse
+    new = "הילה" [ask halos [show-turtle]]
+    new = "הילה עם מהירות" [ask halos [show-turtle] update-speed-in-halos]
+    new = "עקבות של כדור" [resume-ball-tracing]
+    new = "מונה כדורים" [show-counters]
+    new = "ללא סמן" [hide-all-markers]
+  )
+end
+
+to hide-counters
+  ask counters [hide-turtle]
+  ask (turtle-set map [counter-number -> counter-number-gfx counter-number] table:keys counters-information-gfx
+                  map [counter-number -> counter-number-gfx counter-number] table:keys counters-information-gfx)
+  [
+    hide-turtle
+  ]
+  ;ask counter-information-gfx [
+  ;  ask counter-number-gfx-overlay [hide-turtle]
+  ;  ask ball-count-gfx-overlay [hide-turtle]
+  ;]
+end
+
+to show-counters
+  ask counters [show-turtle]
+  ask (turtle-set map [counter-number -> counter-number-gfx counter-number] table:keys counters-information-gfx
+                  map [counter-number -> counter-number-gfx counter-number] table:keys counters-information-gfx)
+  [
+    show-turtle
+  ]
+  ;ask counter-information-gfx [
+  ;  ask counter-number-gfx-overlay [show-turtle]
+  ;  ask ball-count-gfx-overlay [show-turtle]
+  ;]
+end
+
+to-report markers-set-to-hidden
+  report prev-marker != curr-marker and curr-marker = "ללא סמן"
+end
+
+to-report markers-set-to-shown
+  report prev-marker != curr-marker and prev-marker = "ללא סמן"
+end
+
+to hide-all-markers
+  clear-drawing
+  pause-ball-tracing
+  ask halos [hide-turtle]
+end
+
+to pause-ball-tracing
+  set marked-balls balls with [pen-mode = "down"]
+  ask marked-balls [pen-up]
+end
+
+to resume-ball-tracing
+  ask marked-balls [pen-down]
+  resume-ball-tracing
+end
+
+to show-all-markers
+  ask marked-balls [pen-down]
+  ask halos [show-turtle]
+end
+
+to-report halo-is-displaying-speed
+  report label != ""
+end
+
+to-report halo-with-speed-marker-selected
+  report סמן = "הילה עם מהירות"
+end
+
+to update-speed-in-halos
+  ask halos [
+    update-halo-speed
+  ]
+end
+
+to update-halo-speed
+  ifelse show-speed [
+    set label (word precision [speed] of ball-tied-to-halo 2 "     ")
+  ] [
+    set label ""
+  ]
+end
+
+to-report ball-tied-to-halo
+  report [other-end] of one-of my-links
 end
 
 to on-end-of-turn
+  lp "on-end-of-turn-1"
   set brush-activated-after-model-was-advanced false
+  lp "on-end-of-turn-2"
   set prev-population-properties copy-table population-properties
+  lp "on-end-of-turn-3"
   notify-of-global-variable-changes
+  lp "on-end-of-turn-4"
   check-if-should-color-balls-relative-to-population-speed
+  lp "on-end-of-turn-5"
+  run-animations
+  update-marker
+  update-speed-in-halos
 end
 
 to on-start-of-turn
-  time-run
+  ;time-run
+  lp "on-start-of-turn-1"
   log-go-procedure
-  ;update-ball-population-properties-defined-in-nettango-blocks
-  if netlogo-web? [
-    update-ball-population-properties-defined-in-nettango-blocks ]
+  lp "on-start-of-turn-2"
+  update-ball-population-properties-defined-in-nettango-blocks
+  lp "on-start-of-turn-3"
 end
 
 ;to-report prev-global-variable [name]
@@ -2006,7 +2217,7 @@ end
 ;end
 
 to check-if-should-color-balls-relative-to-population-speed
-  if color-speed [color-balls-relative-to-population-speed]
+  ;if color-speed [color-balls-relative-to-population-speed]
 end
 
 to show-balls-labels
@@ -2018,7 +2229,7 @@ to hide-balls-labels
 end
 
 to update-ball-labels
-  ifelse show-name [
+  ifelse -show-ball-label [
     show-balls-labels ]
   [
     hide-balls-labels
@@ -2043,7 +2254,7 @@ end
 
 to show-ball-label
   set label prop "name"
-  set label-color white
+  set label-color add-transparency label-color 1
 end
 
 to hide-ball-label
@@ -2052,8 +2263,30 @@ end
 
 ; ball procedure
 to-report ball-can-move
-  let -move-forward prop "move"
-  report ifelse-value is-boolean? -move-forward [-move-forward] [ticks - tick-move-enabled < -move-forward]
+  (ifelse
+    ball-moves-forever? [report true]
+    ball-set-to-move-x-steps? [report steps-left-to-move > 0]
+  )
+end
+
+to-report ball-set-to-move-x-steps?
+  report is-number? prop "move"
+end
+
+to-report ball-moves-forever?
+  report is-boolean? prop "move"
+end
+
+to-report steps-left-to-move
+  report amount-of-steps-ball-was-set-to-move - steps-moved-since-ball-was-last-set-to-move-x-steps
+end
+
+to-report amount-of-steps-ball-was-set-to-move
+  report (prop "move")
+end
+
+to-report steps-moved-since-ball-was-last-set-to-move-x-steps
+  report (ticks - tick-move-enabled)
 end
 
 ; turtle procedure
@@ -2070,7 +2303,7 @@ end
 ; patch procedure
 to create-flash-here [-flash-color]
   let -effect "patch-flash"
-  let -lifespan 15
+  let -lifespan 3
   ask sprout-animation -effect -lifespan [
     set color -flash-color
     set shape "square"
@@ -2351,6 +2584,14 @@ end
 to flash-wall-at [-xcor -ycor]
   if flash-wall-collision [
     ask patch -xcor -ycor [flash-wall-here] ]
+end
+
+to-report flash-wall-collision
+  report התנגשויות-בקיר
+end
+
+to-report wall-collisions-count [population]
+  report table:get-or-default wall-collisions population 0
 end
 
 to increase-wall-collision-count-for-ball-population
@@ -2905,16 +3146,25 @@ end
 to setup   ; called from START NEW TASK button
   ; counting block spaces is slow so keep result between resets
   ;let tmp-amount-of-block-spaces amount-of-block-spaces
+  reset-timer
+  lp "setup 0"
   clear-all
+  lp "setup 0.5"
   reset-ticks
+  lp "setup 1"
   ;set amount-of-block-spaces tmp-amount-of-block-spaces
   initialize-world
-  ifelse netlogo-web? [update-ball-population-properties-defined-in-nettango-blocks] [crt-pop]
-  ;update-ball-population-properties-defined-in-nettango-blocks
+  lp "setup 2"
+  update-ball-population-properties-defined-in-nettango-blocks
+  lp "setup 3"
   select-next-population-in-properties-ui
+  lp "setup 4"
   setup-brush
+  lp "setup 5"
   recolor-all-patches
+  lp "setup 6"
   display
+  lp "setup 7"
 end;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -3033,22 +3283,85 @@ to log-output [command-name]
   ]
 end
 
-to make-halo  ; runner procedure
-  hatch-halos 3 [
-    set size ([size] of myself) * 3.5
-    set shape "circle outline"
-    set color add-transparency yellow 0.75
-    create-link-from myself [
-      tie
-      hide-link
+to make-halo  ; runner procedurepaint-world
+  if not has-halo [
+    hatch-halos 1
+    [
+      set size size * 11
+      set color add-transparency yellow 0.75
+      set shape "halo"
+      set show-speed false
+      pen-up
+      create-link-from myself
+      [
+        tie
+        hide-link
+      ]
+      contrast-color-to-background
     ]
+    log-command "make-halo"
   ]
-  log-command "make-halo"
+end
+
+to contrast-color-to-background
+  let -complementary-background-color complementary-color background-color
+  set color -complementary-background-color
+  set label-color -complementary-background-color
+end
+
+to-report convert-to-target-color-model [target to-convert]
+  (ifelse
+    is-rgb target [report to-rgb to-convert]
+    is-rgba target [report to-rgba to-convert]
+    is-netlogo-color target [report to-netlogo-color to-convert]
+    [report false]
+  )
+end
+
+to-report to-netlogo-color [-color]
+  (ifelse
+    is-rgb -color [report approximate-rgb item 0 -color item 1 -color item 2 -color]
+    is-rgba -color [report approximate-rgb item 0 -color item 1 -color item 2 -color]
+    is-netlogo-color -color [report -color]
+    [report false]
+  )
+end
+
+to-report is-netlogo-color [-color]
+  report is-number? -color and -color >= 0 and -color < 140
+end
+
+to-report to-rgb [-color]
+  (ifelse
+    is-rgb -color [report -color]
+    is-rgba -color [report sublist -color 0 3]
+    is-netlogo-color -color [report extract-rgb -color]
+    [report false]
+  )
+end
+
+to-report to-rgba [-color]
+  (ifelse
+    is-rgb -color [report lput 255 -color]
+    is-rgba -color [report -color]
+    is-netlogo-color -color [report lput 255 extract-rgb -color]
+    [report false]
+  )
+end
+
+to-report complementary-color [-color]
+  let -rgba to-rgba -color
+  let complementary-red 255 - (item 0 -rgba)
+  let complementary-green 255 - (item 1 -rgba)
+  let complementary-blue 255 - (item 2 -rgba)
+  let alpha item 3 -rgba
+  let compementary-rgba (list complementary-red complementary-green complementary-blue alpha)
+  report convert-to-target-color-model -color compementary-rgba
 end
 
 to save-existing-layout
   let file-name user-input "איזה שם לתת לקובץ?"
-  export-world (word file-name)
+  export-world (word file-name ".nlogo")
   log-command "save-existing-layout"
 end
 
@@ -3149,18 +3462,21 @@ to setup-brush
   set shape-drawn-by-brush "rectangle"
   set center-patch-of-drawn-shape nobody
   set patches-affected-by-drawn-shape no-patches
-  set brush-icon-transparency-normalized 0.8
+  set brush-icon-transparency-normalized 0
   set gfx-displaying-patches-affected-by-drawn-shape no-turtles
+  set brush-size 1
   create-brush-border-outlines 1 [hide-turtle set -brush-border-outline self]
   create-brush-cursors 1 [hide-turtle set -brush-cursor self]
   create-gfx-overlay 1 [set brush-type-icon self
     set color add-transparency red brush-icon-transparency-normalized
     setxy (max-pxcor - brush-icon-size - ((brush-icon-size - 1) * 0.5)) (max-pycor - ((brush-icon-size - 1) * 0.5))
-    set size brush-icon-size]
+    set size brush-icon-size
+  ]
   create-gfx-overlay 1 [set brush-draw-erase-mode-icon self
     set color add-transparency red brush-icon-transparency-normalized
     setxy (max-pxcor - ((brush-icon-size - 1) * 0.5)) (max-pycor - ((brush-icon-size - 1) * 0.5))
-    set size brush-icon-size ]
+    set size brush-icon-size
+  ]
   update-brush-cursor-icon
   update-brush-type-icon
   update-brush-add-erase-mode-icon
@@ -3482,10 +3798,39 @@ end
 
 to display-brush-cursor
   ifelse current-mouse-inside? [
+    set-brush-cursor-icon
     show-brush-cursor
     set-brush-cursor-coordinates ]
   [
     hide-brush-cursor ]
+end
+
+to set-brush-cursor-icon
+  ifelse brush-in-draw-mode [
+    (ifelse
+      brush-type = "counter" [
+        ask -brush-cursor [set shape "brush-cursor-draw-counter3" set size 3]
+      ]
+      brush-type = "halo" or brush-type = "halo-speed" [
+        ask -brush-cursor [set shape "brush-cursor-draw-halo2" set size 3]
+      ]
+      brush-type = "trace" [
+        ask -brush-cursor [set shape "brush-cursor-draw-trace2" set size 3]
+      ]
+    )
+  ] [
+    (ifelse
+      brush-type = "counter" [
+        ask -brush-cursor [set shape "brush-cursor-erase-counter" set size 3]
+      ]
+      brush-type = "halo" or brush-type = "halo-speed"[
+        ask -brush-cursor [set shape "brush-cursor-erase-halo2" set size 3]
+      ]
+      brush-type = "trace" [
+        ask -brush-cursor [set shape "brush-cursor-erase-trace" set size 3]
+      ]
+    )
+  ]
 end
 
 to update-brush-type-icon
@@ -3661,7 +4006,7 @@ end
 to display-brush-gfx
   display-brush-border-outline
   display-brush-cursor
-  diplay-brush-xy-as-label-on-brush-mode-icon
+  ;diplay-brush-xy-as-label-on-brush-mode-icon
   make-sure-brush-gets-updated-in-display-atleast-every 0.005
 end
 
@@ -3836,8 +4181,32 @@ to on-brush-is-held-down
   (ifelse
     brush-type = "ball" [on-brush-held-down-with-ball ]
     brush-type = "halo" [on-brush-held-down-with-halo ]
+    brush-type = "halo-speed" [on-brush-held-down-with-halo-speed ]
     brush-type = "trace" [on-brush-held-down-with-trace ]
-    brush-type = "field" [on-brush-held-down-with-field] )
+    brush-type = "field" [on-brush-held-down-with-field]
+  )
+end
+
+to on-brush-held-down-with-halo-speed
+  ifelse is-brush-in-draw-mode [add-halo-speed-to-balls balls-in-patches-brush-is-drawing-on] [remove-halo-speed-from-balls balls-in-patches-brush-is-drawing-on]
+end
+
+to add-halo-speed-to-balls [-balls]
+  ask -balls with [not has-halo] [make-halo]
+  let -halos (turtle-set [get-halo] of -balls)
+  ask -halos [set show-speed true]
+  ask -balls [add-halo-speed]
+  ;set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
+end
+
+to add-halo-speed
+  ask get-halo [update-halo-speed]
+  ;ask get-halo-speed [update-halo-speed]
+end
+
+to remove-halo-speed-from-balls [-balls]
+  ask -balls with [has-halo and [show-speed] of get-halo = true] [remove-halo]
+  ;set marked-balls marked-balls with [not member? self -balls]
 end
 
 to on-brush-drawing-only-once-per-patch
@@ -3849,7 +4218,9 @@ end
 to on-brush-has-been-clicked
   (ifelse
     brush-type = "ball" [on-brush-clicked-with-ball ]
-    brush-type = "field" [on-brush-clicked-with-field ] )
+    brush-type = "field" [on-brush-clicked-with-field ]
+    brush-type = "trace" [on-brush-clicked-with-trace ]
+  )
   log-free-form-brush-used
 end
 
@@ -3859,6 +4230,10 @@ end
 
 to log-shape-drawn
   log-output (word "place-" shape-drawn-by-brush)
+end
+
+to on-brush-clicked-with-trace
+  if not is-brush-in-draw-mode [clear-drawing]
 end
 
 to on-brush-clicked-with-field
@@ -4160,6 +4535,8 @@ to on-brush-held-down-with-trace
 end
 
 to trace-balls-brush-is-drawing-on
+  set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
+  ;marker-added-to-ball balls-in-patches-brush-is-drawing-on
   let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
   ask balls-to-trace [flash-outline 5 white]
   trace balls-to-trace
@@ -4188,8 +4565,105 @@ to create-balls-of-population-selected-in-ui
   ]
 end
 
+to-report number-of-balls-to-add
+  report כדורים-להוספה
+end
+
 to on-brush-used-with-wall
   ifelse is-brush-in-draw-mode [create-wall-in-patches patches-brush-is-drawing-on] [remove-wall-from-patches patches-brush-is-drawing-on]
+end
+
+to on-erase-wall-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "erase" [
+    set-brush-style-as-free-form
+    user-set-brush-to-erase
+    set-brush-type "wall"
+  ]
+  if should-release-brush-radio-button? "erase" [stop]
+  ifelse סוג-מברשת = "שדה חשמלי" [
+    set-brush-type "field" ]
+  [
+    set-brush-type "wall"
+  ]
+  activate-brush
+end
+
+to on-draw-wall-brush-button-clicked
+  if is-first-time-radio-button-is-pressed-down "wall" [
+    user-set-brush-to-draw
+  ]
+  if should-release-brush-radio-button? "wall" [stop]
+  ifelse סוג-מברשת = "שדה חשמלי" [
+    set-brush-type "field" ]
+  [
+    set-brush-type "wall"
+  ]
+  ifelse סוג-מברשת = "קיר" or סוג-מברשת = "שדה חשמלי" [
+    set-brush-style-as-free-form
+    set brush-size 1
+  ] [
+    set-shape-drawn-by-brush wall-shape-hebrew-to-english סוג-מברשת
+    set-brush-style-as-shape
+  ]
+  activate-brush
+end
+
+to-report wall-shape-hebrew-to-english [hebrew]
+  (ifelse
+    hebrew = "ריבוע" [report "square"]
+    hebrew = "מעגל" [report "circle"]
+    hebrew = "קו" [report "line"]
+    hebrew = "שדה חשמלי" [report "field"]
+  )
+end
+
+to on-erase-marker-brush-button-clicked
+  update-marker
+  if סמן = "ללא סמן" [
+    stop
+  ]
+  if is-first-time-radio-button-is-pressed-down "erase-mark" [
+    set-brush-style-as-free-form ]
+  if should-release-brush-radio-button? "erase-mark" [stop]
+  set-brush-type marker-hebrew-to-english סמן
+  user-set-brush-to-erase
+  (ifelse
+    brush-type = "counter" [set brush-size 2]
+    brush-type = "halo" [set brush-size 2]
+    brush-type = "halo-speed" [set brush-size 2]
+    brush-type = "trace" [set brush-size 2]
+  )
+  activate-brush
+end
+
+to-report marker-hebrew-to-english [hebrew]
+  (ifelse
+    hebrew = "הילה" [report "halo"]
+    hebrew = "עקבות של כדור" [report "trace"]
+    hebrew = "מונה כדורים" [report "counter"]
+    hebrew = "שדה חשמלי" [report "field"]
+    hebrew = "הילה עם מהירות" [report "halo-speed"]
+  )
+end
+
+to on-draw-marker-brush-button-clicked
+  update-marker
+  if סמן = "ללא סמן" [
+    stop
+  ]
+  if is-first-time-radio-button-is-pressed-down "draw-mark" [
+    set-brush-style-as-free-form
+  ]
+  if should-release-brush-radio-button? "draw-mark" [stop]
+  set-brush-type marker-hebrew-to-english סמן
+  user-set-brush-to-draw
+  (ifelse
+    brush-type = "counter" [set brush-size 2]
+    brush-type = "halo" [set brush-size 2]
+    brush-type = "halo-speed" [set brush-size 2]
+    brush-type = "trace" [set brush-size 2]
+  )
+  activate-brush
 end
 
 to on-wall-brush-button-clicked
@@ -4235,6 +4709,8 @@ end
 to on-ball-brush-button-clicked
   if should-release-brush-radio-button? "ball" [stop]
   set-brush-type "ball"
+  set brush-size 1
+  user-set-brush-to-draw
   set-brush-style-as-free-form
   activate-brush
 end
@@ -4316,9 +4792,14 @@ to-report get-halo
   report retreived-halo
 end
 
+to-report my-halos
+  report turtle-set [other-end] of my-links with [is-halo? other-end]
+end
+
 ;ball procedure
 to remove-halo
-  ask turtle-set ([other-end] of my-links with [is-halo? other-end]) [die]
+  ask my-halos [die]
+  ;ask my-halo-speeds [die]
 end
 
 ;ball procedure
@@ -4329,16 +4810,25 @@ to remove-ball
   ask patch-here [
     ask myself [die]
     ; put any code here that needs to be executed after balls death
-    update-ball-population-plot
+    ;update-ball-population-plot
   ]
 end
 
+to remove-all-balls
+  ask balls [remove-ball]
+end
+
 to remove-halo-from-balls [-balls]
-  ask -balls with [has-halo] [remove-halo]
+  ask -balls with [has-halo and [show-speed] of get-halo = false] [remove-halo]
+  ;set marked-balls marked-balls with [not member? self -balls]
 end
 
 to add-halo-to-balls [-balls]
-  ask -balls with [not has-halo] [make-halo]
+  ;let balls-without-halo -balls with [not has-halo]
+  ask -balls [make-halo]
+  let -halos (turtle-set [get-halo] of -balls)
+  ask -halos [set show-speed false]
+  ;set marked-balls (turtle-set marked-balls -balls)
 end
 
 ;turtle procedure
@@ -4348,7 +4838,9 @@ end
 
 ;turtle procedure
 to stop-tracing [-turtles]
+  ask -turtles [flash-outline 5 (red + 2)]
   ask -turtles [pen-up]
+  set marked-balls marked-balls with [not member? self -turtles]
 end
 
 to-report patch-at-point [point]
@@ -4699,8 +5191,8 @@ add-node "properties" []
 increase-depth if true [
   add-node "name" (list (list "name" "H2"))
   add-node "color" (list (list "color" (15)))
-  add-node "shape" (list (list "shape" "molecule-a2"))
-  add-node "size" (list (list "size" 2.2))
+  add-node "shape" (list (list "shape" "circle"))
+  add-node "size" (list (list "size" 0.5))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 15))
 ] decrease-depth
@@ -4725,18 +5217,53 @@ increase-depth if true [
 ] decrease-depth
 table:put curr-ast-by-population 1 ast-root
 end
+
+; Code for Population 2
+to configure-population-2
+  reset-ast
+  add-node "configure-population" (list (list "population" 2))
+add-node "properties" []
+increase-depth if true [
+  add-node "name" (list (list "name" "O2"))
+  add-node "color" (list (list "color" (105)))
+  add-node "shape" (list (list "shape" "circle"))
+  add-node "size" (list (list "size" 0.5))
+  add-node "initial-heading" (list (list "heading" "random"))
+  add-node "initial-speed" (list (list "speed" 15))
+] decrease-depth
+add-node "actions" []
+increase-depth if true [
+  add-node "move-forever" []
+] decrease-depth
+add-node "interactions" []
+increase-depth if true [
+  add-node "if-ball-meets" []
+  increase-depth
+  add-node "objects" []
+  increase-depth if true [
+    add-node "wall" []
+  ] decrease-depth
+  add-node "then" []
+  increase-depth if true [
+    add-node "heading" (list (list "heading" "collide"))
+    add-node "speed" (list (list "speed" "collide"))
+  ] decrease-depth
+  decrease-depth
+] decrease-depth
+table:put curr-ast-by-population 2 ast-root
+end
 ; --- NETTANGO END ---
 @#$#@#$#@
 GRAPHICS-WINDOW
-201
+286
 10
-713
-523
+799
+524
 -1
 -1
-9.51
+9.53
 1
-11
+14
 1
 1
 1
@@ -4755,27 +5282,27 @@ ticks
 30.0
 
 SLIDER
-800
-273
-939
-306
-number-of-balls-to-add
-number-of-balls-to-add
+118
+331
+240
+364
+כדורים-להוספה
+כדורים-להוספה
 1
 100
-1.0
+10.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-32
+58
 10
-149
+175
 56
-Reset
-setup\n
+משימה חדשה
+setup
 NIL
 1
 T
@@ -4787,11 +5314,11 @@ NIL
 1
 
 BUTTON
-422
-539
-513
-572
-play
+294
+549
+396
+582
+התחלה/עצירה
 go
 T
 1
@@ -4804,11 +5331,11 @@ NIL
 0
 
 BUTTON
-101
-61
-181
-121
-Set
+122
+104
+223
+164
+בחירת צבע רקע
 set-background-color-button-clicked
 NIL
 1
@@ -4818,25 +5345,15 @@ NIL
 NIL
 NIL
 NIL
-0
-
-TEXTBOX
-6
-120
-192
-142
--------------------------------------
-14
-0.0
 1
 
 BUTTON
-942
-273
-1002
-306
-Erase All
-erase-all-balls-of-population-selected-in-ui
+34
+372
+119
+405
+מחיקת כדורים
+clear-drawing\nerase-all-balls-of-population-selected-in-ui
 NIL
 1
 T
@@ -4848,11 +5365,11 @@ NIL
 0
 
 BUTTON
-267
-539
-364
-572
-save model 
+129
+635
+230
+668
+שמירת מודל
 save-existing-layout
 NIL
 1
@@ -4865,11 +5382,11 @@ NIL
 0
 
 BUTTON
-568
-539
-663
-572
-load model
+23
+635
+124
+668
+טעינת מודל
 load-existing-layout
 NIL
 1
@@ -4881,129 +5398,24 @@ NIL
 NIL
 0
 
-SWITCH
-726
-85
-851
-118
-Color-Speed
-Color-Speed
-1
-1
--1000
-
 INPUTBOX
-0
-61
-97
-121
-background-color
+21
+104
+118
+164
+צבע-רקע
 0.0
 1
 0
 Color
 
-MONITOR
-887
-220
-950
-265
-Amount
-count balls with [population-num = population-to-set-properties-for-in-ui]
-17
-1
-11
-
 BUTTON
-26
-167
-91
-200
-Draw
-user-set-brush-to-draw
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-98
-167
-168
-200
-Erase
-user-set-brush-to-erase\nset-brush-style-as-free-form
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-SLIDER
-26
-208
-168
-241
-brush-size
-brush-size
-1
-10
-3.0
-1
-1
-NIL
-HORIZONTAL
-
-BUTTON
-26
-247
-94
-280
-Circle
-set-brush-shape \"circle\"
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-102
-247
-170
-280
-Square
-set-brush-shape \"square\"
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-7
-317
-95
-350
-Wall
-on-wall-brush-button-clicked
+22
+240
+118
+276
+מחיקה
+on-erase-wall-brush-button-clicked
 T
 1
 T
@@ -5015,79 +5427,11 @@ NIL
 0
 
 BUTTON
-6
-506
-95
-539
-Circle
-on-wall-circle-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-506
-189
-539
-Square
-on-wall-square-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-6
-357
-95
-390
-Counter
-on-counter-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-318
-191
-351
-Field
-on-field-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-722
-273
-796
-306
-Add Balls
+125
+372
+217
+405
+הוספת כדורים
 on-ball-brush-button-clicked
 T
 1
@@ -5099,262 +5443,60 @@ NIL
 NIL
 0
 
-BUTTON
-6
-397
-95
-430
-Halo
-on-halo-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-356
-189
-389
-Trace
-on-trace-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
 TEXTBOX
-75
-143
-126
-177
-Brush
-14
-0.0
-1
-
-TEXTBOX
-53
-293
-151
-311
-Brush Pallete
-14
-0.0
-1
-
-TEXTBOX
-788
-177
-865
-195
-Ball Pallete
-14
-0.0
-1
-
-BUTTON
-6
-468
-95
-501
-Line
-on-wall-line-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-100
-468
-189
-501
-Rectangle
-on-wall-rectangle-brush-button-clicked
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-TEXTBOX
-56
-444
-135
-462
-Wall Shape
-14
-0.0
+106
+78
+157
+103
+ציור
+18
+105.0
 1
 
 INPUTBOX
-53
-549
-131
-609
-wall-color
+21
+174
+118
+234
+צבע-מברשת
 105.0
 1
 0
 Color
 
 SWITCH
-726
-46
-892
-79
-flash-wall-collision
-flash-wall-collision
-0
-1
--1000
-
-MONITOR
-803
-220
-876
-265
-Population
-ifelse-value pprop population-to-set-properties-for-in-ui \"name\" != \"\" [pprop population-to-set-properties-for-in-ui \"name\"] [population-to-set-properties-for-in-ui]
-17
-1
-11
-
-BUTTON
-723
-220
-790
-265
-Next
-select-next-population-in-properties-ui
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-TEXTBOX
-795
-19
-822
-37
-SFX
-14
-0.0
-1
-
-TEXTBOX
-750
-201
-897
-220
-Select population to add balls
-11
-0.0
-1
-
-SWITCH
-891
-558
-996
-591
-log-enabled
-log-enabled
-1
-1
--1000
-
-MONITOR
-724
-551
-796
-596
-Population 1
-table:get-or-default wall-collisions 1 0
-17
-1
-11
-
-TEXTBOX
-762
-522
-896
-547
-Wall Collisions
-14
-0.0
-1
-
-MONITOR
-803
-551
-878
-596
-Population 2
-table:get-or-default wall-collisions 1 0
-17
-1
-11
-
-SWITCH
-726
-125
-845
-158
-show-name
-show-name
-1
-1
--1000
-
-PLOT
-721
-326
-1002
-513
-Ball Population
-Time
-Population
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-
-BUTTON
-434
-577
+134
 501
-610
-Step
-go\ndisplay
+265
+534
+התנגשויות-בקיר
+התנגשויות-בקיר
+0
+1
+-1000
+
+SLIDER
+11
+331
+110
+364
+מספר-קבוצה
+מספר-קבוצה
+1
+2
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+34
+411
+217
+444
+מחיקת כל הכדורים
+clear-drawing\nremove-all-balls
 NIL
 1
 T
@@ -5363,6 +5505,188 @@ NIL
 NIL
 NIL
 NIL
+0
+
+TEXTBOX
+100
+302
+197
+324
+כדורים
+18
+105.0
+1
+
+TEXTBOX
+99
+469
+199
+491
+סמנים
+18
+105.0
+1
+
+TEXTBOX
+81
+607
+231
+629
+הפעלת מודל
+18
+105.0
+1
+
+BUTTON
+403
+549
+466
+582
+צעד
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+TEXTBOX
+514
+539
+625
+561
+מספר כדורים
+18
+105.0
+1
+
+TEXTBOX
+680
+539
+786
+561
+פגיעות בקיר
+18
+105.0
+1
+
+MONITOR
+498
+565
+560
+610
+קבוצה 1
+count balls with [population-num = 1]
+17
+1
+11
+
+MONITOR
+568
+565
+630
+610
+קבוצה 2
+count balls with [population-num = 2]
+17
+1
+11
+
+MONITOR
+660
+565
+722
+610
+קבוצה 1
+wall-collisions-count 1
+17
+1
+11
+
+MONITOR
+732
+565
+794
+610
+קבוצה 2
+wall-collisions-count 2
+17
+1
+11
+
+BUTTON
+48
+545
+131
+578
+מחיקת סמן
+on-erase-marker-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+CHOOSER
+9
+496
+131
+541
+סמן
+סמן
+"ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
+0
+
+BUTTON
+135
+545
+224
+578
+ציור סמן
+on-draw-marker-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+BUTTON
+123
+240
+219
+276
+ציור
+on-draw-wall-brush-button-clicked
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+CHOOSER
+127
+181
+219
+226
+סוג-מברשת
+סוג-מברשת
+"קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
 0
 
 @#$#@#$#@
@@ -5445,6 +5769,111 @@ Line -16777216 false 150 285 150 135
 Line -16777216 false 150 135 15 75
 Line -16777216 false 150 135 285 75
 
+brush-cursor-draw-counter
+true
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false 16 -1 121 104
+Line -16777216 false 43 104 43 -1
+Line -16777216 false 97 104 97 -1
+Line -16777216 false 16 24 121 24
+Line -16777216 false 17 77 122 77
+Polygon -13840069 true false 70 39 82 30 83 67 88 66 88 72 73 71 73 66 78 66 78 38 73 43
+Rectangle -13840069 true false 57 48 62 64
+Rectangle -13840069 true false 51 54 68 59
+
+brush-cursor-draw-counter2
+true
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false -14 -31 105 90
+Line -16777216 false 13 89 15 -30
+Line -16777216 false 75 90 75 -30
+Line -16777216 false -15 15 105 15
+Line -16777216 false -15 60 105 60
+
+brush-cursor-draw-counter3
+true
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -7500403 true false 15 15 30 60
+Rectangle -7500403 true false 16 -1 121 104
+Line -16777216 false 15 75 120 75
+Line -16777216 false 15 30 120 30
+Line -16777216 false 45 105 45 0
+Line -16777216 false 90 105 90 0
+
+brush-cursor-draw-halo
+true
+7
+Circle -1184463 false false -107 178 212
+Circle -1184463 false false -107 178 212
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+
+brush-cursor-draw-halo2
+true
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Circle -1184463 false false 48 3 85
+
+brush-cursor-draw-trace
+true
+7
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -2674135 true false 75 69 115 10 124 74 179 9 182 14 121 86 112 23 77 74
+Circle -13791810 true false 20 54 72
+
+brush-cursor-draw-trace2
+true
+7
+Polygon -2674135 true false 65 81 147 9 152 15 68 89
+Polygon -1184463 true false 195 45 225 45 255 75 255 105 75 270 75 240 45 210 45 210 15 210 195 45
+Polygon -16777216 false false 15 210 195 45 225 45 255 75 255 105 75 270 75 240 45 210 15 210
+Line -16777216 false 225 45 45 210
+Line -16777216 false 255 75 75 240
+Polygon -2674135 true false 45 195 15 270
+Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
+Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
+Circle -13791810 true false 3 62 80
+
 brush-cursor-draw6
 true
 7
@@ -5457,7 +5886,7 @@ Polygon -2674135 true false 15 210 0 285 75 270 75 240 45 210 15 210
 Polygon -16777216 false false 15 210 0 285 75 270 75 240 45 210 15 210
 
 brush-cursor-erase
-false
+true
 0
 Polygon -16777216 false false 75 195
 Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
@@ -5470,6 +5899,76 @@ Line -16777216 false 45 195 135 195
 Line -16777216 false 45 195 30 270
 Line -16777216 false 45 195 135 120
 Line -16777216 false 135 120 225 120
+
+brush-cursor-erase-counter
+true
+6
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Rectangle -7500403 true false -15 15 90 120
+Line -16777216 false 15 120 15 15
+Line -16777216 false 60 120 60 15
+Line -16777216 false 90 45 -15 45
+Line -16777216 false 90 90 -15 90
+
+brush-cursor-erase-halo
+true
+0
+Circle -1184463 false false -105 165 210
+Circle -1184463 false false -105 165 210
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+
+brush-cursor-erase-halo2
+true
+0
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Circle -1184463 false false 18 63 85
+
+brush-cursor-erase-trace
+true
+0
+Polygon -2674135 true false 75 83 148 25 153 31 79 89
+Polygon -16777216 false false 75 195
+Polygon -2064490 true false 30 270 135 270 240 165 225 120 135 120 45 195 30 270
+Line -16777216 false 30 270 135 270
+Line -16777216 false 135 195 135 270
+Line -16777216 false 135 270 240 165
+Line -16777216 false 240 165 225 120
+Line -16777216 false 135 195 225 120
+Line -16777216 false 45 195 135 195
+Line -16777216 false 45 195 30 270
+Line -16777216 false 45 195 135 120
+Line -16777216 false 135 120 225 120
+Circle -13791810 true false 5 69 86
 
 brush-cursor-shape
 false
@@ -5842,6 +6341,15 @@ false
 0
 Rectangle -7500403 true true 0 0 300 300
 
+halo
+false
+0
+Circle -7500403 false true 75 75 150
+
+halo-speed
+false
+0
+
 house
 false
 0
@@ -6028,6 +6536,46 @@ Circle -16777216 false false 208 102 96
 Circle -16777216 false false -2 103 96
 Circle -16777216 false false 67 182 96
 
+molecule-ch3oh
+true
+4
+Circle -7500403 true false 208 103 95
+Circle -16777216 false false 208 102 96
+Circle -2674135 true false 133 103 95
+Circle -16777216 false false 133 103 96
+Circle -7500403 true false -2 103 95
+Circle -7500403 true false 69 26 95
+Circle -7500403 true false 67 182 95
+Circle -16777216 false false 69 25 96
+Circle -16777216 false false -2 103 96
+Circle -16777216 false false 67 182 96
+Circle -16777216 false false 73 103 96
+Circle -16777216 true false 73 103 95
+
+molecule-ch3oh-c
+true
+6
+Circle -13840069 true true 73 103 95
+Circle -16777216 false false 73 103 96
+
+molecule-ch3oh-h4
+true
+0
+Circle -7500403 true true 208 103 95
+Circle -16777216 false false 208 102 96
+Circle -7500403 true true -2 103 95
+Circle -7500403 true true 69 26 95
+Circle -7500403 true true 67 182 95
+Circle -16777216 false false 69 25 96
+Circle -16777216 false false -2 103 96
+Circle -16777216 false false 67 182 96
+
+molecule-ch3oh-o
+true
+1
+Circle -2674135 true true 133 103 95
+Circle -16777216 false false 133 103 96
+
 molecule-ch4
 true
 6
@@ -6127,6 +6675,80 @@ true
 0
 Circle -7500403 true true 40 44 252
 Circle -16777216 false false 39 44 254
+
+molecule-n2h4
+true
+2
+Circle -8630108 true false 136 66 158
+Circle -16777216 false false 136 66 158
+Circle -8630108 true false 5 67 158
+Circle -16777216 false false 3 66 162
+Circle -7500403 true false 11 41 67
+Circle -7500403 true false 11 191 67
+Circle -7500403 true false 221 191 67
+Circle -7500403 true false 221 41 67
+Circle -7500403 false false 11 41 67
+Circle -16777216 false false 11 41 67
+Circle -16777216 false false 221 191 67
+Circle -16777216 false false 221 41 67
+Circle -16777216 false false 11 191 67
+
+molecule-n2h4-h4
+true
+0
+Circle -7500403 true true 11 41 67
+Circle -7500403 true true 11 191 67
+Circle -7500403 true true 221 191 67
+Circle -7500403 true true 221 41 67
+Circle -7500403 false true 11 41 67
+Circle -16777216 false false 11 41 67
+Circle -16777216 false false 221 191 67
+Circle -16777216 false false 221 41 67
+Circle -16777216 false false 11 191 67
+
+molecule-n2h4-n2
+true
+11
+Circle -8630108 true true 136 66 158
+Circle -16777216 false false 136 66 158
+Circle -8630108 true true 5 67 158
+Circle -16777216 false false 3 66 162
+
+molecule-n2o4
+true
+2
+Circle -8630108 true false 136 66 158
+Circle -16777216 false false 136 66 158
+Circle -8630108 true false 5 67 158
+Circle -16777216 false false 3 66 162
+Circle -7500403 true false -2 28 92
+Circle -16777216 false false -2 28 92
+Circle -7500403 true false 208 178 92
+Circle -7500403 true false 208 28 92
+Circle -7500403 true false -2 178 92
+Circle -16777216 false false 208 28 92
+Circle -16777216 false false 208 178 92
+Circle -16777216 false false -2 178 92
+
+molecule-n2o4-n2
+true
+11
+Circle -8630108 true true 136 66 158
+Circle -16777216 false false 136 66 158
+Circle -8630108 true true 5 67 158
+Circle -16777216 false false 3 66 162
+
+molecule-n2o4-o4
+true
+0
+Circle -7500403 true true -2 28 92
+Circle -16777216 false false -2 28 92
+Circle -7500403 true true 208 178 92
+Circle -7500403 true true 208 28 92
+Circle -7500403 true true -2 178 92
+Circle -16777216 false false 208 28 92
+Circle -16777216 false false 208 178 92
+Circle -16777216 false false -2 178 92
 
 molecule-nh3
 true
