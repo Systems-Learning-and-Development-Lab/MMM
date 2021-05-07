@@ -23,7 +23,8 @@ globals [
   patches-brush-drew-electric-field-on
 
   ;==== nettango ====
-  nettango-block-space-count    ; how many blocks spaces in nettango for configuring populations
+  are-objects-in-radius ; temporary fix to check if objects in if-ball-meets block are in radius so that add and remove ball blocks can run
+  objects-that-are-in-radius ; temporary fix to keep track of objects in if-ball-meets block are in radius so that remove ball blocks can remove them
   run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
 
   ;==== ast ==== abstract syntax tree, nested structure of nettango blocks.
@@ -108,6 +109,7 @@ breed [balls ball]
 breed [gfx-overlay a-gfx-overlay] ; turtles used to diplay gfx
 breed [brush-border-outlines brush-border-outline] ; gfx for brush outline
 breed [brush-cursors brush-cursor] ; gfx for brush cursor
+
 undirected-link-breed [compound-shapes compound-shape]
 undirected-link-breed [halo-links halo-link]
 
@@ -155,84 +157,6 @@ halos-own
 
 to initialize-properties-for-populations [populations]
   foreach populations [population -> initialize-ball-population-properties population]
-end
-
-to crt-pop
-  let pop-properties table:make
-  table:put pop-properties 1 table:from-list
-    [
-      ["size" 1]
-      ["wall-heading" "collide"]
-      ["wall-speed" "collide"]
-      ["ball-heading" "collide"]
-      ["ball-speed" "collide"]
-      ["other-ball-heading" "collide"]
-      ["other-ball-speed" "collide"]
-      ["gravity" 0]
-      ["electric-field" 40]
-      ["move" true]
-      ["color" red]
-      ["name" "group-name"]
-    ]
-  table:put pop-properties 2 table:from-list
-    [
-      ["size" 1]
-      ["wall-heading" "collide"]
-      ["wall-speed" "collide"]
-      ["ball-heading" "collide"]
-      ["ball-speed" "collide"]
-      ["other-ball-heading" "collide"]
-      ["other-ball-speed" "collide"]
-      ["gravity" 0]
-      ["electric-field" 0]
-      ["move" true]
-      ["color" blue]
-    ]
-  table:put pop-properties 3 table:from-list
-    [
-      ["size" 1]
-      ["wall-heading" "collide"]
-      ["wall-speed" "collide"]
-      ["ball-heading" "collide"]
-      ["ball-speed" "collide"]
-      ["other-ball-heading" "collide"]
-      ["other-ball-speed" "collide"]
-      ["gravity" 0]
-      ["electric-field" 0]
-      ["move" true]
-      ["color" green]
-    ]
-  foreach table:keys pop-properties [population ->
-   initialize-properties-for-populations (list population)
-   let properties table:get pop-properties population
-   foreach table:keys properties [property ->
-      let value table:get properties property
-      set-prop population property value
-   ]
-  ]
-end
-
-to throw-error-if-population-block-space-does-not-exist-in-nettango [population]
-  run (word "let x [ -> configure-population-" population " ]")
-end
-
-to-report count-population-block-spaces-in-nettango
-  let block-space-number 1
-  carefully [
-    loop [
-      throw-error-if-population-block-space-does-not-exist-in-nettango block-space-number
-      set block-space-number block-space-number + 1
-    ]
-  ] []
-  report (block-space-number - 1)
-end
-
-to-report block-spaces-in-nettango-already-counted?
-  report nettango-block-space-count > 0
-end
-
-to-report amount-of-population-block-spaces-in-nettango
-  report ifelse-value block-spaces-in-nettango-already-counted? [nettango-block-space-count] [count-population-block-spaces-in-nettango]
 end
 
 to initialize-world
@@ -422,7 +346,7 @@ to initialize-procedures-to-run-ast-node-lookup-table
     (list "speed" [[node population objects] -> run-speed-block node population objects])
     (list "field-strength" [[node population objects] -> run-field-strength-block node population objects])
     (list "create-ball" [[node population objects] -> run-create-balls-block node population])
-    (list "add" [[node population objects] -> run-add-block node population])
+    (list "add" [[node population objects] -> run-add-block node population objects])
     (list "disappear" [[node population objects] -> run-disappear-block node population objects])
     (list "kill-balls-that-meet" [[node population objects] -> run-kill-balls-that-meet-block node population objects])
     (list "chance" [[node population objects] -> run-chance-block node population objects])
@@ -479,35 +403,6 @@ to initialize-ast-parse-lookup-table
     (list "at-least-x-ticks" [[node population objects] -> parse-at-least-x-ticks-block node population objects])
   )
 end
-
-;to update-all-plots
-  ;update-ball-population-plot
-  ;update-ball-collisions-plot
-;end
-
-;to update-ball-population-plot
-;  set-current-plot "Ball Population"
-;  foreach population-numbers [population -> update-ball-population-in-plot population]
-;end
-
-;to update-ball-population-in-plot [population]
-;  set-ball-population-plot-pen population
-;  plotxy ticks ball-count-in-population population
-;end
-
-;to set-ball-population-plot-pen [population]
-;  let pen (word population)
-;  ifelse plot-pen-exists? pen [
-;    set-current-plot-pen pen ]
-;  [
-;    create-temporary-plot-pen pen
-;    set-plot-pen-color pprop population "color"
-;  ]
-;end
-
-;to update-ball-collisions-plot
-
-;end
 
 to iterate-through-population-number-in-ui-by-ascending-circular-order
   let -population-numbers population-numbers
@@ -941,43 +836,20 @@ to-report interaction-clause-of-population [population]
   report child-by-name table:get blocks population "interactions"
 end
 
-to netlogo-web-advance-balls-in-world
-    ask balls [
-      run-interactions-clause (interaction-clause-of-population population-num) population-num
-      factor-forces-acting-on-ball
-      set-ball-speed-to-maximum-if-above-max-speed
-      reset-balls-collided-with
-    ]
-    ask balls [
-      move
-    ]
-end
-
 to factor-forces-acting-on-ball
   apply-forces-acting-on-ball
   reset-sum-of-forces-acting-on-balls
 end
 
-to advance-balls-in-world2
-  netlogo-web-advance-balls-in-world
-end
-
 to advance-balls-in-world
-  ifelse netlogo-web? [
-    netlogo-web-advance-balls-in-world ]
-  [
-    ask balls [
-      factor-electric-field ; add change of speed and heading due to electric field
-      factor-repel-and-attract-forces
-      factor-gravity;
-      check-for-wall-collision
-      check-for-ball-collision
-      set-ball-speed-to-maximum-if-above-max-speed
-      reset-balls-collided-with
-    ]
-    ask balls [
-      move
-    ]
+  ask balls [
+    run-interactions-clause (interaction-clause-of-population population-num) population-num
+    factor-forces-acting-on-ball
+    set-ball-speed-to-maximum-if-above-max-speed
+    reset-balls-collided-with
+  ]
+  ask balls [
+    move
   ]
 end
 
@@ -1116,7 +988,8 @@ to-report objects-colliding-with-single-object [objects]
 end
 
 to-report objects-in-radius [objects radius]
-  report ifelse-value is-multiple-objects objects [objects-in-radius-multiple-objects objects radius] [objects-in-radius-single-object objects radius]
+  let result ifelse-value is-multiple-objects objects [objects-in-radius-multiple-objects objects radius] [objects-in-radius-single-object objects radius]
+  report result
 end
 
 to-report parse-function-of [node]
@@ -1543,15 +1416,17 @@ to parse-disappear-block [node population objects]
 end
 
 to run-disappear-block [node population objects]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-removed user-population-input-to-population-number user-defined-population
-  let removal-candidates (turtle-set objects) with [population-num = population-of-ball-being-removed]
-  ifelse any? removal-candidates [
-    ask one-of removal-candidates [remove-ball]]
-  [
-    if population-num = population-of-ball-being-removed [remove-ball]
+  if objects-that-meet-are-in-radius objects [
+    let name node-name node
+    let parameters node-parameters node
+    let user-defined-population table:get parameters "population"
+    let population-of-ball-being-removed user-population-input-to-population-number user-defined-population
+    let removal-candidates objects-that-are-in-radius with [population-num = population-of-ball-being-removed]
+    ifelse any? removal-candidates [
+      ask one-of removal-candidates [remove-ball]]
+    [
+      if population-num = population-of-ball-being-removed [remove-ball]
+    ]
   ]
 end
 
@@ -1566,12 +1441,27 @@ to parse-add-block [node population]
   ]
 end
 
-to run-add-block [node population]
-  let name node-name node
-  let parameters node-parameters node
-  let user-defined-population table:get parameters "population"
-  let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-  hatch-balls-at population-of-ball-being-created 1 xcor ycor
+to check-if-objects-that-meet-are-in-radius [objects]
+  let -objects-in-radius objects-in-radius objects 3
+  set are-objects-in-radius ifelse-value -objects-in-radius != false [true] [false]
+  set objects-that-are-in-radius ifelse-value -objects-in-radius != false [turtle-set -objects-in-radius] [no-turtles]
+end
+
+to-report objects-that-meet-are-in-radius [objects]
+  if are-objects-in-radius = 0 [
+    check-if-objects-that-meet-are-in-radius objects
+  ]
+  report are-objects-in-radius
+end
+
+to run-add-block [node population objects]
+  if objects-that-meet-are-in-radius objects [
+    let name node-name node
+    let parameters node-parameters node
+    let user-defined-population table:get parameters "population"
+    let population-of-ball-being-created user-population-input-to-population-number user-defined-population
+    hatch-balls-at population-of-ball-being-created 1 xcor ycor
+  ]
 end
 
 to parse-at-least-x-ticks-block [node population objects]
@@ -1641,6 +1531,8 @@ to parse-if-ball-meets-block-then-clause [node population objects]
 end
 
 to run-if-ball-meets-block-then-clause [node population objects]
+  set are-objects-in-radius 0
+  set objects-that-are-in-radius no-turtles
   run-children node population objects
 end
 
@@ -2025,7 +1917,7 @@ end
 
 to advance-state-of-world
   every (tick-delta) [
-    advance-balls-in-world2
+    advance-balls-in-world
     advance-ticks
   ]
 end
@@ -3114,11 +3006,8 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;earser;;;;;;;;;;;;;;;
 
 to setup   ; called from START NEW TASK button
-  ; counting block spaces is slow so keep result between resets
-  ;let tmp-amount-of-block-spaces amount-of-block-spaces
   clear-all
   reset-ticks
-  ;set amount-of-block-spaces tmp-amount-of-block-spaces
   initialize-world
   update-ball-population-properties-defined-in-nettango-blocks
   select-next-population-in-properties-ui
@@ -4496,7 +4385,6 @@ end
 
 to trace-balls-brush-is-drawing-on
   set marked-balls (turtle-set marked-balls balls-in-patches-brush-is-drawing-on)
-  ;marker-added-to-ball balls-in-patches-brush-is-drawing-on
   let balls-to-trace balls-in-patches-brush-is-drawing-on; with [pen-mode != "down"]
   ask balls-to-trace [flash-outline 5 white]
   trace balls-to-trace
@@ -4520,7 +4408,6 @@ end
 
 to create-balls-of-population-selected-in-ui
   if is-a-population-selected-in-ui [
-    ;update-interactively-ball-population-property-settings
     create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
   ]
 end
@@ -4764,9 +4651,11 @@ end
 
 ;ball procedure
 to remove-ball
-  remove-halo
-  kill-existing-compound-shapes
-  die
+  ;remove-halo
+  ;kill-existing-compound-shapes
+  ask patch-here [
+    ask myself [die]
+  ]
 end
 
 to remove-all-balls
@@ -5138,18 +5027,18 @@ end
 ; If you do not plan to re-import the model into the NetTango builder then you
 ; can safely edit this code however you want, just like a normal NetLogo model.
 
-; Code for Population 1
+; Code for קבוצה 1
 to configure-population-1
   reset-ast
   add-node "configure-population" (list (list "population" 1))
 add-node "properties" []
 increase-depth if true [
-  add-node "name" (list (list "name" "H2"))
+  add-node "name" (list (list "name" "one"))
   add-node "color" (list (list "color" (15)))
-  add-node "shape" (list (list "shape" "circle"))
   add-node "size" (list (list "size" 0.5))
+  add-node "shape" (list (list "shape" "circle"))
   add-node "initial-heading" (list (list "heading" "random"))
-  add-node "initial-speed" (list (list "speed" 15))
+  add-node "initial-speed" (list (list "speed" 10))
 ] decrease-depth
 add-node "actions" []
 increase-depth if true [
@@ -5161,30 +5050,33 @@ increase-depth if true [
   increase-depth
   add-node "objects" []
   increase-depth if true [
-    add-node "wall" []
+    add-node "ball-from-population" (list (list "population" "one"))
+    add-node "ball-from-population" (list (list "population" "one"))
   ] decrease-depth
   add-node "then" []
   increase-depth if true [
-    add-node "heading" (list (list "heading" "collide"))
-    add-node "speed" (list (list "speed" "collide"))
+    add-node "add" (list (list "population" "two"))
+    add-node "disappear" (list (list "population" "one"))
+    add-node "disappear" (list (list "population" "one"))
+    add-node "disappear" (list (list "population" "one"))
   ] decrease-depth
   decrease-depth
 ] decrease-depth
 table:put curr-ast-by-population 1 ast-root
 end
 
-; Code for Population 2
+; Code for קבוצה 2
 to configure-population-2
   reset-ast
   add-node "configure-population" (list (list "population" 2))
 add-node "properties" []
 increase-depth if true [
-  add-node "name" (list (list "name" "O2"))
+  add-node "name" (list (list "name" "two"))
   add-node "color" (list (list "color" (105)))
-  add-node "shape" (list (list "shape" "molecule-n2h4"))
-  add-node "size" (list (list "size" 3))
+  add-node "size" (list (list "size" 0.5))
+  add-node "shape" (list (list "shape" "circle"))
   add-node "initial-heading" (list (list "heading" "random"))
-  add-node "initial-speed" (list (list "speed" 15))
+  add-node "initial-speed" (list (list "speed" 10))
 ] decrease-depth
 add-node "actions" []
 increase-depth if true [
@@ -5192,18 +5084,6 @@ increase-depth if true [
 ] decrease-depth
 add-node "interactions" []
 increase-depth if true [
-  add-node "if-ball-meets" []
-  increase-depth
-  add-node "objects" []
-  increase-depth if true [
-    add-node "wall" []
-  ] decrease-depth
-  add-node "then" []
-  increase-depth if true [
-    add-node "heading" (list (list "heading" "collide"))
-    add-node "speed" (list (list "speed" "collide"))
-  ] decrease-depth
-  decrease-depth
 ] decrease-depth
 table:put curr-ast-by-population 2 ast-root
 end
