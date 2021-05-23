@@ -43,6 +43,7 @@ globals [
   prev-population-properties ; previous values of properties. used for checking if value has changed.
   default-colors-for-ball-populations
   population-to-set-properties-for-in-ui ; which population is selected in the ball pallet in ui
+  mapped-population-names
 
   ;==== log =====
   log-enabled
@@ -183,6 +184,7 @@ end
 to initialize-global-values
   set verbal true
 
+  set mapped-population-names table:make
   set chosen-background-color צבע-רקע
   set marked-balls no-turtles
   set curr-marker סמן
@@ -901,9 +903,9 @@ end
 ;============= ast parse ====================
 
 to-report map-population-names-to-populaiton-number
-  let mapped-population-names table:make
-  foreach population-numbers [population-number -> table:put mapped-population-names (pprop population-number "name") population-number]
-  report mapped-population-names
+  let -mapped-population-names table:make
+  foreach population-numbers [population-number -> table:put -mapped-population-names (pprop population-number "name") population-number]
+  report -mapped-population-names
 end
 
 to-report convert-to-number-if-possible [input]
@@ -916,13 +918,13 @@ end
 
 to-report user-population-input-to-population-number [raw-input]
   let population-input convert-to-number-if-possible raw-input
-  let mapped-population-names map-population-names-to-populaiton-number
-  let population-names table:keys mapped-population-names
+  let -mapped-population-names map-population-names-to-populaiton-number
+  let population-names table:keys -mapped-population-names
   let input-is-population-number member? population-input population-numbers
   let input-is-population-name member? population-input population-names
   (ifelse
     input-is-population-number [report population-input]
-    input-is-population-name [report table:get mapped-population-names population-input]
+    input-is-population-name [report table:get -mapped-population-names population-input]
   )
   report false
 end
@@ -1875,6 +1877,7 @@ to update-ball-population-properties-defined-in-nettango-blocks
   if keep-prev-ast-if-new-ast-did-not-change [
     ;todo parsing is redundant if ast has not changed
     ;need to run actions here
+    remap-population-names
     foreach (range 1 (amount-of-populations + 1)) [ population ->
       parse-actions-and-properties-of-configure-population-block table:get blocks population
     ]
@@ -1886,6 +1889,10 @@ to update-ball-population-properties-defined-in-nettango-blocks
     ]
     notify-properties-that-changed-for-each-population
   ]
+end
+
+to remap-population-names
+
 end
 
 to-report keep-prev-ast-if-new-ast-did-not-change
@@ -4651,8 +4658,8 @@ end
 
 ;ball procedure
 to remove-ball
-  ;remove-halo
-  ;kill-existing-compound-shapes
+  remove-halo
+  kill-existing-compound-shapes
   ask patch-here [
     ask myself [die]
   ]
