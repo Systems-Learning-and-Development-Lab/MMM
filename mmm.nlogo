@@ -585,6 +585,7 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
 end
 
 to update-ball-shape
+  resize-ball-according-to-shape
   let shape-name prop "shape"
   (ifelse
     shape-name = "molecule-ha" [update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]]
@@ -617,6 +618,7 @@ to initialize-ball-after-creation [population -xcor -ycor]
   set population-num population
   set color prop "color"
   set size prop "size"
+  resize-ball-according-to-shape
   update-ball-shape
   set tick-move-enabled ticks
   set speed prop "speed"
@@ -1722,6 +1724,24 @@ to run-property-block [node population]
   let property-name first table:keys parameters
   let property-value table:get parameters property-name
   set-prop population property-name property-value
+  ;if property-name = "size" or property-name = "shape" [
+  ;  resize-population-according-to-shape population]
+end
+
+to resize-population-according-to-shape [population]
+  ask balls-of population [resize-ball-according-to-shape]
+end
+
+to-report is-molecule
+  report position "molecule" (prop "shape") != false
+end
+
+to resize-ball-according-to-shape
+  ifelse is-molecule[
+    set size prop "size" * 1.5]
+  [
+    set size prop "size"
+  ]
 end
 
 to parse-color-block [node population]
@@ -1788,7 +1808,7 @@ to update-size-of-population [population]
 end
 
 to update-ball-size
-  set size prop "size"
+  resize-ball-according-to-shape
   ; compound shapes need to be updated to new size as well
   update-ball-shape
 end
@@ -1889,6 +1909,7 @@ to update-ball-population-properties-defined-in-nettango-blocks
     ]
     notify-properties-that-changed-for-each-population
   ]
+  set prev-population-properties copy-table population-properties
 end
 
 to remap-population-names
@@ -1899,10 +1920,8 @@ to-report keep-prev-ast-if-new-ast-did-not-change
   ;if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
   let ast-changed (word curr-ast-by-population) != prev-ast-by-population
   if ast-changed [
-    ;print "changed"
     set blocks copy-table curr-ast-by-population
     set last-used-nodes-by-id nodes-by-id
-    ;print blocks
   ]
   ;set prev-ast-by-population table-as-list curr-ast-by-population
   set prev-ast-by-population (word curr-ast-by-population)
@@ -2067,7 +2086,7 @@ end
 
 to on-end-of-turn
   set brush-activated-after-model-was-advanced false
-  set prev-population-properties copy-table population-properties
+  ;set prev-population-properties copy-table population-properties
   notify-of-global-variable-changes
   check-if-should-color-balls-relative-to-population-speed
   run-animations
@@ -2079,11 +2098,14 @@ to on-start-of-turn
   ;time-run
   log-go-procedure
   update-ball-population-properties-defined-in-nettango-blocks
+  setup-wall-collisions-count-for-next-tick
 end
 
-;to-report prev-global-variable [name]
-;  report table:get global-variables-record name
-;end
+to setup-wall-collisions-count-for-next-tick
+  foreach table:keys wall-collisions [ population ->
+    table:put wall-collisions population (last-n-elements (lput 0 (table:get-or-default wall-collisions population [])) 200)
+  ]
+end
 
 to check-if-should-color-balls-relative-to-population-speed
   ;if color-speed [color-balls-relative-to-population-speed]
@@ -2133,7 +2155,7 @@ end
 ; ball procedure
 to-report ball-can-move
   (ifelse
-    ball-moves-forever? [report true]
+    ball-moves-forever? [report prop "move"]
     ball-set-to-move-x-steps? [report steps-left-to-move > 0]
   )
 end
@@ -2460,11 +2482,22 @@ to-report flash-wall-collision
 end
 
 to-report wall-collisions-count [population]
-  report table:get-or-default wall-collisions population 0
+  report sum table:get-or-default wall-collisions population [0]
+end
+
+to-report wall-collisions-average [population]
+  report (sum table:get-or-default wall-collisions population [0]) / ((length table:get-or-default wall-collisions population [0]) / 50)
 end
 
 to increase-wall-collision-count-for-ball-population
-  increment-table-value wall-collisions population-num 1
+  table:put wall-collisions population-num (increment-last-element-in-list (table:get-or-default wall-collisions population-num [0]) 1)
+  ;increment-table-value wall-collisions population-num 1
+end
+
+to-report increment-last-element-in-list [-list increment]
+  let last-element last (-list)
+  let last-index length -list - 1
+  report replace-item last-index -list (last-element + increment)
 end
 
 to collide-with-wall [heading-change wall-direction xpos ypos]
@@ -4414,6 +4447,7 @@ to remove-balls-from-patches-brush-is-drawing-on
 end
 
 to create-balls-of-population-selected-in-ui
+  update-ball-population-properties-defined-in-nettango-blocks
   if is-a-population-selected-in-ui [
     create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
   ]
@@ -5040,7 +5074,7 @@ to configure-population-1
   add-node "configure-population" (list (list "population" 1))
 add-node "properties" []
 increase-depth if true [
-  add-node "name" (list (list "name" "one"))
+  add-node "name" (list (list "name" ""))
   add-node "color" (list (list "color" (15)))
   add-node "size" (list (list "size" 0.5))
   add-node "shape" (list (list "shape" "circle"))
@@ -5057,15 +5091,12 @@ increase-depth if true [
   increase-depth
   add-node "objects" []
   increase-depth if true [
-    add-node "ball-from-population" (list (list "population" "one"))
-    add-node "ball-from-population" (list (list "population" "one"))
+    add-node "wall" []
   ] decrease-depth
   add-node "then" []
   increase-depth if true [
-    add-node "add" (list (list "population" "two"))
-    add-node "disappear" (list (list "population" "one"))
-    add-node "disappear" (list (list "population" "one"))
-    add-node "disappear" (list (list "population" "one"))
+    add-node "heading" (list (list "heading" "collide"))
+    add-node "speed" (list (list "speed" "collide"))
   ] decrease-depth
   decrease-depth
 ] decrease-depth
@@ -5078,8 +5109,8 @@ to configure-population-2
   add-node "configure-population" (list (list "population" 2))
 add-node "properties" []
 increase-depth if true [
-  add-node "name" (list (list "name" "two"))
-  add-node "color" (list (list "color" (105)))
+  add-node "name" (list (list "name" ""))
+  add-node "color" (list (list "color" (75)))
   add-node "size" (list (list "size" 0.5))
   add-node "shape" (list (list "shape" "circle"))
   add-node "initial-heading" (list (list "heading" "random"))
@@ -5091,6 +5122,18 @@ increase-depth if true [
 ] decrease-depth
 add-node "interactions" []
 increase-depth if true [
+  add-node "if-ball-meets" []
+  increase-depth
+  add-node "objects" []
+  increase-depth if true [
+    add-node "wall" []
+  ] decrease-depth
+  add-node "then" []
+  increase-depth if true [
+    add-node "heading" (list (list "heading" "collide"))
+    add-node "speed" (list (list "speed" "collide"))
+  ] decrease-depth
+  decrease-depth
 ] decrease-depth
 table:put curr-ast-by-population 2 ast-root
 end
@@ -5444,7 +5487,7 @@ MONITOR
 722
 610
 קבוצה 1
-wall-collisions-count 1
+precision (wall-collisions-average 1) 2
 17
 1
 11
@@ -5455,7 +5498,7 @@ MONITOR
 794
 610
 קבוצה 2
-wall-collisions-count 2
+precision (wall-collisions-average 2) 2
 17
 1
 11
