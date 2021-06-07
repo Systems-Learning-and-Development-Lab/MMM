@@ -3382,7 +3382,12 @@ to draw-shape-with-brush
   (ifelse
     is-brush-pressed-down [configure-new-shape-with-brush]
     brush-is-held-down [configure-current-shape-with-brush]
-    brush-has-been-clicked [draw-shape-configured-by-brush remove-gfx-display-of-patches-to-be-affected-by-drawn-shape log-shape-drawn] )
+    brush-has-been-clicked [
+      draw-shape-configured-by-brush
+      remove-gfx-display-of-patches-to-be-affected-by-drawn-shape
+      log-shape-drawn
+    ]
+  )
 end
 
 to set-center-for-drawn-shape
@@ -4100,15 +4105,16 @@ end
 
 to on-brush-drawing-only-once-per-patch
   (ifelse
-    brush-type = "wall" [on-brush-used-with-wall ]
-    brush-type = "counter" [on-brush-used-with-counter ] )
+    brush-type = "wall" [on-brush-used-with-wall]
+    brush-type = "counter" [on-brush-used-with-counter]
+  )
 end
 
 to on-brush-has-been-clicked
   (ifelse
-    brush-type = "ball" [on-brush-clicked-with-ball ]
-    brush-type = "field" [on-brush-clicked-with-field ]
-    brush-type = "trace" [on-brush-clicked-with-trace ]
+    brush-type = "ball" [on-brush-clicked-with-ball]
+    brush-type = "field" [on-brush-clicked-with-field]
+    brush-type = "trace" [on-brush-clicked-with-trace]
   )
   log-free-form-brush-used
 end
@@ -5175,7 +5181,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-10.0
+32.0
 1
 1
 NIL
@@ -5487,7 +5493,7 @@ MONITOR
 722
 610
 קבוצה 1
-precision (wall-collisions-average 1) 2
+int wall-collisions-average 1
 17
 1
 11
@@ -5498,7 +5504,7 @@ MONITOR
 794
 610
 קבוצה 2
-precision (wall-collisions-average 2) 2
+int wall-collisions-average 2
 17
 1
 11
@@ -5572,7 +5578,7 @@ CHOOSER
 סוג-מברשת
 סוג-מברשת
 "קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
-0
+2
 
 @#$#@#$#@
 ## WHAT IS IT?
