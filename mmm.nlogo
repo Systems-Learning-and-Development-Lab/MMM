@@ -6,6 +6,7 @@ globals [
   animation-ticks  ; animations advance relative to this tick
   chosen-background-color
   verbal
+  balls-die-when-they-leave-world
 
   ;==== balls ====
   wall-collisions    ; count wall collisions for each population.
@@ -184,6 +185,7 @@ end
 to initialize-global-values
   set verbal true
 
+  set balls-die-when-they-leave-world true
   set mapped-population-names table:make
   set chosen-background-color צבע-רקע
   set marked-balls no-turtles
@@ -2304,8 +2306,15 @@ to move-ball-to-random-edge-patch-with-same-electric-field-it-is-currently-on
   set pen-mode saved-pen-mode
 end
 
+to remove-ball-if-exiting-world
+  if balls-die-when-they-leave-world and is-moving-past-edge-of-world[
+    remove-ball
+  ]
+end
+
 to move
   if ball-can-move [
+    remove-ball-if-exiting-world
     if is-ball-exiting-world-through-electric-field [
       move-ball-to-random-edge-patch-with-same-electric-field-it-is-currently-on ]
     jump move-distance
@@ -5181,7 +5190,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-32.0
+1.0
 1
 1
 NIL
