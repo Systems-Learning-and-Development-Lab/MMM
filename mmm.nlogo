@@ -1890,12 +1890,13 @@ to update-ball-population-properties-defined-in-nettango-blocks
   set nodes-by-id []
   set id-counter 0
 
-  let amount-of-populations 2
+  let amount-of-populations 3
   ;foreach (range 1 (amount-of-populations + 1)) [ population ->
   ;  run (word "configure-population-" population)
   ;]
   configure-population-1
   configure-population-2
+  configure-population-3
   if keep-prev-ast-if-new-ast-did-not-change [
     ;todo parsing is redundant if ast has not changed
     ;need to run actions here
@@ -5152,6 +5153,23 @@ increase-depth if true [
 ] decrease-depth
 table:put curr-ast-by-population 2 ast-root
 end
+
+; Code for Block Space 2
+to configure-population-3
+  reset-ast
+  add-node "configure-population" (list (list "population" 3))
+add-node "properties" []
+increase-depth if true [
+  add-node "name" (list (list "name" ""))
+] decrease-depth
+add-node "actions" []
+increase-depth if true [
+] decrease-depth
+add-node "interactions" []
+increase-depth if true [
+] decrease-depth
+table:put curr-ast-by-population 3 ast-root
+end
 ; --- NETTANGO END ---
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -5190,7 +5208,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-1.0
+10.0
 1
 1
 NIL
@@ -5383,7 +5401,7 @@ SLIDER
 מספר-קבוצה
 מספר-קבוצה
 1
-2
+3
 1.0
 1
 1
@@ -5587,7 +5605,29 @@ CHOOSER
 סוג-מברשת
 סוג-מברשת
 "קיר" "מעגל" "ריבוע" "קו" "שדה חשמלי"
-2
+0
+
+MONITOR
+532
+618
+594
+663
+קבוצה 3
+count balls with [population-num = 3]
+17
+1
+11
+
+MONITOR
+697
+618
+759
+663
+קבוצה 3
+int wall-collisions-average 3
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
