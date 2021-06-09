@@ -193,6 +193,7 @@ balls-own
   quadtree-node                   ;;  node on quadtree this ball is on
   prev-xcor
   prev-ycor
+  balls-collided-with
 ;  my-field-x                 ;;  local field working on ball
 ;  my-field-y                 ;;  local field working on ball
 ]
@@ -866,6 +867,10 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
   ]
 end
 
+to reset-balls-collided-with
+  set balls-collided-with no-turtles
+end
+
 to create-balls-at [population amount -xcor -ycor]
   create-balls amount [
     set population-num population
@@ -885,6 +890,7 @@ to create-balls-at [population amount -xcor -ycor]
     ;; if we're only placing -one particle, use the exact position
     ifelse amount > 1 [ jump random-float 3 ] [jump random-float 0.01]
     initialize-ball-heading
+    reset-balls-collided-with
 ]
   if (prev-command-name != "place-balls") [
          log-output "place-balls"
@@ -1337,7 +1343,7 @@ to advance-balls-in-world
     factor-gravity;
     check-for-wall ;  changes speed and heading when ball meets wall
     check-for-collision  ; changes speed and heading when 2 balls meet
-
+    reset-balls-collided-with
     ; now move one step with updated heading and speed.
   ]  ; end of askballs
   ask balls [
@@ -1845,24 +1851,41 @@ end
   ;ask (turtle-set n-values (-length ^ 2) [i -> [balls-here with [who < my-who]] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))])
   ask (turtle-set n-values (-length ^ 2) [i ->
   ifelse-value abs (top-left-xcor + i mod -length) < max-pxcor and abs (top-left-ycor - int(i / -length)) < max-pycor
-                 [[balls-here with [who < my-who]] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
+                 [[balls-here] of patch (top-left-xcor + i mod -length) (top-left-ycor - int(i / -length))] [nobody]])
   ; other ball == candidate in older code
   [ set interBallMaxDist  ((size + mySize) / 2)
     set ourDistance  distance myself
     if (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - eps-collision)    ; collision!!
-       [ if (who < [who] of myself) and (myself != last-collision)  ; perform the collision if other ball number is smaller than me.
+       [ if should-perform-collision-with myself ; perform the collision if other ball number is smaller than me.
          [
             if TRUE ;(speed > 0 or mySpeed > 0)   ; at least one ball is moving
               [
                 set candidate self   ; set candidate variabe as self so as to call perform-collision function
-                ask myself [perform-collision candidate]
+                remember-collided-with myself
+                ask myself [
+                  perform-collision candidate
+                  remember-collided-with myself
+                  set last-collision  candidate
+                ]
                 set last-collision myself
-                ask myself [set last-collision  candidate]
               ]
           ]
 
     ]
   ]
+end
+
+to-report should-perform-collision-with [other-ball]
+  ;report (who < [who] of other-ball) and (other-ball != last-collision)
+  report not already-collided-with? other-ball
+end
+
+to remember-collided-with [other-ball]
+  set balls-collided-with (turtle-set balls-collided-with other-ball)
+end
+
+to-report already-collided-with? [other-ball]
+  report member? other-ball balls-collided-with
 end
 
 to-report balls-belong-to-same-population [ball1 ball2]
@@ -3961,10 +3984,11 @@ if true [
   #nettango#teardown-if-ball-meets-block
   #nettango#setup-if-ball-meets-block
   if true [
-    #nettango#set-if-ball-meets-block-what-ball-meets "electric-field"
+    #nettango#set-if-ball-meets-block-what-ball-meets "ball-other-population"
   ]
   if true [
-    #nettango#set-field 100
+    #nettango#set-heading-change "collide"
+    #nettango#set-speed-change "collide"
   ]
   #nettango#teardown-if-ball-meets-block
 ]
@@ -3976,6 +4000,10 @@ to configure-population-2
   set-property-for-population current-population-properties-are-being-set-for-in-nettango "group-name" ""
 
 if true [
+  set-initial-color-for-population current-population-properties-are-being-set-for-in-nettango (55)
+  set-initial-size-for-population current-population-properties-are-being-set-for-in-nettango 0.5
+  set-initial-heading-for-population current-population-properties-are-being-set-for-in-nettango "random"
+  set-initial-speed-for-population current-population-properties-are-being-set-for-in-nettango 10
 ]
 if true [
 ]
@@ -4020,7 +4048,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-1.0
+10.0
 1
 1
 NIL
@@ -4373,7 +4401,7 @@ CHOOSER
 סמן
 סמן
 "ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
-3
+0
 
 BUTTON
 135
