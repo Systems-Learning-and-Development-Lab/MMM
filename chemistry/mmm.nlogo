@@ -1448,7 +1448,7 @@ to parse-add-block [node population]
 end
 
 to check-if-objects-that-meet-are-in-radius [objects]
-  let -objects-in-radius objects-in-radius objects 3
+  let -objects-in-radius objects-in-radius objects 1.5
   set are-objects-in-radius ifelse-value -objects-in-radius != false [true] [false]
   set objects-that-are-in-radius ifelse-value -objects-in-radius != false [turtle-set -objects-in-radius] [no-turtles]
 end
