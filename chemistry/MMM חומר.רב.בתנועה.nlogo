@@ -216,7 +216,7 @@ to initialize-global-values
   set attraction-strength 30
   set collision-depth-threshold 0.99
   set tick-delta 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
-  setup-logging  "LOGGING/logFile"  ; sets the log file name log-filename
+  setup-logging  "logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
   set prev-line "None"
   set LJeps 0.5  ; Lennard Jones constants
@@ -1923,12 +1923,13 @@ to-report keep-prev-ast-if-new-ast-did-not-change
   ;if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
   let ast-changed (word curr-ast-by-population) != prev-ast-by-population
   if ast-changed [
+    log-blocks
     set blocks copy-table curr-ast-by-population
     set last-used-nodes-by-id nodes-by-id
   ]
   ;set prev-ast-by-population table-as-list curr-ast-by-population
   set prev-ast-by-population (word curr-ast-by-population)
-  set curr-ast-by-population table:make
+  ;set curr-ast-by-population table:make
   ; this line of code is important, since every tick a new ast is formed, and
   ; nodes-by-id gets updated with the new nodes, however it needs to get set to
   ; the list of nodes that the current running ast is using, which is not the same
@@ -3177,8 +3178,23 @@ to log-output [command-name]
   if log-enabled [
     append-to-log (word timer "," command-name "," time-elapsed ",#," delimited-log-string)
     send-to:file log-file-name -log
-  set prev-command-name command-name
-  set prev-line (word command-name  ",#,"  delimited-log-string)
+    set prev-command-name command-name
+    set prev-line (word command-name  ",#,"  delimited-log-string)
+  ]
+end
+
+to-report blocks-string
+  let -blocks-string ""
+  foreach table:keys curr-ast-by-population [ population ->
+    set -blocks-string (word -blocks-string ast-string table:get curr-ast-by-population population "\n\n")
+  ]
+  report -blocks-string
+end
+
+to log-blocks
+  if log-enabled [
+    append-to-log (word timer ", blocks-updated ," time-elapsed ",# \n\n," blocks-string)
+    send-to:file log-file-name -log
   ]
 end
 
@@ -4929,6 +4945,26 @@ to-report parameter-descriptor [node]
     reduce [[result next] -> (word result " " next)] parameter-values
   ] [
     "" ]
+end
+
+to-report ast-string [root]
+  let as-list ast-string-builder root 0
+  report reduce [[result next] -> (word result "\n" next)] as-list
+end
+
+to-report ast-string-builder [root indent]
+  let path []
+  let name node-name root
+  let parameters node-parameters root
+  let children node-children root
+  let -parameter-descriptor parameter-descriptor root
+  let descriptor (word char-repeat "." (indent * 4) name " " -parameter-descriptor)
+  set path fput descriptor path
+  foreach children [ child ->
+    let child-descriptor ast-string-builder child (indent + 1)
+    foreach child-descriptor [x -> set path lput x path]
+  ]
+  report path
 end
 
 to-report string-builder-path-to-node [src dest indent]
