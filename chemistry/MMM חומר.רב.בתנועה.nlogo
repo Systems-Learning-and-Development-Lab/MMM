@@ -34,6 +34,7 @@ globals [
   prev-ast-by-population    ; used for comparison to check for changes
   node-runners    ; hashes node name to procedure that runs block
   node-parsers    ; hashes node name to function that parses node
+  illegal-block-change ; keep track if previous block change was illegal
 
   ;==== counters ====
   counters-information-gfx ; breed that references 2 gfx-overlay turtles that display information for counter
@@ -43,7 +44,6 @@ globals [
   population-properties ; list that holds properties for each population. Each index is a different property. Check report procedure "property-index"
   prev-population-properties ; previous values of properties. used for checking if value has changed.
   default-colors-for-ball-populations
-  population-to-set-properties-for-in-ui ; which population is selected in the ball pallet in ui
   mapped-population-names
 
   ;==== log =====
@@ -185,6 +185,7 @@ end
 to initialize-global-values
   set verbal true
 
+  set illegal-block-change false
   set balls-die-when-they-leave-world true
   set mapped-population-names table:make
   set chosen-background-color צבע-רקע
@@ -195,7 +196,6 @@ to initialize-global-values
   set color-ball-by-speed false
   set population-properties table:make
   set prev-population-properties population-properties
-  set population-to-set-properties-for-in-ui "-"
   set default-colors-for-ball-populations [red blue lime orange violet yellow cyan pink brown green sky magenta turquoise gray ]
   set counters-information-gfx table:make
   set counter-value table:make
@@ -408,29 +408,12 @@ to initialize-ast-parse-lookup-table
   )
 end
 
-to iterate-through-population-number-in-ui-by-ascending-circular-order
-  let -population-numbers population-numbers
-  ifelse is-a-population-selected-in-ui [
-    let index-of-current-populaiton-in-ui position population-to-set-properties-for-in-ui -population-numbers
-    set population-to-set-properties-for-in-ui
-          item ((index-of-current-populaiton-in-ui + 1) mod (length -population-numbers)) -population-numbers ]
-  [
-    set population-to-set-properties-for-in-ui min -population-numbers
-  ]
-end
-
 to-report population-numbers
   report table:keys population-properties
 end
 
 to-report any-population-exists
   report length population-numbers > 0
-end
-
-to select-next-population-in-properties-ui
-  if any-population-exists [
-    iterate-through-population-number-in-ui-by-ascending-circular-order
-  ]
 end
 
 to-report highest-population-number
@@ -445,10 +428,6 @@ to-report unused-population-number-higher-than-existing-population-numbers
   ]
 end
 
-to set-new-population-to-set-properties-for-in-ui
-  set population-to-set-properties-for-in-ui unused-population-number-higher-than-existing-population-numbers
-end
-
 to-report default-color-for-population [population-number]
   let -population-colors map [population -> pprop population "color"] population-numbers
   let default-colors-not-used-by-any-population filter [default-color -> not member? default-color -population-colors] default-colors-for-ball-populations
@@ -457,10 +436,6 @@ to-report default-color-for-population [population-number]
   [
     report item (population-number mod length default-colors-not-used-by-any-population) default-colors-not-used-by-any-population
   ]
-end
-
-to-report is-a-population-selected-in-ui
-  report is-number? population-to-set-properties-for-in-ui
 end
 
 to-report any-record-of-radio-button-requesting-to-be-clicked? [button]
@@ -1889,6 +1864,7 @@ to update-ball-population-properties-defined-in-nettango-blocks
   initialize-all-lookup-tables-if-nettango-has-recompiled
   set nodes-by-id []
   set id-counter 0
+  set illegal-block-change false
 
   let amount-of-populations 3
   ;foreach (range 1 (amount-of-populations + 1)) [ population ->
@@ -1910,9 +1886,32 @@ to update-ball-population-properties-defined-in-nettango-blocks
     foreach (range 1 (amount-of-populations + 1)) [ population ->
       parse-interactions-clause interaction-clause-of-population population population
     ]
+    ask-user-to-restart-model-if-properties-of-existing-population-has-changed
     notify-properties-that-changed-for-each-population
+    set prev-population-properties copy-table population-properties
   ]
-  set prev-population-properties copy-table population-properties
+end
+
+to ask-user-to-restart-model-if-properties-of-existing-population-has-changed
+  foreach population-numbers [population ->
+     if (population-changed-properties population) and (population-exists population) [
+      user-message "אין אפשרות לשנות תכונות אוכלוסיה תוך כדי הרצה. יש לאתחל את המודל"
+      setup
+      set illegal-block-change true
+    ]
+  ]
+end
+
+to-report population-changed-properties [population]
+  let -prev copy-table prev-properties-of population
+  let -curr copy-table properties-of population
+  table:remove -prev "move"
+  table:remove -curr "move"
+  report (word -prev) != (word -curr)
+end
+
+to-report population-exists [population]
+  report count balls-of population > 0
 end
 
 to remap-population-names
@@ -1921,14 +1920,16 @@ end
 
 to-report keep-prev-ast-if-new-ast-did-not-change
   ;if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
-  let ast-changed (word curr-ast-by-population) != prev-ast-by-population
+  print (word "curr" curr-ast-by-population)
+  print (word "prev" prev-ast-by-population)
+  let ast-changed (word curr-ast-by-population) != (word prev-ast-by-population)
   if ast-changed [
     log-blocks
     set blocks copy-table curr-ast-by-population
     set last-used-nodes-by-id nodes-by-id
+    set prev-ast-by-population copy-table curr-ast-by-population
   ]
   ;set prev-ast-by-population table-as-list curr-ast-by-population
-  set prev-ast-by-population (word curr-ast-by-population)
   ;set curr-ast-by-population table:make
   ; this line of code is important, since every tick a new ast is formed, and
   ; nodes-by-id gets updated with the new nodes, however it needs to get set to
@@ -2078,7 +2079,7 @@ end
 
 to update-halo-speed
   ifelse show-speed [
-    set label (word precision [speed] of ball-tied-to-halo 2 "     ")
+    set label (word precision [speed] of ball-tied-to-halo 0 "     ")
   ] [
     set label ""
   ]
@@ -3056,12 +3057,11 @@ end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;earser;;;;;;;;;;;;;;;
 
-to setup   ; called from START NEW TASK button
+to setup
   clear-all
   reset-ticks
   initialize-world
   update-ball-population-properties-defined-in-nettango-blocks
-  select-next-population-in-properties-ui
   setup-brush
   recolor-all-patches
   display
@@ -3357,7 +3357,7 @@ to remove-wall-in-patch
 end
 
 to erase-all-balls-of-population-selected-in-ui
-  if is-a-population-selected-in-ui [ask balls-of population-to-set-properties-for-in-ui [remove-ball]]
+  ask balls-of מספר-קבוצה [remove-ball]
 end
 
 ;======== BRUSH ===========================
@@ -4480,9 +4480,21 @@ end
 
 to create-balls-of-population-selected-in-ui
   update-ball-population-properties-defined-in-nettango-blocks
-  if is-a-population-selected-in-ui [
-    create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
+  if (not illegal-block-change) [
+    ifelse population-defined-all-properties-in-blocks מספר-קבוצה [
+      create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
+    ] [
+      user-message "יש להגדיר תכונות אוכלוסיה לפני שיוצרים אותה"
+    ]
   ]
+end
+
+to-report population-defined-all-properties-in-blocks [population]
+  let properties-clause child-by-name table:get blocks population "properties"
+  let properties map [node ->  node-name node] node-children properties-clause
+  let required-properties ["size" "color" "shape" "initial-heading" "initial-speed"]
+  let missing-properties filter [property -> not member? property properties] required-properties
+  report empty? missing-properties
 end
 
 to-report number-of-balls-to-add
@@ -4549,8 +4561,8 @@ to on-erase-marker-brush-button-clicked
   user-set-brush-to-erase
   (ifelse
     brush-type = "counter" [set brush-size 2]
-    brush-type = "halo" [set brush-size 2]
-    brush-type = "halo-speed" [set brush-size 2]
+    brush-type = "halo" [set brush-size 3]
+    brush-type = "halo-speed" [set brush-size 3]
     brush-type = "trace" [set brush-size 2]
   )
   activate-brush
@@ -5244,7 +5256,7 @@ SLIDER
 כדורים-להוספה
 1
 100
-10.0
+1.0
 1
 1
 NIL
@@ -5597,7 +5609,7 @@ CHOOSER
 סמן
 סמן
 "ללא סמן" "הילה" "הילה עם מהירות" "עקבות של כדור" "מונה כדורים"
-0
+2
 
 BUTTON
 135
