@@ -115,6 +115,11 @@ breed [brush-cursors brush-cursor] ; gfx for brush cursor
 undirected-link-breed [compound-shapes compound-shape]
 undirected-link-breed [halo-links halo-link]
 
+ball-compound-shapes-own
+[
+ -name
+]
+
 animations-own
 [
   lifespan
@@ -261,6 +266,10 @@ to-report population-colors [population]
   report (sentence pprop population "color" pprop population "secondary-colors")
 end
 
+to-report population-sizes [population]
+  report (sentence pprop population "size" pprop population "secondary-sizes")
+end
+
 to update-compound-shape [base-name part-names view-order]
   set shape "empty"
   kill-existing-compound-shapes
@@ -282,15 +291,20 @@ to create-compound-shapes [base-name part-names view-order]
   let colors ball-colors
   if length colors < length part-names [set colors add-default-colors-if-not-defined colors length part-names]
   foreach range amount-of-compound-shapes [index ->
-    create-compound-shape base-name (item index view-order) (item (position (item index view-order) part-names) colors)
+    create-compound-shape base-name (item index view-order) (item (position (item index view-order) part-names) colors) (position (item index view-order) part-names)
   ]
 end
 
-to create-compound-shape [base-name part-name -color]
+to-report nth-size [n]
+  let sizes population-sizes population-num
+  report ifelse-value (n >= length sizes) [1] [item n sizes]
+end
+
+to create-compound-shape [base-name part-name -color size-index]
   let shape-name (word base-name "-" part-name)
   hatch-ball-compound-shapes 1 [
     set shape shape-name
-    set size [size] of myself
+    set size compound-shape-size size-index
     set color -color
     set label ""
     set label-color white
@@ -299,6 +313,44 @@ to create-compound-shape [base-name part-name -color]
       tie
     ]
   ]
+end
+
+to-report compound-shape-size [size-index]
+  report ([nth-size size-index] of myself) * molecule-size-multiplier
+end
+
+to-report molecule-size-multiplier
+  let atom-size 0
+  (ifelse
+    shape = "molecule-ha-h" [set atom-size 254]
+    shape = "molecule-ha-a" [set atom-size 112]
+    shape = "molecule-ao-a" [set atom-size 160]
+    shape = "molecule-ao-o" [set atom-size 160]
+    shape = "molecule-no2-n" [set atom-size 140]
+    shape = "molecule-no2-o2" [set atom-size 140]
+    shape = "molecule-h2o-h2" [set atom-size 113]
+    shape = "molecule-h2o-o" [set atom-size 211]
+    shape = "molecule-co2-c" [set atom-size 140]
+    shape = "molecule-co2-o2" [set atom-size 140]
+    shape = "molecule-nh3-n" [set atom-size 232]
+    shape = "molecule-nh3-h3" [set atom-size 94]
+    shape = "molecule-ch4-c" [set atom-size 232]
+    shape = "molecule-ch4-h4" [set atom-size 94]
+    shape = "molecule-ch3oh-c" [set atom-size 96]
+    shape = "molecule-ch3oh-h4" [set atom-size 96]
+    shape = "molecule-ch3oh-o" [set atom-size 96]
+    shape = "molecule-n2h4-n2" [set atom-size 92]
+    shape = "molecule-n2h4-h4" [set atom-size 158]
+    shape = "molecule-n2o4-n2" [set atom-size 158]
+    shape = "molecule-n2o4-o4" [set atom-size 92]
+    shape = "molecule-candle-c" [set atom-size 96]
+    shape = "molecule-candle-h" [set atom-size 96]
+    shape = "molecule-alcohol-c2" [set atom-size 90]
+    shape = "molecule-alcohol-h5" [set atom-size 90]
+    shape = "molecule-alcohol-oh" [set atom-size 90]
+    [error (word "molecule size not defined for " -name)]
+  )
+  report 100 / atom-size
 end
 
 to-report ball-colors
@@ -327,7 +379,7 @@ to initialize-procedures-to-run-ast-node-lookup-table
     (list "interactions" [[node population objects] -> run-interactions-clause node population])
 
     (list "color" [[node population objects] -> run-color-block node population])
-    (list "size" [[node population objects] -> run-property-block node population])
+    (list "size" [[node population objects] -> run-size-block node population])
     (list "shape" [[node population objects] -> run-property-block node population])
     (list "initial-heading" [[node population objects] -> run-property-block node population])
     (list "initial-speed" [[node population objects] -> run-property-block node population])
@@ -524,6 +576,7 @@ end
 to-report initialized-population-properties
   report table:from-list [
     ["size" 0.5]
+    ["secondary-sizes" []]
     ["shape" "circle"]
     ["heading" "random"]
     ["speed" 10]
@@ -562,7 +615,7 @@ to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
 end
 
 to update-ball-shape
-  resize-ball-according-to-shape
+  ;resize-ball-according-to-shape
   let shape-name prop "shape"
   (ifelse
     shape-name = "molecule-ha" [update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]]
@@ -595,7 +648,7 @@ to initialize-ball-after-creation [population -xcor -ycor]
   set population-num population
   set color prop "color"
   set size prop "size"
-  resize-ball-according-to-shape
+  ;resize-ball-according-to-shape
   update-ball-shape
   set tick-move-enabled ticks
   set speed prop "speed"
@@ -1705,21 +1758,21 @@ to run-property-block [node population]
   ;  resize-population-according-to-shape population]
 end
 
-to resize-population-according-to-shape [population]
-  ask balls-of population [resize-ball-according-to-shape]
-end
+;to resize-population-according-to-shape [population]
+;  ask balls-of population [resize-ball-according-to-shape]
+;end
 
 to-report is-molecule
   report position "molecule" (prop "shape") != false
 end
 
-to resize-ball-according-to-shape
-  ifelse is-molecule[
-    set size prop "size" * 1.5]
-  [
-    set size prop "size"
-  ]
-end
+;to resize-ball-according-to-shape
+;  ifelse is-molecule[
+;    set size prop "size" * 1.5]
+;  [
+;    set size prop "size"
+;  ]
+;end
 
 to parse-color-block [node population]
   ; nothing to currently parse in color block
@@ -1734,8 +1787,28 @@ to run-color-block [node population]
   ]
 end
 
+to run-size-block [node population]
+  let size-value node-parameter node "size"
+  ifelse is-first-size-property-to-be-defined node [
+    set-prop population "size" size-value]
+  [
+    add-secondary-size-to-population population size-value
+  ]
+end
+
+to-report is-first-size-property-to-be-defined [node]
+  let parent node-parent node
+  let sibling-nodes node-children parent
+  let node-index position node sibling-nodes
+  report empty? filter [sibling-node -> node-name sibling-node = "size"] sublist sibling-nodes 0 node-index
+end
+
 to add-secondary-color-to-population [population -color]
   set-prop population "secondary-colors" lput -color pprop population "secondary-colors"
+end
+
+to add-secondary-size-to-population [population -size]
+  set-prop population "secondary-sizes" lput -size pprop population "secondary-sizes"
 end
 
 to-report is-first-color-property-to-be-defined [node]
@@ -1785,7 +1858,7 @@ to update-size-of-population [population]
 end
 
 to update-ball-size
-  resize-ball-according-to-shape
+  ;resize-ball-according-to-shape
   ; compound shapes need to be updated to new size as well
   update-ball-shape
 end
@@ -1810,6 +1883,7 @@ to notify-property-changed-for-population [population property]
     property = "size" [update-size-of-population population]
     property = "color" [update-color-of-population population]
     property = "secondary-colors" [update-color-of-population population]
+    property = "secondary-sizes" [update-size-of-population population]
   )
 end
 
@@ -1920,8 +1994,6 @@ end
 
 to-report keep-prev-ast-if-new-ast-did-not-change
   ;if not tables-are-equal curr-ast-by-population prev-ast-by-population  [
-  print (word "curr" curr-ast-by-population)
-  print (word "prev" prev-ast-by-population)
   let ast-changed (word curr-ast-by-population) != (word prev-ast-by-population)
   if ast-changed [
     log-blocks
@@ -5140,8 +5212,10 @@ add-node "properties" []
 increase-depth if true [
   add-node "name" (list (list "name" ""))
   add-node "color" (list (list "color" (15)))
-  add-node "size" (list (list "size" 0.5))
-  add-node "shape" (list (list "shape" "circle"))
+  add-node "color" (list (list "color" (55)))
+  add-node "size" (list (list "size" 3))
+  add-node "size" (list (list "size" 6))
+  add-node "shape" (list (list "shape" "molecule-h2o"))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 10))
 ] decrease-depth
@@ -6221,7 +6295,7 @@ Circle -7500403 true true 195 195 58
 circle
 false
 0
-Circle -7500403 true true 0 0 300
+Circle -7500403 true true 100 100 100
 
 circle 2
 false
@@ -6374,14 +6448,6 @@ true
 Circle -7500403 true true 136 66 158
 Circle -16777216 false false 136 66 158
 Circle -7500403 true true 5 67 158
-Circle -16777216 false false 4 67 160
-
-molecule-a2-static
-true
-0
-Circle -13791810 true false 136 66 158
-Circle -16777216 false false 136 66 158
-Circle -13791810 true false 5 67 158
 Circle -16777216 false false 4 67 160
 
 molecule-ab2
@@ -6792,12 +6858,6 @@ molecule-sugar
 true
 0
 Polygon -7500403 true true 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-Polygon -16777216 false false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
-
-molecule-sugar-static
-true
-0
-Polygon -1184463 true false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
 Polygon -16777216 false false 90 15 210 15 285 90 285 210 210 285 90 285 15 210 15 90 90 15
 
 orbit 1
