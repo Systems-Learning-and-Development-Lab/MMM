@@ -2033,15 +2033,40 @@ to lp [string]
 end
 
 to go
-  on-start-of-turn
-  ifelse any-moving-balls? [
-    advance-state-of-world
-  ][
-    re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
+  update-ball-population-properties-defined-in-nettango-blocks
+  if existing-balls-have-defined-action-in-blocks [
+    on-start-of-turn
+    ifelse any-moving-balls? [
+      advance-state-of-world
+    ][
+      re-enable-movement-for-balls-predefined-to-move-limited-number-of-ticks
+      on-end-of-turn
+      stop  ; unselect "play" button
+    ]
     on-end-of-turn
-    stop  ; unselect "play" button
   ]
-  on-end-of-turn
+end
+
+to-report existing-balls-have-defined-action-in-blocks
+  foreach populations-with-balls [population ->
+   if not action-is-defined-for-population population [
+     alert-user-that-action-must-be-defined-for-population population
+     report false
+   ]
+  ]
+  report true
+end
+
+to-report populations-with-balls
+  report filter [population -> count balls-of population > 0] population-numbers
+end
+
+to-report action-is-defined-for-population [population]
+  report not empty? node-children (child-by-name table:get blocks population "actions")
+end
+
+to alert-user-that-action-must-be-defined-for-population [population]
+  user-message "יש להגדיר את פעולות האוכלוסייה לפני ההפעלה"
 end
 
 to update-marker
@@ -2174,7 +2199,6 @@ end
 to on-start-of-turn
   ;time-run
   log-go-procedure
-  update-ball-population-properties-defined-in-nettango-blocks
   setup-wall-collisions-count-for-next-tick
 end
 
