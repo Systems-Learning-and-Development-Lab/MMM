@@ -4556,7 +4556,7 @@ to create-balls-of-population-selected-in-ui
     ifelse population-defined-all-properties-in-blocks מספר-קבוצה [
       create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
     ] [
-      user-message "יש להגדיר תכונות אוכלוסיה לפני שיוצרים אותה"
+      user-message "יש להגדיר תכונות אוכלוסייה לפני שמוסיפים אותה"
     ]
   ]
 end
