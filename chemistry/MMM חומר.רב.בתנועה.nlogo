@@ -191,6 +191,7 @@ end
 to initialize-global-values
   set verbal true
 
+  set balls-recently-added-in-add-block no-turtles
   set illegal-block-change false
   set balls-die-when-they-leave-world true
   set mapped-population-names table:make
@@ -863,7 +864,7 @@ to advance-balls-in-world
     factor-forces-acting-on-ball
     set-ball-speed-to-maximum-if-above-max-speed
     reset-balls-collided-with
-    ;highlight-products-created-in-chemical-reaction
+    highlight-products-created-in-chemical-reaction
   ]
   ask balls [
     move
@@ -871,10 +872,13 @@ to advance-balls-in-world
 end
 
 to highlight-products-created-in-chemical-reaction
-  ask hatch-animation "highlight-product" 15 [
-    set color add-transparency red 0.5
-    set shape "circle"
-    set data balls-recently-added-in-add-block
+  if any? balls-recently-added-in-add-block [
+    ask hatch-animation "highlight-product" 15 [
+      set color add-transparency red 0.5
+      set shape "full-circle"
+      set data balls-recently-added-in-add-block
+    ]
+    ask balls-recently-added-in-add-block [flash-outline 15 white]
   ]
   set balls-recently-added-in-add-block no-turtles
 end
@@ -1213,14 +1217,14 @@ to animate-chemical-product-highlight
   (ifelse
     count products = 1 [
       let product one-of products
-      set size [size] of product + 1
+      set size [size] of product + 0.5
       ask product [ask myself [tie-to-myself]]
     ]
     count products > 1 [
       let center center-xy products
       setxy item 0 center item 1 center
       let farthest-product farthest products
-      set size ((distance farthest-product) / 2) + [size] of farthest-product + 0.5
+      set size (distance farthest-product) * 2 + [size] of farthest-product
     ]
     [die]
    )
@@ -1510,10 +1514,10 @@ to run-add-block [node population objects]
     let parameters node-parameters node
     let user-defined-population table:get parameters "population"
     let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-    ;let balls-before balls-of population-of-ball-being-created
+    let balls-before balls-of population-of-ball-being-created
     hatch-balls-at population-of-ball-being-created 1 xcor ycor
-    ;let ball-added one-of balls-of population-of-ball-being-created with [not member? self balls-before]
-    ;set balls-recently-added-in-add-block (turtle-set balls-recently-added-in-add-block ball-added)
+    let ball-added one-of ((balls-of population-of-ball-being-created) with [not member? self balls-before])
+    set balls-recently-added-in-add-block (turtle-set balls-recently-added-in-add-block ball-added)
   ]
 end
 
@@ -6266,6 +6270,11 @@ Circle -7500403 true true 96 51 108
 Circle -16777216 true false 113 68 74
 Polygon -10899396 true false 189 233 219 188 249 173 279 188 234 218
 Polygon -10899396 true false 180 255 150 210 105 210 75 240 135 240
+
+full-circle
+false
+0
+Circle -7500403 true true 0 0 300
 
 full-square
 false
