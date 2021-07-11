@@ -1510,10 +1510,10 @@ to run-add-block [node population objects]
     let parameters node-parameters node
     let user-defined-population table:get parameters "population"
     let population-of-ball-being-created user-population-input-to-population-number user-defined-population
-    let balls-before balls-of population-of-ball-being-created
+    ;let balls-before balls-of population-of-ball-being-created
     hatch-balls-at population-of-ball-being-created 1 xcor ycor
-    let ball-added one-of balls-of population-of-ball-being-created with [not member? self balls-before]
-    set balls-recently-added-in-add-block (turtle-set balls-recently-added-in-add-block ball-added)
+    ;let ball-added one-of balls-of population-of-ball-being-created with [not member? self balls-before]
+    ;set balls-recently-added-in-add-block (turtle-set balls-recently-added-in-add-block ball-added)
   ]
 end
 
