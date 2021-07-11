@@ -27,6 +27,7 @@ globals [
   are-objects-in-radius ; temporary fix to check if objects in if-ball-meets block are in radius so that add and remove ball blocks can run
   objects-that-are-in-radius ; temporary fix to keep track of objects in if-ball-meets block are in radius so that remove ball blocks can remove them
   run-me-if-i-throw-error-then-nettango-has-recompiled    ; used to fix a bug in nettango which throws error if lambdas are ran after netlogo has been recompiled
+  balls-recently-added-in-add-block
 
   ;==== ast ==== abstract syntax tree, nested structure of nettango blocks.
   blocks
@@ -862,10 +863,20 @@ to advance-balls-in-world
     factor-forces-acting-on-ball
     set-ball-speed-to-maximum-if-above-max-speed
     reset-balls-collided-with
+    ;highlight-products-created-in-chemical-reaction
   ]
   ask balls [
     move
   ]
+end
+
+to highlight-products-created-in-chemical-reaction
+  ask hatch-animation "highlight-product" 15 [
+    set color add-transparency red 0.5
+    set shape "circle"
+    set data balls-recently-added-in-add-block
+  ]
+  set balls-recently-added-in-add-block no-turtles
 end
 
 to reset-balls-collided-with
@@ -889,6 +900,7 @@ to animate
     -name = "rotate" [rotate-animation]
     -name = "inflate" [increase-animation-size]
     -name = "draw" [remove-animation-if-past-lifespan]
+    -name = "highlight-product" [animate-chemical-product-highlight]
   )
 end
 
@@ -1196,6 +1208,29 @@ to animate-flash
   remove-animation-if-past-lifespan
 end
 
+to animate-chemical-product-highlight
+  let products data
+  (ifelse
+    count products = 1 [
+      let product one-of products
+      set size [size] of product + 1
+      ask product [ask myself [tie-to-myself]]
+    ]
+    count products > 1 [
+      let center center-xy products
+      setxy item 0 center item 1 center
+      let farthest-product farthest products
+      set size ((distance farthest-product) / 2) + [size] of farthest-product + 0.5
+    ]
+    [die]
+   )
+  remove-animation-if-past-lifespan
+end
+
+to-report farthest [agents]
+  report max-one-of agents [distance myself]
+end
+
 to run-animate-block [node population objects]
   let parameters node-parameters node
   let -effect table:get parameters "effect"
@@ -1475,7 +1510,10 @@ to run-add-block [node population objects]
     let parameters node-parameters node
     let user-defined-population table:get parameters "population"
     let population-of-ball-being-created user-population-input-to-population-number user-defined-population
+    let balls-before balls-of population-of-ball-being-created
     hatch-balls-at population-of-ball-being-created 1 xcor ycor
+    let ball-added one-of balls-of population-of-ball-being-created with [not member? self balls-before]
+    set balls-recently-added-in-add-block (turtle-set balls-recently-added-in-add-block ball-added)
   ]
 end
 
@@ -3037,7 +3075,7 @@ to set-new-log-filename [fileName]
 end
 
 to setup-logging  [fileName]
-  set log-enabled true
+  set log-enabled false
   set-new-log-filename fileName
   if log-enabled [
     set -log ""
