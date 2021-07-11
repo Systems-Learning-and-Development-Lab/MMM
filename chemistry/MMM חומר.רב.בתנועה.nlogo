@@ -1,4 +1,4 @@
-extensions [send-to fetch import-a table]; profiler]
+extensions [send-to fetch import-a table dialog]; profiler]
 
 globals [
   tick-delta    ; how much the model advances every tick
@@ -593,7 +593,7 @@ to-report amount-of-balls-that-can-be-created-given-maximum-capacity [requested-
 end
 
 to notify-user-unable-to-create-balls-due-to-maximum-capacity
-  user-message (word "Unable to create more balls, maximum capacity of " max-balls " reached.")
+  dialog:user-message (word "Unable to create more balls, maximum capacity of " max-balls " reached.") []
 end
 
 to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
@@ -1992,7 +1992,7 @@ end
 to ask-user-to-restart-model-if-properties-of-existing-population-has-changed
   foreach population-numbers [population ->
      if (population-changed-properties population) and (population-exists population) [
-      user-message "אין אפשרות לשנות תכונות אוכלוסיה תוך כדי הרצה. יש לאתחל את המודל"
+      dialog:user-message "אין אפשרות לשנות תכונות אוכלוסיה תוך כדי הרצה. יש לאתחל את המודל"
       setup
       set illegal-block-change true
     ]
@@ -2091,7 +2091,7 @@ to-report action-is-defined-for-population [population]
 end
 
 to alert-user-that-action-must-be-defined-for-population [population]
-  user-message (word " יש להגדיר את פעולות האוכלוסייה לפני ההפעלה" population)
+  dialog:user-message (word " יש להגדיר את פעולות האוכלוסייה לפני ההפעלה" population) []
 end
 
 to update-marker
@@ -2582,7 +2582,7 @@ to change-speed-after-wall-collision [speed-change]
   if (speed-change = "increase")[set speed speed + collision-speed-delta]
   if (speed-change = "decrease")[set speed speed - collision-speed-delta]
   if (speed-change = "collide") and (speed-change != "collide")
-                     [user-message (word "You cannot pair non-collide heading change with collide speed change.")]
+                      [dialog:user-message (word "You cannot pair non-collide heading change with collide speed change.") []]
 end
 
 to set-ball-speed-to-maximum-if-above-max-speed
@@ -3235,7 +3235,7 @@ to try-import-world-file [file-name]
   carefully [
     import-a:world file-name
   ] [
-    user-message "אין אפשרות לטעון את הקובץ"
+    dialog:user-message "אין אפשרות לטעון את הקובץ" []
   ]
 end
 
@@ -4429,7 +4429,7 @@ to create-balls-of-population-selected-in-ui
     ifelse population-defined-all-properties-in-blocks מספר-קבוצה [
       create-balls-if-under-maximum-capacity מספר-קבוצה number-of-balls-to-add mouse-xcor mouse-ycor
     ] [
-      user-message "יש להגדיר תכונות אוכלוסייה לפני שמוסיפים אותה"
+      dialog:user-message "יש להגדיר תכונות אוכלוסייה לפני שמוסיפים אותה" []
     ]
   ]
 end
