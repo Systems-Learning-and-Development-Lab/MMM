@@ -4684,7 +4684,15 @@ to remove-ball
   remove-halo
   kill-existing-compound-shapes
   ask patch-here [
+    let population [population-num] of myself
     ask myself [die]
+    on-ball-removed population
+  ]
+end
+
+to on-ball-removed [population]
+  if not population-exists population [
+    table:put wall-collisions population [0]
   ]
 end
 
