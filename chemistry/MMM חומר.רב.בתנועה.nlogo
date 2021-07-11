@@ -905,7 +905,7 @@ end
 to log-go-procedure
   if (test-if-log-output "play" = TRUE) [  ; test that prev logging is not exactly the same
     log-output "play"
-    log_picture
+    log-picture
   ]
 end
 
@@ -3050,7 +3050,7 @@ to set-new-log-photo-filename
   set log-picture-prefix (word substring log-file-name 0 (length log-file-name - 4) "_" logged-pictures ".png")
 end
 
-to log_picture
+to log-picture
   if log-enabled [
     set-new-log-photo-filename
     export-view log-picture-prefix
@@ -3060,7 +3060,7 @@ end
 to-report test-if-log-output [command-name]
   ifelse log-enabled [
     let new-line (sentence (list command-name) properties-log blocks-log ball-count-log (list chosen-background-color התנגשויות-בקיר))
-    ifelse (new-line = prev-line) [report FALSE] [report TRUE]
+    ifelse ((word new-line) = (word prev-line)) [report FALSE] [report TRUE]
   ] [report false]
 end
 
