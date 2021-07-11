@@ -196,7 +196,6 @@ to initialize-global-values
   set chosen-background-color צבע-רקע
   set marked-balls no-turtles
   set curr-marker סמן
-  set log-enabled false
   set -show-ball-label false
   set color-ball-by-speed false
   set population-properties table:make
@@ -221,7 +220,6 @@ to initialize-global-values
   set attraction-strength 30
   set collision-depth-threshold 0.99
   set tick-delta 1 / 50   ; MAXIMUM possible value of ball speed. Change this if changed SLIDER in interface
-  setup-logging  "logFile"  ; sets the log file name log-filename
   set prev-command-name "None"
   set prev-line "None"
   set LJeps 0.5  ; Lennard Jones constants
@@ -584,14 +582,6 @@ to-report initialized-population-properties
     ["name" ""]
     ["secondary-colors" []]
     ["move" false]
-    ["wall-heading" "no change"]
-    ["wall-speed" "no change"]
-    ["ball-heading" "no change"]
-    ["ball-speed" "no change"]
-    ["other-ball-heading" "no change"]
-    ["other-ball-speed" "no change"]
-    ["gravity" 0]
-    ["electric-field" 0]
   ]
 end
 
@@ -699,11 +689,6 @@ to initialize-ball-heading
   ]
 end
 
-to-report population-repels-or-attracts-other-populations? [population]
-  let interaction pprop population "other-ball-heading"
-  report member? interaction ["repel" "attract" "repel and attract"]
-end
-
 ;========== getters and setters for ball properties ========
 
 to-report pprop [population property]
@@ -720,10 +705,6 @@ end
 
 to-report prop [property] ; ball procedure
   report pprop population-num property
-end
-
-to-report is-affected-by-gravity ; ball procedure
-  report prop "gravity" > 0
 end
 
 to-report properties-of [population]
@@ -2034,7 +2015,7 @@ end
 
 to go
   update-ball-population-properties-defined-in-nettango-blocks
-  if existing-balls-have-defined-action-in-blocks [
+  ifelse existing-balls-have-defined-action-in-blocks [
     on-start-of-turn
     ifelse any-moving-balls? [
       advance-state-of-world
@@ -2044,6 +2025,8 @@ to go
       stop  ; unselect "play" button
     ]
     on-end-of-turn
+  ] [
+   stop
   ]
 end
 
@@ -2066,7 +2049,7 @@ to-report action-is-defined-for-population [population]
 end
 
 to alert-user-that-action-must-be-defined-for-population [population]
-  user-message "יש להגדיר את פעולות האוכלוסייה לפני ההפעלה"
+  user-message (word " יש להגדיר את פעולות האוכלוסייה לפני ההפעלה" population)
 end
 
 to update-marker
@@ -2524,16 +2507,6 @@ to-report wall-collision-direction-and-xy
   report false
 end
 
-to check-for-wall-collision ;  if next to wall patch, change speed and heading of ball
-  let direction-and-pos wall-collision-direction-and-xy
-  if direction-and-pos != false [
-    let direction item 0  direction-and-pos
-    let -xcor item 1  direction-and-pos
-    let -ycor item 2  direction-and-pos
-    perform-hit-wall direction -xcor -ycor
-  ]
-end
-
 to change-heading-if-collides-with-wall [heading-change]
   let direction-and-pos wall-collision-direction-and-xy
   if direction-and-pos != false [
@@ -2550,7 +2523,7 @@ end
 
 to change-speed-if-collides-with-wall [speed-change]
   if has-collided-with-wall [
-    change-speed-after-wall-collision prop "wall-speed"
+    change-speed-after-wall-collision speed-change
   ]
 end
 
@@ -2612,13 +2585,6 @@ to collide-with-wall [heading-change wall-direction xpos ypos]
   increase-wall-collision-count-for-ball-population
   on-wall-hit xpos ypos
   change-heading-after-wall-collision wall-direction heading-change
-end
-
-to perform-hit-wall [wall-direction xpos ypos]
-  increase-wall-collision-count-for-ball-population
-  on-wall-hit xpos ypos
-  change-heading-after-wall-collision wall-direction prop "wall-heading"
-  change-speed-after-wall-collision prop "wall-speed"
 end
 
 to on-wall-hit [xpos ypos]
@@ -2742,118 +2708,8 @@ to-report ball-collides-with [other-ball]
   report (ourDistance <= interBallMaxDist  and ourDistance >= interBallMaxDist - collision-depth-threshold)
 end
 
-to check-for-collision-with-population [population]
-  ask collision-candidates-of population [
-    if ball-collides-with myself [
-      if should-perform-collision-with myself [
-        ask myself [perform-collision myself]; set last-collision  myself]
-        ;set last-collision myself
-      ]
-    ]
-  ]
-end
-
-to check-for-ball-collision
-  ; check if 2 balls collide. If so Change speed and heading of the 2 balls
-
-  ; Here we impose a rule that collisions only take place when there
-  ; are exactly two balls per patch.  We do this because when the
-  ; student introduces new balls from the side, we want them to
-  ; form a uniform wavefront.
-  ;;
-  ; Why do we want a uniform wavefront?  Because it is actually more
-  ; realistic.  (And also because the curriculum uses the uniform
-  ; wavefront to help teach the relationship between ball collisions,
-  ; wall hits, and pressure.)
-  ;;
-  ; Why is it realistic to assume a uniform wavefront?  Because in reality,
-  ; whether a collision takes place would depend on the actual headings
-  ; of the balls, not merely on their proximity.  Since the balls
-  ; in the wavefront have identical speeds and near-identical headings,
-  ; in reality they would not collide.  So even though the two-balls
-  ; rule is not itself realistic, it produces a realistic result.  Also,
-  ; unless the number of balls is extremely large, it is very rare
-  ; for three or more balls to land on the same patch (for example,
-  ; with 400 balls it happens less than 1% of the time).  So imposing
-  ; this additional rule should have only a negligible effect on the
-  ; aggregate behavior of the system.
-  ;;
-  ; Why does this rule produce a uniform wavefront?  The balls all
-  ; start out on the same patch, which means that without the only-two
-  ; rule, they would all start colliding with each other immediately,
-  ; resulting in much random variation of speeds and headings.  With
-  ; the only-two rule, they are prevented from colliding with each other
-  ; until they have spread out a lot.  (And in fact, if you observe
-  ; the wavefront closely, you will see that it is not completely smooth,
-  ; because some collisions eventually do start occurring when it thins out while fanning.)
-
-  ; Collision occurs if there is a ball in the same patch at the borders of the balls  (GIGI at this point assume a ball can collide with only 1 ball)
-    ; the following conditions are imposed on collision candidates:
-    ;   1. they must have a lower who number than my own, because collision
-    ;      code is asymmetrical: it must always happen from the point of view
-    ;      of just one ball.
-    ;      Update: Balls now keep track with who they collided with in current tick, instead of checking for who numbers.
-    ;   2. they must not be the same ball that we last collided with on
-    ;      this patch, so that we have a chance to leave the patch after we've
-    ;      collided with someone.
-
-  ;ask collision-candidates [
-  ;  if ball-collides-with myself [
-  ask balls in-radius 3 with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
-  ;ask (in-radius-candidates 3) with [member? self balls and (((xcor - [xcor] of myself) ^ 2 + (ycor - [ycor] of myself) ^ 2) < (([size] of myself) ^ 2))] [
-      if should-perform-collision-with myself [
-      ask myself [perform-collision myself]; set last-collision  myself]
-        ;set last-collision myself
-      ]
-  ]
-  ;  ]
-  ;]
-end
-
 to-report balls-belong-to-same-population [ball1 ball2]
   report [population-num] of ball1 = [population-num] of ball2
-end
-
-to-report collision-heading-change [other-ball]
-  report ifelse-value balls-belong-to-same-population self other-ball
-                       [prop "ball-heading"] [prop "other-ball-heading"]
-end
-
-to-report collision-speed-change [other-ball]
-  report ifelse-value balls-belong-to-same-population self other-ball
-                       [prop "ball-speed"] [prop "other-ball-speed"]
-end
-
-to perform-collision-heading-change-with [other-ball]
-  let heading-change collision-heading-change other-ball
-  let speed-change collision-speed-change other-ball
-  (ifelse
-    (heading-change = "no change")[]
-    (heading-change = "turn left")[  set heading (heading - 90) ask other-ball [set heading (heading - 90)]]
-    (heading-change = "turn right")[ set heading (heading + 90 ) ask other-ball [set heading (heading + 90)]]
-    ((heading-change = "collide") and (speed-change = "collide")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
-    ((heading-change = "attract") and (speed-change = "attract")) [collide-with other-ball ]   ; changes heading and speed of BOTH  balls
-  )
-end
-
-to perform-collision-speed-change-with [other-ball]
-  let speed-change collision-speed-change other-ball
-  let heading-change collision-heading-change other-ball
-  (ifelse
-    (speed-change = "zero")    [set speed 0 ask other-ball [set speed 0]]
-    (speed-change = "increase")[set speed speed + collision-speed-delta ask other-ball [set speed speed + collision-speed-delta]]
-    (speed-change = "decrease")[set speed speed - collision-speed-delta ask other-ball [set speed speed - collision-speed-delta]]
-    ((speed-change = "collide") and (heading-change != "collide")) or ((speed-change != "collide") and (heading-change = "collide"))
-                      [user-message (word "You cannot pair non-collision heading change with collision speed change.")]
-    ((speed-change = "attract") and (heading-change != "attract")) or ((speed-change != "attract") and (heading-change = "attract"))
-                      [user-message (word "You cannot pair non-attraction heading change with attraction speed change.")]
-  )
-end
-
-;ball procedure
-to perform-collision [other-ball]
-  perform-collision-heading-change-with other-ball
-  perform-collision-speed-change-with other-ball
 end
 
 to collide-with [other-ball] ;;
@@ -3009,20 +2865,6 @@ to update-electricity   ; updates the per patch gravity field vector by adding t
   ]
 end
 
-to-report own-population-repels-or-attracts-ball
-  report member? prop "ball-heading" ["repel" "attract" "repel and attract"]
-end
-
-to-report other-populations-repel-or-attract-ball
-  let other-populations remove population-num population-numbers
-  foreach other-populations [population -> if population-repels-or-attracts-other-populations? population [report true]]
-  report false
-end
-
-to-report is-ball-affected-by-repel-or-attract-forces
-  report own-population-repels-or-attracts-ball or other-populations-repel-or-attract-ball
-end
-
 to-report balls-of [population]
   report table:get-or-default population-balls population no-turtles
 end
@@ -3065,55 +2907,6 @@ to apply-forces-acting-on-ball
   if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
 end
 
-to-report force-vector-acting-on-ball
-  let my-field-x 0 ; null my field data
-  let my-field-y 0 ; null my field data
-  let  mypos-x xcor
-  let  mypos-y ycor
-  let distance-between-balls 0
-  let force 0 ; will hold the LJ force between 2 balls
-
-  ask other balls
-  [
-    let heading-change collision-heading-change myself
-    let speed-change collision-speed-change myself
-
-    if ((heading-change = "repel") and (speed-change = "repel")) [ ; add repulsion factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set my-field-x  (my-field-x -   (xcor - mypos-x) / (distance-between-balls ^ 3)  * repulsion-strength)
-      set my-field-y  (my-field-y -   (ycor - mypos-y) / (distance-between-balls ^ 3)  * repulsion-strength)
-    ]
-    if ((heading-change = "attract") and (speed-change = "attract")) [ ; add attraction factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set my-field-x  (my-field-x  +   (xcor - mypos-x) / (distance-between-balls ^ 3)  * attraction-strength)
-      set my-field-y  (my-field-y  +   (ycor - mypos-y) / (distance-between-balls ^ 3)  * attraction-strength)
-    ]
-    if ((heading-change = "repel and attract") and (speed-change = "repel and attract")) [ ; add leonard-Jones factor to my field
-      set distance-between-balls  sqrt max ( list ((xcor - mypos-x) ^ 2 + (ycor - mypos-y) ^ 2) 1)  ; dist holds distance to patch but does not alllow 0
-      set LJsigma size  ; set this LJ param to be size of ball
-      set force ((24 * LJeps / LJsigma ^ 2 * ( 2 * (LJsigma / (distance-between-balls )) ^ 14 - (LJsigma / (distance-between-balls)) ^ 8 ) ))  ;LJ formula from Eilon's code
-      set my-field-x  (my-field-x    - force *  (xcor - mypos-x) / (distance-between-balls))     ; (xcor - mypos-x) / (dist)  is sin(theta)
-      set my-field-y  (my-field-y    - force *  (ycor - mypos-y) / (distance-between-balls))     ; (ycor - mypos-y) / (dist)  is cos(theta)
-    ]
-  ]
-
-  let vx (sin heading * speed) + (my-field-x * tick-delta)
-  let vy (cos heading * speed) + (my-field-y * tick-delta)
-  report (list vx vy)
-end
-
-
-
-to factor-repel-and-attract-forces  ; turtle procedure consider repel and attract forces
-  if is-ball-affected-by-repel-or-attract-forces [
-    let force-vector force-vector-acting-on-ball
-    let vx first force-vector
-    let vy last force-vector
-    set speed sqrt ((vy ^ 2) + (vx ^ 2))
-    if ((vx != 0) or (vy != 0))  [set heading atan vx vy]
-  ]
-end
-
 to apply-electric-field [field-strength]
   if field-number > 0 [
     let vx ((sin heading) * speed) + ([field-x] of patch-here * field-strength * tick-delta)
@@ -3138,25 +2931,42 @@ to apply-force [x y] ; turtle procedure
   set heading atan vx vy
 end
 
-to factor-gravity  ; turtle procedure
-  if is-affected-by-gravity [apply-gravity (- prop "gravity")]
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;STICK;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;to stick
-;  set stick-to-wall? true
-;        set leader self
-;  if has-wall [set stuck-on-wall? true]
-;
-;end
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;earser;;;;;;;;;;;;;;;
 
+to startup
+  setup-logging "logFile"
+end
+
+to-report save-global-variables
+  ; returns a key value table of global variables and their values
+  let global-variables table:from-list (list
+    (list"-log" -log)
+    (list"logged-pictures" logged-pictures)
+    (list"log-file-name" log-file-name)
+    (list"log-picture-prefix" log-picture-prefix)
+    (list"prev-command-name" prev-command-name)
+    (list"prev-line" prev-line)
+    (list"log-enabled" log-enabled)
+  )
+  report global-variables
+end
+
+to load-global-variables [variables]
+  set -log table:get variables "-log"
+  set logged-pictures table:get variables "logged-pictures"
+  set log-file-name table:get variables "log-file-name"
+  set log-picture-prefix table:get variables "log-picture-prefix"
+  set prev-command-name table:get variables "prev-command-name"
+  set prev-line table:get variables "prev-line"
+  set log-enabled table:get variables "log-enabled"
+end
+
 to setup
+  let saved-globals save-global-variables
   clear-all
   reset-ticks
   initialize-world
+  load-global-variables saved-globals
   update-ball-population-properties-defined-in-nettango-blocks
   setup-brush
   recolor-all-patches
@@ -3171,58 +2981,52 @@ to-report delimit [-left delimiter -right]
   report (word -left delimiter -right)
 end
 
-to-report delimit-comma [-left -right]
-  report delimit -left "," -right
-end
-
-to-report delimit-hashtag [-left -right]
-  report delimit -left ",#," -right
-end
-
-to-report delimited-population-settings [population -settings]
-  report reduce delimit-comma map [property -> pprop population property] -settings
-end
-
-to-report delimited-all-populations-settings [-settings]
-  report reduce delimit-hashtag map [population -> delimited-population-settings population -settings] population-numbers
-end
-
-to-report delimited-all-populations-numerous-settings [settings-list]
-  report reduce delimit-hashtag map [settings -> delimited-all-populations-settings settings] settings-list
-end
-
-to-report populations-settings-delimited-string
-  let properties ["size" "color" "speed" "heading"]
-  let actions ["move"]
-  let interactions ["wall-heading" "wall-speed" "ball-heading" "ball-speed"
-        "other-ball-heading" "other-ball-speed" "gravity" "electric-field"]
-  report delimited-all-populations-numerous-settings (list properties actions interactions)
-end
-
-to-report count-balls-in-population [population]
-  report count balls with [population-num = population]
-end
-
-to-report amount-of-balls-being-traced
-  report count balls with [pen-mode = "down"]
-end
-
-to-report delimited-population-count
-  report reduce delimit-comma map count-balls-in-population population-numbers
-end
-
-to-report delimited-log-string
-  report (word populations-settings-delimited-string "," amount-of-balls-being-traced "," delimited-population-count "," background-color)
+to-report join [delimiter -list]
+  report reduce [[result next] -> delimit result delimiter next] -list
 end
 
 to-report log-header
-   report (word " Date = "  date-and-time " , Command Name, ticks, ball1-Properties,  balls1-Size,balls1-color,balls1-init-speed,balls1-init-heading,"
-                " balls2-Properties , balls2-Size,balls2-color,balls2-init-speed,balls2-init-heading,"
-                "balls1-Actions , balls1-forward , balls2-Actions , balls2-forward,"
-                " balls1-Interactions, if-hit-wall-heading1,if-hit-wall-speed1,if-meet-ball-heading1,if-meet-ball-speed1"
-                ", balls2-Interactions,if-hit-wall-heading2,if-hit-wall-speed2,if-meet-ball-heading2,if-meet-ball-speed2 , "
-                " balls1&balls2-Interactions ,if-meet-ball-heading ,if-meet-ball-speed , , trace-a-ball? ,num-balls1 , num-balls2 , background-color, Electric-Field-Strength,"
-                " Gravity-field " )
+  report join " , " (sentence ["timestamp" "time-elapsed" "command" "ticks"] properties-header blocks-header ball-count-header ["background-color" "wall-collision"])
+end
+
+to-report log-current-state [command-name]
+  report (sentence (list date-and-time timer command-name ticks) properties-log blocks-log ball-count-log (list chosen-background-color התנגשויות-בקיר))
+end
+
+to-report properties-log
+  let -properties-log []
+  foreach population-numbers [population ->
+    foreach table:keys initialized-population-properties [property ->
+      set -properties-log lput pprop population property -properties-log
+    ]
+  ]
+  report -properties-log
+end
+
+to-report blocks-log
+  report map [population -> table:get curr-ast-by-population population] population-numbers
+end
+
+to-report ball-count-log
+  report map [population -> (word "pop" population "-ball-count")] population-numbers
+end
+
+to-report properties-header
+  let header []
+  foreach population-numbers [population ->
+    foreach table:keys initialized-population-properties [property ->
+      set header lput (word "pop" population "-" property) header
+    ]
+  ]
+  report header
+end
+
+to-report blocks-header
+  report map [population -> (word "pop" population "-blocks")] population-numbers
+end
+
+to-report ball-count-header
+  report map [population -> (word "pop" population "-ball-count")] population-numbers
 end
 
 to set-new-log-filename [fileName]
@@ -3233,9 +3037,11 @@ to set-new-log-filename [fileName]
 end
 
 to setup-logging  [fileName]
+  set log-enabled true
   set-new-log-filename fileName
   if log-enabled [
-    set -log log-header
+    set -log ""
+    append-to-log log-header
     send-to:file log-file-name -log
   ]
 end
@@ -3253,13 +3059,13 @@ end
 
 to-report test-if-log-output [command-name]
   ifelse log-enabled [
-    let new-line (word command-name  ",#," delimited-log-string)
+    let new-line (sentence (list command-name) properties-log blocks-log ball-count-log (list chosen-background-color התנגשויות-בקיר))
     ifelse (new-line = prev-line) [report FALSE] [report TRUE]
   ] [report false]
 end
 
 to append-to-log [new-log]
- set -log word -log new-log
+ set -log (word -log new-log "\n")
 end
 
 to log-command [command-name]
@@ -3270,12 +3076,13 @@ to-report time-elapsed
   report ticks * tick-delta
 end
 
+
 to log-output [command-name]
   if log-enabled [
-    append-to-log (word timer "," command-name "," time-elapsed ",#," delimited-log-string)
+    append-to-log join " , " (sentence (list date-and-time timer command-name ticks) properties-log blocks-log ball-count-log (list chosen-background-color התנגשויות-בקיר))
     send-to:file log-file-name -log
     set prev-command-name command-name
-    set prev-line (word command-name  ",#,"  delimited-log-string)
+    set prev-line (sentence (list command-name) properties-log blocks-log ball-count-log (list chosen-background-color התנגשויות-בקיר))
   ]
 end
 
@@ -3289,8 +3096,8 @@ end
 
 to log-blocks
   if log-enabled [
-    append-to-log (word timer ", blocks-updated ," time-elapsed ",# \n\n," blocks-string)
-    send-to:file log-file-name -log
+    ;append-to-log (word timer ", blocks-updated ," time-elapsed ",# \n\n," blocks-string)
+    ;send-to:file log-file-name -log
   ]
 end
 
