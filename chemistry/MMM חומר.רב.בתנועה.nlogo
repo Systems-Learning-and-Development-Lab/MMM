@@ -256,6 +256,553 @@ to-report global-variable-values
   )
 end
 
+to set-shape-molecule-ha
+  set shape "empty"
+  kill-existing-compound-shapes
+  let h hatch-compound-shape
+  let a hatch-compound-shape
+  ask h [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    tie-compound-shape
+  ]
+  ask a [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h 315 ([size] of h ) / 2
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-ao
+  set shape "empty"
+  kill-existing-compound-shapes
+  let a hatch-compound-shape
+  let o hatch-compound-shape
+  let ao-width nth-size 0 + nth-size 1
+  ask a [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (ao-width / 2))
+    tie-compound-shape
+  ]
+  ask o [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    set xcor xcor + ((ao-width / 2) - (size / 2))
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-no2
+  set shape "empty"
+  kill-existing-compound-shapes
+  let n hatch-compound-shape
+  let o-right hatch-compound-shape
+  let o-left hatch-compound-shape
+  let no2-height nth-size 0 + ((nth-size 1) * 0.7)
+  ask n [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set ycor ycor + ((no2-height / 2) - (size / 2))
+    tie-compound-shape
+  ]
+  ask o-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 135 ((([size] of n ) / 2) + (size * 0.3))
+    tie-compound-shape
+  ]
+  ask o-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 225 ((([size] of n ) / 2) + (size * 0.3))
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-h2o
+  set shape "empty"
+  kill-existing-compound-shapes
+  let h hatch-compound-shape
+  let o-right hatch-compound-shape
+  let o-left hatch-compound-shape
+  ask h [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    tie-compound-shape
+  ]
+  ask o-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h 135 ([size] of h ) / 2
+    tie-compound-shape
+  ]
+  ask o-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h 225 ([size] of h ) / 2
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-co2
+  set shape "empty"
+  kill-existing-compound-shapes
+  let o-right hatch-compound-shape
+  let o-left hatch-compound-shape
+  let c hatch-compound-shape
+  ask c [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    tie-compound-shape
+  ]
+  ask o-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c 90 ((([size] of c ) / 2) + (size * 0.35))
+    tie-compound-shape
+  ]
+  ask o-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c 270 ((([size] of c ) / 2) + (size * 0.35))
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-nh3
+  set shape "empty"
+  kill-existing-compound-shapes
+  let n hatch-compound-shape
+  let h-right hatch-compound-shape
+  let h-mid hatch-compound-shape
+  let h-left hatch-compound-shape
+  ask n [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    tie-compound-shape
+  ]
+  ask h-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 125 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+  ask h-mid [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 180 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+  ask h-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 235 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-ch4
+  set shape "empty"
+  kill-existing-compound-shapes
+  let n hatch-compound-shape
+  let h-right hatch-compound-shape
+  let h-mid hatch-compound-shape
+  let h-left hatch-compound-shape
+  let h-top hatch-compound-shape
+  ask n [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    tie-compound-shape
+  ]
+  ask h-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 110 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+  ask h-mid [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 180 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+  ask h-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 250 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+  ask h-top [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n 0 ([size] of n ) / 2
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-ch3oh
+  set shape "empty"
+  kill-existing-compound-shapes
+  let h-left hatch-compound-shape
+  let h-top hatch-compound-shape
+  let h-right hatch-compound-shape
+  let h-bot hatch-compound-shape
+  let o hatch-compound-shape
+  let c hatch-compound-shape
+  let width nth-size 0 + ((nth-size 1) * 0.8) + ((nth-size 2) * 0.8)
+  ask h-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (width / 2))
+    tie-compound-shape
+  ]
+  ask c [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h-left 90 ((([size] of h-left) * 0.8 / 2) + (size / 2))
+    tie-compound-shape
+  ]
+  ask h-top [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c 0 ((([size] of c)/ 2) + (size / 2))
+    tie-compound-shape
+  ]
+  ask h-bot [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c 180 ((([size] of c)/ 2) + (size / 2))
+    tie-compound-shape
+  ]
+  ask o [
+    set size [nth-size 2] of myself
+    set color [nth-color 2] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c 90 ((([size] of c)/ 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance o 90 ((([size] of o)/ 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-n2h4
+  set shape "empty"
+  kill-existing-compound-shapes
+  let n-right hatch-compound-shape
+  let n-left hatch-compound-shape
+  let h-top-left hatch-compound-shape
+  let h-bot-left hatch-compound-shape
+  let h-top-right hatch-compound-shape
+  let h-bot-right hatch-compound-shape
+  let width (nth-size 0) * 2 * 0.9
+  ask n-left [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (width / 2))
+    tie-compound-shape
+  ]
+  ask h-top-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-left 315 (([size] of n-left ) / 2)
+    tie-compound-shape
+  ]
+  ask h-bot-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-left 225 (([size] of n-left ) / 2)
+    tie-compound-shape
+  ]
+  ask n-right [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set xcor xcor + ((width / 2) - (size / 2))
+    tie-compound-shape
+  ]
+  ask h-top-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-right 45 (([size] of n-right ) / 2)
+    tie-compound-shape
+  ]
+  ask h-bot-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-right 135 (([size] of n-right ) / 2)
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-n2o4
+  set shape "empty"
+  kill-existing-compound-shapes
+  let n-right hatch-compound-shape
+  let n-left hatch-compound-shape
+  let o-top-left hatch-compound-shape
+  let o-bot-left hatch-compound-shape
+  let o-top-right hatch-compound-shape
+  let o-bot-right hatch-compound-shape
+  let width (nth-size 0) * 2 * 0.9
+  ask n-left [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (width / 2))
+    tie-compound-shape
+  ]
+  ask o-top-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-left 315 (([size] of n-left ) / 2)
+    tie-compound-shape
+  ]
+  ask o-bot-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-left 225 (([size] of n-left ) / 2)
+    tie-compound-shape
+  ]
+  ask n-right [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    set xcor xcor + ((width / 2) - (size / 2))
+    tie-compound-shape
+  ]
+  ask o-top-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-right 45 (([size] of n-right ) / 2)
+    tie-compound-shape
+  ]
+  ask o-bot-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance n-right 135 (([size] of n-right ) / 2)
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-candle
+  set shape "empty"
+  kill-existing-compound-shapes
+  let h-top-left hatch-compound-shape
+  let h-top-right hatch-compound-shape
+  let h-bot-left hatch-compound-shape
+  let h-bot-right hatch-compound-shape
+  let h-left hatch-compound-shape
+  let h-right hatch-compound-shape
+  let c-right hatch-compound-shape
+  let c-left hatch-compound-shape
+  let width (nth-size 1) * 2 * 0.8 + (nth-size 0) * 2 * 0.9
+
+  ask h-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (width / 2))
+    tie-compound-shape
+  ]
+  ask c-left [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h-left 90 ((([size] of h-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask c-right [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 90 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 90 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-top-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 0 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-bot-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 180 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-top-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 0 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-bot-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 180 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+end
+
+to set-shape-molecule-alcohol
+  set shape "empty"
+  kill-existing-compound-shapes
+  let h-top-left hatch-compound-shape
+  let h-top-right hatch-compound-shape
+  let h-bot-left hatch-compound-shape
+  let h-bot-right hatch-compound-shape
+  let h-left hatch-compound-shape
+  let h-right hatch-compound-shape
+  let c-right hatch-compound-shape
+  let c-left hatch-compound-shape
+  let o hatch-compound-shape
+  let width (nth-size 1) * 2 * 0.8 + (nth-size 0) * 2 * 0.9 + (nth-size 2) * 0.8
+
+  ask h-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    set xcor xcor + ((size / 2) - (width / 2))
+    tie-compound-shape
+  ]
+  ask o [
+    set size [nth-size 2] of myself
+    set color [nth-color 2] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance h-left 90 ((([size] of h-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask c-left [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance o 90 ((([size] of o ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask c-right [
+    set size [nth-size 0] of myself
+    set color [nth-color 0] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 90 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 90 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-top-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 0 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-bot-left [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-left 180 ((([size] of c-left ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-top-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 0 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+  ask h-bot-right [
+    set size [nth-size 1] of myself
+    set color [nth-color 1] of myself
+    set shape "atom"
+    offset-xy-by-heading-and-distance c-right 180 ((([size] of c-right ) / 2) + ((size / 2) * 0.8))
+    tie-compound-shape
+  ]
+end
+
+to offset-xy-by-heading-and-distance [source -heading -distance]
+  move-to source
+  set heading -heading
+  fd -distance
+end
+
+to tie-compound-shape
+  create-compound-shape-with myself [
+    tie
+    hide-link
+  ]
+end
+
+to-report hatch-compound-shape
+  let hatched-shape nobody
+  hatch-ball-compound-shapes 1 [
+    set shape "empty"
+    set size 0
+    set color white
+    set label ""
+    set label-color white
+    pen-up
+    set hatched-shape self
+  ]
+  report hatched-shape
+end
+
 to update-ball-shape-by-default
   ; if ball was formerly a compound shape then need to remove them
   kill-existing-compound-shapes
@@ -298,6 +845,11 @@ end
 to-report nth-size [n]
   let sizes population-sizes population-num
   report ifelse-value (n >= length sizes) [1] [item n sizes]
+end
+
+to-report nth-color [n]
+  let colors population-colors population-num
+  report ifelse-value (n >= length colors) [gray] [item n colors]
 end
 
 to create-compound-shape [base-name part-name -color size-index]
@@ -610,18 +1162,19 @@ to update-ball-shape
   ;resize-ball-according-to-shape
   let shape-name prop "shape"
   (ifelse
-    shape-name = "molecule-ha" [update-compound-shape "molecule-ha" ["h" "a"] ["h" "a"]]
-    shape-name = "molecule-ao" [update-compound-shape "molecule-ao" ["a" "o"] ["a" "o"]]
-    shape-name = "molecule-no2" [update-compound-shape "molecule-no2" ["n" "o2"] ["o2" "n"]]
-    shape-name = "molecule-h2o" [update-compound-shape "molecule-h2o" ["h2" "o"] ["o" "h2"]]
-    shape-name = "molecule-co2" [update-compound-shape "molecule-co2" ["c" "o2"] ["o2" "c"]]
-    shape-name = "molecule-nh3" [update-compound-shape "molecule-nh3" ["n" "h3"] ["n" "h3"]]
-    shape-name = "molecule-ch4" [update-compound-shape "molecule-ch4" ["c" "h4"] ["c" "h4"]]
-    shape-name = "molecule-ch3oh" [update-compound-shape "molecule-ch3oh" ["c" "h4" "o"] ["h4" "o" "c"]]
-    shape-name = "molecule-n2h4" [update-compound-shape "molecule-n2h4" ["n2" "h4"] ["h4" "n2"]]
-    shape-name = "molecule-n2o4" [update-compound-shape "molecule-n2o4" ["n2" "o4"] ["o4" "n2"]]
-    shape-name = "molecule-candle" [update-compound-shape "molecule-candle" ["c" "h"] ["c" "h"]]
-    shape-name = "molecule-alcohol" [update-compound-shape "molecule-alcohol" ["c2" "h5" "oh"] ["c2" "oh" "h5"]]
+    shape-name = "molecule-a2" [set-shape-molecule-ao]
+    shape-name = "molecule-ha" [set-shape-molecule-ha]
+    shape-name = "molecule-ao" [set-shape-molecule-ao]
+    shape-name = "molecule-no2" [set-shape-molecule-no2]
+    shape-name = "molecule-h2o" [set-shape-molecule-h2o]
+    shape-name = "molecule-co2" [set-shape-molecule-co2]
+    shape-name = "molecule-nh3" [set-shape-molecule-nh3]
+    shape-name = "molecule-ch4" [set-shape-molecule-ch4]
+    shape-name = "molecule-ch3oh" [set-shape-molecule-ch3oh]
+    shape-name = "molecule-n2h4" [set-shape-molecule-n2h4]
+    shape-name = "molecule-n2o4" [set-shape-molecule-n2o4]
+    shape-name = "molecule-candle" [set-shape-molecule-candle]
+    shape-name = "molecule-alcohol" [set-shape-molecule-alcohol]
     [update-ball-shape-by-default]
   )
 end
@@ -5094,8 +5647,8 @@ increase-depth if true [
   add-node "name" (list (list "name" ""))
   add-node "color" (list (list "color" (15)))
   add-node "color" (list (list "color" (55)))
-  add-node "size" (list (list "size" 3))
-  add-node "size" (list (list "size" 6))
+  add-node "size" (list (list "size" 2))
+  add-node "size" (list (list "size" 1))
   add-node "shape" (list (list "shape" "molecule-h2o"))
   add-node "initial-heading" (list (list "heading" "random"))
   add-node "initial-speed" (list (list "speed" 10))
@@ -5683,6 +6236,12 @@ arrow
 true
 0
 Polygon -7500403 true true 150 0 0 150 105 150 105 293 195 293 195 150 300 150
+
+atom
+false
+0
+Circle -7500403 true true 0 0 300
+Circle -16777216 false false 0 0 300
 
 ball
 true
