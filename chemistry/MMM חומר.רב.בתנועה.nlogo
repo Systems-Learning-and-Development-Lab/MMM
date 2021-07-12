@@ -1758,7 +1758,13 @@ to toggle-hidden-shown
   ifelse hidden? [show-turtle] [hide-turtle]
 end
 
+to remove-flash-if-turtle-died
+  let agent-being-flashed table:get data "agent-being-flashed"
+  if agent-being-flashed = nobody [die]
+end
+
 to animate-flash
+  remove-flash-if-turtle-died
   if should-flash [
     toggle-hidden-shown
   ]
@@ -1850,7 +1856,9 @@ to-report hatch-flashing-animation [-shape -size -color -lifespan]
     set color -color
     pen-up
     set data table:from-list (list
-      (list "flash-every-n-ticks" 1))
+      (list "flash-every-n-ticks" 1)
+      (list "agent-being-flashed" myself)
+    )
   ]
   report -animation
 end
