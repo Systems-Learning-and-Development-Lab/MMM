@@ -276,6 +276,22 @@ to set-shape-molecule-ha
   ]
 end
 
+to set-size-relative-to-compound-shapes
+  if any? compound-shape-neighbors [
+    set size (bounding-square-size compound-shape-neighbors) * 0.8
+  ]
+end
+
+to-report bounding-square-size [agents]
+  let max-xcor max [xcor + (size / 2)] of agents
+  let min-xcor min [xcor - (size / 2)] of agents
+  let width max-xcor - min-xcor
+  let max-ycor max [ycor + (size / 2)] of agents
+  let min-ycor min [ycor - (size / 2)] of agents
+  let height max-ycor - min-ycor
+  report max (list width height)
+end
+
 to set-shape-molecule-ao
   set shape "empty"
   kill-existing-compound-shapes
@@ -1177,6 +1193,7 @@ to update-ball-shape
     shape-name = "molecule-alcohol" [set-shape-molecule-alcohol]
     [update-ball-shape-by-default]
   )
+  set-size-relative-to-compound-shapes
 end
 
 to reset-sum-of-forces-acting-on-balls
@@ -2057,7 +2074,7 @@ to parse-add-block [node population]
 end
 
 to check-if-objects-that-meet-are-in-radius [objects]
-  let -objects-in-radius objects-in-radius objects 1.5
+  let -objects-in-radius objects-in-radius objects (size * 0.87)
   set are-objects-in-radius ifelse-value -objects-in-radius != false [true] [false]
   set objects-that-are-in-radius ifelse-value -objects-in-radius != false [turtle-set -objects-in-radius] [no-turtles]
 end
