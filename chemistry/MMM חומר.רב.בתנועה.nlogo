@@ -7,6 +7,7 @@ globals [
   chosen-background-color
   verbal
   balls-die-when-they-leave-world
+  stop-model-execution-next-tick
 
   ;==== balls ====
   wall-collisions    ; count wall collisions for each population.
@@ -191,6 +192,7 @@ end
 to initialize-global-values
   set verbal true
 
+  set stop-model-execution-next-tick false
   set balls-recently-added-in-add-block no-turtles
   set illegal-block-change false
   set balls-die-when-they-leave-world true
@@ -213,7 +215,7 @@ to initialize-global-values
   set logged-pictures 0
   set wall-collisions table:make
   set population-balls table:make
-  set max-balls 2000
+  set max-balls 300
   set collision-speed-delta 0.5;
   set max-speed 20
   set look-ahead-wall-collision 0.6
@@ -1164,6 +1166,10 @@ to notify-user-unable-to-create-balls-due-to-maximum-capacity
   dialog:user-message (word "Unable to create more balls, maximum capacity of " max-balls " reached.") []
 end
 
+to notify-user-maximum-ball-capacity-reached
+  dialog:user-message (word "לא ניתן ליצור עוד כדורים. המגבלה עד " max-balls " כדורים") []
+end
+
 to create-balls-if-under-maximum-capacity [population amount -xcor -ycor]
   let amount-of-balls-to-create amount-of-balls-that-can-be-created-given-maximum-capacity amount
   let unable-to-create-balls-due-to-maximum-capacity ifelse-value (amount-of-balls-to-create = 0) and (amount > 0) [true] [false]
@@ -2086,7 +2092,18 @@ to-report objects-that-meet-are-in-radius [objects]
   report are-objects-in-radius
 end
 
+to-report balls-at-max-capacity
+  report ball-count = max-balls
+end
+
 to run-add-block [node population objects]
+  if balls-at-max-capacity [
+   if not stop-model-execution-next-tick [
+      notify-user-maximum-ball-capacity-reached
+      set stop-model-execution-next-tick true
+    ]
+   stop
+  ]
   if objects-that-meet-are-in-radius objects [
     let name node-name node
     let parameters node-parameters node
@@ -2633,7 +2650,15 @@ to lp [string]
   ;]
 end
 
+to-report ball-count
+  report sum map [population -> count balls-of population] population-numbers
+end
+
 to go
+  if stop-model-execution-next-tick [
+    set stop-model-execution-next-tick false
+    stop
+  ]
   update-ball-population-properties-defined-in-nettango-blocks
   ifelse existing-balls-have-defined-action-in-blocks [
     on-start-of-turn
@@ -6079,7 +6104,7 @@ MONITOR
 560
 610
 קבוצה 1
-count balls with [population-num = 1]
+count balls-of 1
 17
 1
 11
@@ -6090,7 +6115,7 @@ MONITOR
 630
 610
 קבוצה 2
-count balls with [population-num = 2]
+count balls-of 2
 17
 1
 11
@@ -6194,7 +6219,7 @@ MONITOR
 594
 663
 קבוצה 3
-count balls with [population-num = 3]
+count balls-of 3
 17
 1
 11
